@@ -24,13 +24,13 @@ import {
 } from 'recharts';
 
 const StatMiniCard = React.memo(({ label, value, icon, color, unit, trend }: { label: string, value: string | number, icon: React.ReactNode, color: string, unit?: string, trend?: string }) => (
-  <Card className={`flex flex-col justify-between h-40 border-b-4 ${color} group hover:shadow-2xl transition-all !p-6 bg-white relative overflow-hidden !rounded-[32px]`}>
+  <Card className={`flex flex-col justify-between h-40 border-b-4 ${color} group hover:shadow-2xl transition-all !p-6 bg-white dark:bg-slate-800 relative overflow-hidden !rounded-[32px]`}>
     <div className="flex justify-between items-start relative z-10">
         <div className="space-y-1">
-            <p className="text-[11px] font-black text-slate-400 uppercase tracking-[2px] opacity-80">{label}</p>
-            <h2 className="text-2xl font-black text-[#1E4D4D] leading-none">{(value ?? 0).toLocaleString()} <span className="text-[11px] opacity-30 font-black uppercase">{unit}</span></h2>
+            <p className="text-[11px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-[2px] opacity-80">{label}</p>
+            <h2 className="text-2xl font-black text-[#1E4D4D] dark:text-emerald-400 leading-none">{(value ?? 0).toLocaleString()} <span className="text-[11px] opacity-30 font-black uppercase">{unit}</span></h2>
         </div>
-        <div className={`w-12 h-12 bg-slate-50 text-[#1E4D4D] rounded-2xl flex items-center justify-center text-[24px] shadow-inner group-hover:scale-110 transition-transform`}>{icon}</div>
+        <div className={`w-12 h-12 bg-slate-50 dark:bg-slate-900 text-[#1E4D4D] dark:text-emerald-400 rounded-2xl flex items-center justify-center text-[24px] shadow-inner group-hover:scale-110 transition-transform`}>{icon}</div>
     </div>
     {trend && (
         <div className="flex items-center gap-1 mt-4 relative z-10">
@@ -137,10 +137,10 @@ const Dashboard: React.FC<{ lang?: 'ar', onNavigate?: (view: any, params?: any) 
   return (
     <div className="min-h-full h-full flex flex-col bg-[#F8FAFA] font-cairo overflow-hidden w-full relative" dir="rtl">
       {/* Modern Centered Branding Header */}
-      <div className="mt-[5px] px-6 sm:px-10 py-5 sm:py-12 bg-white border-b border-slate-100 flex flex-col items-center justify-center gap-4 sm:gap-8 shrink-0 z-20 shadow-sm relative overflow-hidden w-full">
+      <div className="mt-[5px] px-6 sm:px-10 py-5 sm:py-12 bg-white dark:bg-slate-800 border-b border-slate-100 dark:border-slate-700 flex flex-col items-center justify-center gap-4 sm:gap-8 shrink-0 z-20 shadow-sm relative overflow-hidden w-full">
         {/* Decorative background elements */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-slate-50 rounded-full blur-3xl opacity-20 -ml-32 -mb-32"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-50 dark:bg-emerald-900/20 rounded-full blur-3xl opacity-20 -mr-32 -mt-32"></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 bg-slate-50 dark:bg-slate-900/20 rounded-full blur-3xl opacity-20 -ml-32 -mb-32"></div>
 
         <div className="flex flex-col items-center text-center gap-4 relative z-10 w-full max-w-2xl">
           <motion.div 
@@ -149,11 +149,11 @@ const Dashboard: React.FC<{ lang?: 'ar', onNavigate?: (view: any, params?: any) 
             transition={{ delay: 0.2, duration: 0.5 }}
             className="space-y-1"
           >
-            <h2 className="text-3xl font-black text-[#1E4D4D] tracking-tight">أهلاً بك، {user?.User_Name}</h2>
+            <h2 className="text-3xl font-black text-[#1E4D4D] dark:text-emerald-400 tracking-tight">أهلاً بك، {user?.User_Name}</h2>
             <div className="flex items-center justify-center gap-2 mt-2">
-              <div className="flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 rounded-full border border-slate-100 shadow-sm">
-                <Calendar size={14} className="text-slate-400" />
-                <span className="text-[11px] font-bold text-slate-500">{new Date().toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+              <div className="flex items-center gap-1.5 px-4 py-1.5 bg-slate-50 dark:bg-slate-900 rounded-full border border-slate-100 dark:border-slate-700 shadow-sm">
+                <Calendar size={14} className="text-slate-400 dark:text-slate-500" />
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">{new Date().toLocaleDateString('ar-SA', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               </div>
               {stats.riskScore && (
                 <div className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full border shadow-sm ${

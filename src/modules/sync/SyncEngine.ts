@@ -1,5 +1,5 @@
 import { db } from "@/core/db";
-import { rtdb } from "@/config/firebase";
+import { rtdb } from "@/services/firebase";
 import { ref, serverTimestamp, set } from "firebase/database";
 
 export type SyncStatus = 'PENDING' | 'SENDING' | 'FAILED' | 'CONFIRMED' | 'RETRYING';

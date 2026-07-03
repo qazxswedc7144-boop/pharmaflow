@@ -2,7 +2,7 @@
 
 import { db } from "@/core/db";
 import { BranchService } from "@/modules/branches/services/BranchService";
-import { rtdb } from "@/config/firebase";
+import { rtdb } from "@/services/firebase";
 import { ref, onChildAdded, onValue, off, DatabaseReference } from "firebase/database";
 import { SyncEngine } from "@/modules/sync/SyncEngine";
 

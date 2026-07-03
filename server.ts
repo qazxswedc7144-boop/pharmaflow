@@ -75,9 +75,17 @@ async function startServer() {
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
 
   // Attempt connection before starting in the background
-  prisma.$connect()
+  const connectPromise = prisma.$connect();
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Database connection timeout")), 5000));
+  
+  Promise.race([connectPromise, timeoutPromise])
     .then(() => console.log("✅ Database connection initialized successfully."))
-    .catch((e) => console.warn("⚠️ Database connection initialization failed (will retry on first query):", e));
+    .catch((e) => {
+      console.warn("⚠️ Database connection initialization failed (will retry on first query):", e);
+      if (typeof (prisma as any).disable === 'function') {
+        (prisma as any).disable();
+      }
+    });
 
   // Production and Preview HTTP Traffic Logger Diagnostics
   app.use((req, res, next) => {

@@ -17,7 +17,7 @@
     touch-action: manipulation;
   }
   body {
-    background-color: #f8fafc;
+    @apply antialiased text-slate-800 dark:text-slate-100 bg-slate-50 dark:bg-slate-950 font-medium;
     padding-top: env(safe-area-inset-top);
     padding-bottom: env(safe-area-inset-bottom);
     overscroll-behavior: none;
@@ -28,9 +28,6 @@
   }
   html {
     font-family: "Cairo", sans-serif;
-  }
-  body {
-    @apply antialiased text-slate-800 bg-slate-50 font-medium;
   }
 
   /* Hide default calendar icon in date inputs */

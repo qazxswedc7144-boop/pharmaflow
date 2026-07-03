@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Settings, Building2, Users, ShoppingCart, Truck, 
   Package, RefreshCw, Database, ShieldCheck, Code,
-  Search, Save, ArrowRight
+  Search, Save, ArrowRight, CreditCard
 } from 'lucide-react';
 import { LoadingSkeleton } from '../components/shared/SettingsUI';
 
@@ -18,12 +18,14 @@ const InventoryTab = lazy(() => import('../components/tabs/InventoryTab'));
 const SyncTab = lazy(() => import('../components/tabs/SyncTab'));
 const DatabaseTab = lazy(() => import('../components/tabs/DatabaseTab'));
 const SecurityTab = lazy(() => import('../components/tabs/SecurityTab'));
+const SubscriptionTab = lazy(() => import('../components/tabs/SubscriptionTab'));
 const DeveloperTab = lazy(() => import('../components/tabs/DeveloperTab'));
 
 const TABS = [
   { id: 'general', label: 'إعدادات عامة', icon: Settings, component: GeneralTab },
   { id: 'pharmacy', label: 'الصيدلية', icon: Building2, component: PharmacyTab },
   { id: 'users', label: 'المستخدمون', icon: Users, component: UsersTab },
+  { id: 'subscription', label: 'الاشتراك', icon: CreditCard, component: SubscriptionTab },
   { id: 'sales', label: 'المبيعات', icon: ShoppingCart, component: SalesTab },
   { id: 'purchases', label: 'المشتريات', icon: Truck, component: PurchasesTab },
   { id: 'inventory', label: 'المخزون', icon: Package, component: InventoryTab },

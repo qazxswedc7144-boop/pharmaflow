@@ -10,16 +10,16 @@ interface SettingsCardProps {
 }
 
 export const SettingsCard = ({ title, description, children, icon: Icon }: SettingsCardProps) => (
-  <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden mb-6">
-    <div className="p-6 border-b border-slate-50 flex items-center gap-4 bg-slate-50/50">
+  <div className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-700 overflow-hidden mb-6">
+    <div className="p-6 border-b border-slate-50 dark:border-slate-700 flex items-center gap-4 bg-slate-50/50 dark:bg-slate-700/50">
       {Icon && (
-        <div className="w-12 h-12 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
+        <div className="w-12 h-12 rounded-xl bg-indigo-50 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center shrink-0">
           <Icon size={24} />
         </div>
       )}
       <div>
-        <h3 className="text-lg font-bold text-slate-800 font-cairo">{title}</h3>
-        {description && <p className="text-sm text-slate-500 font-cairo mt-1">{description}</p>}
+        <h3 className="text-lg font-bold text-slate-800 dark:text-slate-100 font-cairo">{title}</h3>
+        {description && <p className="text-sm text-slate-500 dark:text-slate-400 font-cairo mt-1">{description}</p>}
       </div>
     </div>
     <div className="p-6 space-y-6">
@@ -67,17 +67,17 @@ interface SettingToggleProps {
 }
 
 export const SettingToggle = ({ label, description, checked, onChange, icon: Icon, disabled = false }: SettingToggleProps) => (
-  <div className={`flex items-center justify-between p-4 bg-white rounded-xl border border-slate-100 hover:border-indigo-100 transition-colors shadow-sm ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
+  <div className={`flex items-center justify-between p-4 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 hover:border-indigo-100 dark:hover:border-indigo-900 transition-colors shadow-sm ${disabled ? 'opacity-50 pointer-events-none' : ''}`}>
     <div className="flex items-center gap-3">
-      {Icon && <div className="p-2 bg-slate-50 rounded-lg text-slate-500"><Icon size={18} /></div>}
+      {Icon && <div className="p-2 bg-slate-50 dark:bg-slate-700 rounded-lg text-slate-500 dark:text-slate-400"><Icon size={18} /></div>}
       <div>
-        <span className="text-sm font-bold text-slate-800 block font-cairo">{label}</span>
-        {description && <span className="text-xs text-slate-500 block mt-0.5 font-cairo">{description}</span>}
+        <span className="text-sm font-bold text-slate-800 dark:text-slate-100 block font-cairo">{label}</span>
+        {description && <span className="text-xs text-slate-500 dark:text-slate-400 block mt-0.5 font-cairo">{description}</span>}
       </div>
     </div>
     <button
       onClick={() => onChange(!checked)}
-      className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${checked ? 'bg-indigo-500' : 'bg-slate-200'}`}
+      className={`relative w-12 h-6 rounded-full transition-colors focus:outline-none ${checked ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
     >
       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-transform ${checked ? 'left-1 translate-x-6' : 'left-1'}`} />
     </button>
@@ -96,15 +96,15 @@ interface SettingInputProps {
 
 export const SettingInput = ({ label, value, onChange, type = 'text', placeholder = '', disabled = false, description }: SettingInputProps) => (
   <div className="space-y-1.5">
-    <label className="block text-sm font-bold text-slate-700 font-cairo">{label}</label>
-    {description && <p className="text-xs text-slate-500 font-cairo mb-2">{description}</p>}
+    <label className="block text-sm font-bold text-slate-700 dark:text-slate-200 font-cairo">{label}</label>
+    {description && <p className="text-xs text-slate-500 dark:text-slate-400 font-cairo mb-2">{description}</p>}
     <input
       type={type}
       value={value || ''}
       onChange={(e) => onChange?.(e.target.value)}
       placeholder={placeholder}
       disabled={disabled}
-      className="w-full px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-cairo disabled:opacity-50"
+      className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 dark:text-white transition-all font-cairo disabled:opacity-50"
     />
   </div>
 );

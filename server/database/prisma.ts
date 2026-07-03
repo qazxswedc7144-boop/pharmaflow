@@ -13,6 +13,7 @@ export class OfflineDatabaseError extends Error {
 
 let basePrisma: PrismaClient | null = null;
 let finalDbUrl: string | undefined = undefined;
+let isDatabaseDisabled = false;
 
 if (hasDb) {
   let databaseUrl = process.env.DATABASE_URL!.trim().replace(/^['"]|['"]$/g, '');
@@ -76,8 +77,16 @@ if (hasDb) {
         url: finalDbUrl,
       },
     },
-    log: ["info", "warn", "error"],
+    log: ["info", "warn"],
   });
+  
+  // Log host for debugging
+  try {
+    const url = new URL(finalDbUrl);
+    console.log(`[Prisma] Connecting to database at: ${url.hostname}`);
+  } catch (e) {
+    console.log(`[Prisma] Connecting to database...`);
+  }
 }
 
 // Helper to handle optional prisma operations
@@ -90,6 +99,7 @@ const prismaClient = basePrisma ? basePrisma.$extends({
   query: {
     $allModels: {
       async $allOperations({ model, operation, args, query }) {
+        if (isDatabaseDisabled) throw new OfflineDatabaseError(model, operation);
         let retries = 2;
         let lastError: any = null;
         while (retries > 0) {
@@ -123,10 +133,12 @@ const prismaClient = basePrisma ? basePrisma.$extends({
             }
           }
         }
+        isDatabaseDisabled = true;
         throw lastError || new Error(`Failed to execute query on ${model}.${operation} after retries.`);
       },
     },
     async $queryRaw({ args, query }) {
+      if (isDatabaseDisabled) throw new Error("Database is disabled.");
       let retries = 2;
       let lastError: any = null;
       while (retries > 0) {
@@ -160,9 +172,11 @@ const prismaClient = basePrisma ? basePrisma.$extends({
           }
         }
       }
+      isDatabaseDisabled = true;
       throw lastError || new Error(`Failed to execute $queryRaw after retries.`);
     },
     async $executeRaw({ args, query }) {
+      if (isDatabaseDisabled) throw new Error("Database is disabled.");
       let retries = 2;
       let lastError: any = null;
       while (retries > 0) {
@@ -196,6 +210,7 @@ const prismaClient = basePrisma ? basePrisma.$extends({
           }
         }
       }
+      isDatabaseDisabled = true;
       throw lastError || new Error(`Failed to execute $executeRaw after retries.`);
     },
   },
@@ -232,7 +247,14 @@ const prismaClient = basePrisma ? basePrisma.$extends({
   }
 });
 
-export const prisma = prismaClient;
+export const prisma = {
+  ...prismaClient,
+  disable: () => {
+    isDatabaseDisabled = true;
+    console.warn("[Prisma] Database client disabled due to persistent connection failures.");
+  },
+  isConnected: () => !isDatabaseDisabled
+};
 
 // Graceful shutdown hooks
 process.on("beforeExit", async () => {
