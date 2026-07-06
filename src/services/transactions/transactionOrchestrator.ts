@@ -1,7 +1,7 @@
 
 import { InvoiceStatus, InvoiceItem } from '@/types';
 import { SystemOrchestrator } from '@/services/system/SystemOrchestrator';
-import { voucherService } from '@/modules/accounting/services/voucherService';
+import { voucherService } from '@features/accounting/services/voucherService';
 
 export interface SaleOptions {
   isCash: boolean;

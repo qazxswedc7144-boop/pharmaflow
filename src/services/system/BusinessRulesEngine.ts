@@ -1,8 +1,8 @@
 
 import { InvoiceStatus, PaymentStatus } from '@/types';
 import { SharedCalculations } from '@/services/integrity/shared/SharedCalculations';
-import { InvoiceWorkflowEngine } from '@/modules/sales/services/InvoiceWorkflowEngine';
-import { AutoJournalMapper } from '@/modules/accounting/services/AutoJournalMapper';
+import { InvoiceWorkflowEngine } from '@features/sales/services/InvoiceWorkflowEngine';
+import { AutoJournalMapper } from '@features/accounting/services/AutoJournalMapper';
 
 /**
  * Business Rules Engine (BRE) - المحرك السيادي لقواعد العمل

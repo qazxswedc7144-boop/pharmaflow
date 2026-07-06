@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { db } from '@/core/db';
-import { alertBotService } from '@/modules/ai/services/alertBotService';
+import { alertBotService } from '@features/ai/services/alertBotService';
 import { MedicineAlert } from '@/types';
 import { useEventBus, useUI } from '@/contexts/AppContext'; 
 import { 

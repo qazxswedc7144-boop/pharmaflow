@@ -3,18 +3,18 @@ import { db } from '@/core/db';
 import { ValidationService as validationService } from '@/services/integrity/ValidationService';
 import { TransactionService } from '@/services/transactions/TransactionService';
 import { FaultService } from '@/services/integrity/FaultService';
-import { FIFOEngine as fifoEngine } from '@/modules/inventory/services/fifoEngine';
-import { StockMovementEngine as stockEngine } from '@/modules/inventory/services/stockMovementEngine';
-import { AccountingEngine as accountingEngine } from '@/modules/accounting/services/AccountingEngine';
+import { FIFOEngine as fifoEngine } from '@features/inventory/services/fifoEngine';
+import { StockMovementEngine as stockEngine } from '@features/inventory/services/stockMovementEngine';
+import { AccountingEngine as accountingEngine } from '@features/accounting/services/AccountingEngine';
 import { InvoiceItem, InvoiceStatus } from '@/types';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { AccountingRepository } from '@/database/repositories/AccountingRepository';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 import { GlobalGuard } from '@/services/security/GlobalGuard';
 import { BackupService } from '@/services/backupService';
 import { FinancialTransactionRepository } from '@/database/repositories/FinancialTransactionRepository';
 import { SupplierRepository } from '@/database/repositories/SupplierRepository';
-import { useAppStore } from '@/hooks/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 import { SubscriptionService } from '@/services/saas/subscriptionService';
 import { generateTransactionUuid } from '@/utils/uuid';
 import { AuditService } from '@/services/system/AuditService';
@@ -93,7 +93,7 @@ export class SystemOrchestrator {
     if (plan === 'TRIAL') {
       const usage = await SubscriptionService.getLocalUsageCount();
       if (usage >= 200 && !isEdit) {
-        useAppStore.getState().setTrialBlockedModalOpen(true);
+        useUIStore.getState().setTrialBlockedModalOpen(true);
         if (transactionUuid) {
           await db.idempotencyKeys.delete(transactionUuid);
         }

@@ -22,14 +22,27 @@ export default defineConfig(({ mode }) => {
       assetsInclude: ['**/*.png', '**/*.jpg', '**/*.svg', '**/*.PNG', '**/*.JPG', '**/*.JPEG', '**/*.jpeg'],
       resolve: {
         alias: {
-          '@': path.resolve(__dirname, 'src')
+          '@': path.resolve(__dirname, 'src'),
+          '@features': path.resolve(__dirname, 'src/features')
         }
       },
       build: {
         outDir: 'dist',
         emptyOutDir: true,
         sourcemap: false,
-        chunkSizeWarningLimit: 1000
+        chunkSizeWarningLimit: 1000,
+        rollupOptions: {
+          output: {
+            manualChunks(id) {
+              if (id.includes('node_modules')) {
+                if (id.includes('recharts')) return 'vendor-recharts';
+                if (id.includes('html2canvas')) return 'vendor-html2canvas';
+                if (id.includes('d3')) return 'vendor-d3';
+                return 'vendor';
+              }
+            }
+          }
+        }
       }
     };
 });

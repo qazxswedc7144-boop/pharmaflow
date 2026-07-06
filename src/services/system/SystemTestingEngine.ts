@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
 import { transactionOrchestrator } from '@/services/transactions/transactionOrchestrator';
-import { InventoryService } from '@/modules/inventory/services/InventoryService';
+import { InventoryService } from '@features/inventory/services/InventoryService';
 import { SystemTestReport, TestResult } from '@/types';
 
 export class SystemTestingEngine {

@@ -1,5 +1,5 @@
 import { db } from '@/core/db';
-import { createJournalEntry } from '@/modules/accounting/services/LedgerEngine';
+import { createJournalEntry } from '@features/accounting/services/LedgerEngine';
 import { safeWhereEqual, safeEquals } from '@/utils/dexieSafe';
 
 export const processTransaction = async (type: string, data: any) => {

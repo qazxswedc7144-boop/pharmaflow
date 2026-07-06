@@ -1,5 +1,5 @@
 import { db } from '@/core/db';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 import { SystemBackup, AuditLogEntry } from '@/types';
 import { EncryptionService, hexToUint8Array, uint8ArrayToHex } from '@/services/security/EncryptionService';
 import { IntegritySweepService } from '@/services/integrity/IntegritySweepService';

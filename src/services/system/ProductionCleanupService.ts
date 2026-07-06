@@ -1,6 +1,6 @@
 
 import { db } from '@/core/db';
-import { PostingEngine } from '@/modules/accounting/services/PostingEngine';
+import { PostingEngine } from '@features/accounting/services/PostingEngine';
 
 export class ProductionCleanupService {
   

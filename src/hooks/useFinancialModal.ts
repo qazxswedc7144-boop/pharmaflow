@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { db } from '@/core/db';
-import { useAppStore } from './useAppStore';
+import { useCustomerStore } from '@/store/useCustomerStore';
+import { useSupplierStore } from '@/store/useSupplierStore';
+import { useAccountingStore } from '@/store/accountingStore';
 
 export type FinancialModalMode = 'sales_invoice' | 'purchase_invoice' | 'receipt_voucher' | 'payment_voucher';
 
@@ -127,8 +129,11 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
     }
 
     // Determine target partner name for transaction audit trail
-    const appStore = useAppStore.getState();
-    const partnerList = dbType === 'SV' || dbType === 'RV' ? appStore.customers : appStore.suppliers;
+    const customers = useCustomerStore.getState().customers;
+    const suppliers = useSupplierStore.getState().suppliers;
+    const journalEntries = useAccountingStore.getState().journalEntries;
+    
+    const partnerList = dbType === 'SV' || dbType === 'RV' ? customers : suppliers;
     const selectedPartner = partnerList.find(p => p.id === formData.partnerId || p.Supplier_ID === formData.partnerId);
     const partnerName = selectedPartner ? selectedPartner.Supplier_Name : formData.partnerId;
 
@@ -137,7 +142,7 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
       : `${modeLabel} - ${partnerName} ${formData.referenceNumber ? `(رقم: ${formData.referenceNumber})` : ''}`;
 
     // 2. Optimistic UI updates
-    const originalJournalEntries = [...appStore.journalEntries];
+    const originalJournalEntries = [...journalEntries];
     const tempEntryId = `TEMP-${Date.now()}`;
     const optimisticEntry = {
       id: tempEntryId,
@@ -154,7 +159,7 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
     };
 
     // Apply optimistic updates to app state
-    useAppStore.setState({ journalEntries: [optimisticEntry, ...originalJournalEntries] });
+    useAccountingStore.setState({ journalEntries: [optimisticEntry, ...originalJournalEntries] });
 
     try {
       // Simulate real asynchronous latency to show loading state nicely
@@ -196,7 +201,7 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
       );
 
       // 4. Update the actual data by running refresh
-      await appStore.refreshData();
+      await useAccountingStore.getState().loadAccounting();
 
       // Form is only cleaned and closed on SUCCESS save!
       resetForm();
@@ -209,7 +214,7 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
       console.error('[UnifiedModal] Async Save failed:', err);
       
       // Rollback optimistic state in case of failure!
-      useAppStore.setState({ journalEntries: originalJournalEntries });
+      useAccountingStore.setState({ journalEntries: originalJournalEntries });
       
       addToast(`خطأ في معالجة الحفظ: ${err.message || 'خطأ غير معروف'} ❌`, 'error');
       set({ isSaving: false });

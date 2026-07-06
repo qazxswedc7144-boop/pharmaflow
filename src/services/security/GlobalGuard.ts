@@ -1,5 +1,5 @@
 
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
 import { ValidationError } from '@/types';
 

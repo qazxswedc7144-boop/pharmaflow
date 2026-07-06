@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Permission } from '@/types';
-import { useAuth } from '@/modules/auth/hooks/useAuth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { can } from '@/utils/permissions';
 
 interface RoleGuardProps {

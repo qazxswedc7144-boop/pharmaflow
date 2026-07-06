@@ -1,9 +1,9 @@
-import { useAppStore } from './useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 
 export const useToast = () => {
-  const addToast = useAppStore((state) => state.addToast);
-  const removeToast = useAppStore((state) => state.removeToast);
-  const toasts = useAppStore((state) => state.toasts);
+  const addToast = useUIStore((state) => state.addToast);
+  const removeToast = useUIStore((state) => state.removeToast);
+  const toasts = useUIStore((state) => state.toasts);
 
   const success = (message: string) => addToast(message, 'success');
   const error = (message: string) => addToast(message, 'error');

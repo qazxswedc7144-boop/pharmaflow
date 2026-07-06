@@ -10,7 +10,7 @@ export * from "./ai.types";
 export * from "./auth.types";
 export * from "./database.types";
 export * from "./branch.types";
-export * from "../modules/events/event.types";
+export * from "@features/events/event.types";
 
 import { SyncableEntity, SubscriptionPlan, TenantStatus } from "./common.types";
 

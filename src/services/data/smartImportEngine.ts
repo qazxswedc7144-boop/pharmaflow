@@ -1,10 +1,10 @@
 
-import { extractTextFromImage } from '@/modules/ai/services/ocrService';
-import { normalizeArabic, cleanInvoiceText } from '@/modules/ai/services/arabicProcessor';
-import { parseInvoice, ParsedInvoice } from '@/modules/ai/services/aiInvoiceParser';
+import { extractTextFromImage } from '@features/ai/services/ocrService';
+import { normalizeArabic, cleanInvoiceText } from '@features/ai/services/arabicProcessor';
+import { parseInvoice, ParsedInvoice } from '@features/ai/services/aiInvoiceParser';
 import { generateFileHash } from '@/utils/hash';
-import { getOCRCache, saveOCRCache } from '@/modules/ai/services/ocrCache';
-import { applyLearning } from '@/modules/ai/services/learningService';
+import { getOCRCache, saveOCRCache } from '@features/ai/services/ocrCache';
+import { applyLearning } from '@features/ai/services/learningService';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Set worker source for pdfjs

@@ -2,7 +2,7 @@
 // FILE: src/workers/reporting.worker.ts
 // ==========================================
 
-import { WorkerTask, WorkerResponse } from '../modules/workers/worker.types';
+import { WorkerTask, WorkerResponse } from '@features/workers/worker.types';
 
 self.onmessage = (e: MessageEvent<WorkerTask>) => {
   const { id, type, payload } = e.data;

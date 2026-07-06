@@ -1,6 +1,6 @@
 import { db } from '@/core/db';
 import { Sale } from '@/types';
-import { DashboardMetrics } from '@/modules/ai/services/AIDashboardEngine';
+import { DashboardMetrics } from '@features/ai/services/AIDashboardEngine';
 import { eventBus, EVENTS } from '@/services/eventBus';
 
 // Simple in-memory cache with TTL

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Permission } from '@/types';
-import { useAuth } from '@/modules/auth/hooks/useAuth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { can } from '@/utils/permissions';
-import LoginPage from '@/modules/auth/pages/LoginPage';
+import LoginPage from '@features/auth/pages/LoginPage';
 import { ShieldAlert, Home } from 'lucide-react';
 
 interface ProtectedRouteProps {
@@ -22,7 +22,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, permis
 
   useEffect(() => {
     if (!loading) {
-      const authed = !!(user && accessToken && user.isActive !== false);
+      const authed = !!(user && accessToken && user.Is_Active !== false);
       setIsAuthenticated(authed);
       
       if (!authed) {

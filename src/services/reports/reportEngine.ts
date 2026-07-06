@@ -1,6 +1,6 @@
 import { db } from '@/core/db';
-import { WorkerClient } from '@/modules/workers/worker.client';
-import { reportCache } from '@/modules/reports/services/reportCacheService';
+import { WorkerClient } from '@features/workers/worker.client';
+import { reportCache } from '@features/reports/services/reportCacheService';
 
 export class ReportEngine {
   

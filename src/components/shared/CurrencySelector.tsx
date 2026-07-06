@@ -1,13 +1,13 @@
 
 import React, { useState, useEffect } from 'react';
-import { useAppStore } from '@/hooks/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { db } from '@/core/db';
 import { Currency } from '@/types';
 import { Globe, Check } from 'lucide-react';
 
 export const CurrencySelector: React.FC = () => {
-  const currency = useAppStore(state => state.currency);
-  const setCurrency = useAppStore(state => state.setCurrency);
+  const currency = useSettingsStore(state => state.currency);
+  const setCurrency = useSettingsStore(state => state.setCurrency);
   const [currencies, setCurrencies] = useState<Currency[]>([]);
   const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [customCode, setCustomCode] = useState('');

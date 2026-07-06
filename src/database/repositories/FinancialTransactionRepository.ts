@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
 import { FinancialTransaction } from '@/types';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 
 /**
  * FinancialTransaction Repository - مركز التحكم في الحركات المالية (Phase 11 Update)

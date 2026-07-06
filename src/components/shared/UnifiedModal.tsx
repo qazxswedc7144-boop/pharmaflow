@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useAppStore } from '@/hooks/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
+import { useCustomerStore } from '@/store/useCustomerStore';
+import { useSupplierStore } from '@/store/useSupplierStore';
 import { useToast } from '@/hooks/useToast';
 import { useFinancialModal, FinancialModalMode } from '@/hooks/useFinancialModal';
 import { 
@@ -34,9 +36,9 @@ export const UnifiedModal: React.FC<UnifiedModalProps> = ({
   invoiceTotal = 0
 }) => {
   const toast = useToast();
-  const currency = useAppStore(state => state.currency);
-  const customers = useAppStore(state => state.customers);
-  const suppliers = useAppStore(state => state.suppliers);
+  const { currency } = useSettingsStore();
+  const { customers } = useCustomerStore();
+  const { suppliers } = useSupplierStore();
 
   // Read financial modal store state
   const { 

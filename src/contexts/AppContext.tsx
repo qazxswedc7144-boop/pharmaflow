@@ -5,7 +5,8 @@ import { eventBus } from '@/services/eventBus';
 import { db } from '@/core/db';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const refreshData = useAppStore(s => s.refreshData);
+  const store = useAppStore();
+  const refreshData = store.refreshData;
   useEffect(() => { 
     const init = async () => {
       try {

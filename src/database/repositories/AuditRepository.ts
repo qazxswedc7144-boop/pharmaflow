@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
 import { FinancialAuditEntry } from '@/types';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 
 /**
  * Audit Repository - حارس سجلات الرقابة السيادية

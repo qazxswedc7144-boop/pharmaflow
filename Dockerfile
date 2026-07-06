@@ -36,8 +36,11 @@ ENV PORT=3000
 COPY --from=builder /app/package*.json ./
 COPY --from=builder /app/tsconfig.json ./
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
+
+# Install ONLY production dependencies
+RUN npm install --omit=dev
+RUN npx prisma generate
 
 # Expose server ingress port
 EXPOSE 3000

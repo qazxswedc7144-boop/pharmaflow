@@ -6,7 +6,7 @@ import { PurchaseRepository } from '@/database/repositories/PurchaseRepository';
 import { SalesRepository } from '@/database/repositories/SalesRepository';
 import { PriceHistoryRepository } from '@/database/repositories/PriceHistoryRepository';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
-import { useAppStore } from '@/hooks/useAppStore';
+import { useUIStore } from '@/store/useUIStore';
 
 /**
  * Data Validator - محرك التحقق السيادي (Smart Validation Engine)
@@ -158,7 +158,7 @@ export const dataValidator = {
       const deviation = Math.abs(currentPrice - historicalPrice) / historicalPrice;
       if (deviation > 0.3) {
         const percentage = (deviation * 100).toFixed(0);
-        useAppStore.getState().addToast(
+        useUIStore.getState().addToast(
           `تنبيه ذكي: السعر المدخل (${currentPrice}) ينحرف بنسبة ${percentage}% عن السعر التاريخي (${historicalPrice}). يرجى التأكد.`,
           'warning'
         );

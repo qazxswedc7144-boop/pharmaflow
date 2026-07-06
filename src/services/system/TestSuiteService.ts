@@ -5,10 +5,10 @@ import { IntegritySweepService } from '@/services/integrity/IntegritySweepServic
 import { BackupService } from '@/services/backupService';
 import { FinancialEngine } from '@/services/transactions/financialEngine';
 import { logger } from '@/services/loggerService';
-import { SyncQueueRepository } from '@/modules/sync/sync.queue';
+import { SyncQueueRepository } from '@features/sync/sync.queue';
 import { SystemOrchestrator } from '@/services/system/SystemOrchestrator';
 import { ProjectionEventBus } from '@/services/system/ProjectionEventBus';
-import { WorkerClient } from '@/modules/workers/worker.client';
+import { WorkerClient } from '@features/workers/worker.client';
 
 export class TestSuiteService {
   

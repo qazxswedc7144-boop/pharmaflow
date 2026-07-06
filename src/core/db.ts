@@ -28,7 +28,7 @@ import {
 import { 
   ProductReadModel, InventoryReadModel, InvoiceReadModel, 
   LedgerReadModel, AggregateSnapshot 
-} from '@/modules/events/read.types';
+} from '@features/events/read.types';
 
 /**
  * PharmaFlow PRO ERP Database Core
@@ -939,7 +939,7 @@ if (typeof window !== 'undefined') {
       const currUser = state?.user;
 
       if (currUser && (!prevUser || prevUser.id !== currUser.id)) {
-        const tenantId = currUser.tenantId || 'default-tenant';
+        const tenantId = currUser.tenant_id || 'default-tenant';
         const userId = currUser.id || 'default-user';
         console.log(`[DB] Auth subscription detected login: tenant=${tenantId}, user=${userId}. Switching database...`);
         openUserDatabase(tenantId, userId).catch(err => {

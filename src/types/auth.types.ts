@@ -10,6 +10,7 @@ export interface User extends SyncableEntity {
   Role: UserRole;
   Is_Active: boolean;
   tenant_id: string;
+  branch_id?: string;
   lastLogin?: string;
   password_hash?: string;
   salt?: string;

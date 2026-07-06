@@ -52,7 +52,6 @@ import { authV1Router } from "./apps/api/src/modules/auth/auth.routes";
 import { syncV1Router } from "./apps/api/src/modules/sync/sync.routes";
 import { subscriptionGuard } from "./server/middleware/subscription.middleware";
 import { authenticateToken } from "./server/middleware/auth.middleware";
-import { prisma } from "./server/database/prisma";
 
 
 function killStaleProcesses(port: number) {
@@ -73,19 +72,6 @@ async function startServer() {
 
   const app = express();
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
-
-  // Attempt connection before starting in the background
-  const connectPromise = prisma.$connect();
-  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Database connection timeout")), 5000));
-  
-  Promise.race([connectPromise, timeoutPromise])
-    .then(() => console.log("✅ Database connection initialized successfully."))
-    .catch((e) => {
-      console.warn("⚠️ Database connection initialization failed (will retry on first query):", e);
-      if (typeof (prisma as any).disable === 'function') {
-        (prisma as any).disable();
-      }
-    });
 
   // Production and Preview HTTP Traffic Logger Diagnostics
   app.use((req, res, next) => {

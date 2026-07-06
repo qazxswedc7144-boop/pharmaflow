@@ -1,5 +1,5 @@
 import { db } from '@/core/db';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 
 export type AuditActionType = 'CREATE' | 'EDIT' | 'DELETE' | 'REVERSE' | 'PRINT' | 'EXPORT' | 'LOGIN' | 'LOGOUT';
 

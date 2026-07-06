@@ -2,7 +2,7 @@ import { createRoot } from 'react-dom/client';
 import App from '@/app/App';
 import '@/styles/index.css';
 import { AppProvider } from '@/contexts/AppContext';
-import { AuthProvider } from '@/modules/auth/hooks/useAuth';
+import { AuthProvider } from '@features/auth/hooks/useAuth';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ReportProvider } from '@/contexts/ReportContext';
 import { NotificationProvider } from '@/context/NotificationContext';
@@ -12,7 +12,7 @@ import { SyncWorker } from '../packages/sync-engine/src/workers/sync.worker';
 console.log("[BOOT] Loader script starting module evaluation...");
 
 // Initiate Phase 3 Enterprise offline synchronization worker 
-import { LockService } from '@/modules/locking/lock.service';
+import { LockService } from '@features/locking/lock.service';
 import { SystemOrchestrator } from '@/services/system/SystemOrchestrator';
 
 try {

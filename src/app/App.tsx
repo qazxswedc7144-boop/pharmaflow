@@ -1,22 +1,25 @@
 
-import React, { useState, useEffect, Suspense, lazy, useCallback, useTransition } from 'react';
-import Dashboard from '@/modules/dashboard/pages/Dashboard';
+import React, { useState, useEffect, Suspense, useCallback, useTransition } from 'react';
+import { User, UserRole } from '@/types/auth.types';
+import { lazyWithRetry } from '@/utils/lazyWithRetry';
+import Dashboard from '@features/dashboard/pages/Dashboard';
 import { Logo, BrandName, Tagline } from '@/components/shared/Logo';
 import { useUI } from '@/contexts/AppContext';
 import Header from '@/layouts/Header';
-import { useAppStore } from '@/hooks/useAppStore';
-import { useAuthStore } from '@/store/authStore';
+import { useUIStore } from '@/store/useUIStore';
+import { useSalesStore } from '@/store/useSalesStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { db } from '@/core/db';
-import { DistributedSyncEngine } from '@/modules/sync/sync.engine';
+import { DistributedSyncEngine } from '@features/sync/sync.engine';
 import { heartbeatService } from '@/services/heartbeatService';
 import { backupService } from '@/services/backupScheduler';
 import { BackupService } from '@/services/backupService';
-import { FinancialHealthService } from '@/modules/accounting/services/FinancialHealthService';
+import { FinancialHealthService } from '@features/accounting/services/FinancialHealthService';
 import { CurrencyService } from '@/services/localization/CurrencyService';
 import { SafeModePanel } from '@/layouts/SafeModePanel';
 import { FinancialDefenseSystem } from '@/services/integrity/FinancialDefenseSystem';
-import { RealtimeReplicationService } from '@/modules/replication/services/RealtimeReplicationService';
+import { RealtimeReplicationService } from '@features/replication/services/RealtimeReplicationService';
 import { Permission } from '@/types';
 import RoleGuard from '@/components/shared/RoleGuard';
 import { IS_PREVIEW } from '@/constants';
@@ -29,7 +32,7 @@ import {
   SubscriptionWarningInterceptor,
   SubscriptionBlockadeBackdrop,
   TrialBlockedModal
-} from '@/components/saas/SubscriptionWidgets';
+} from '@features/saas/components/SubscriptionWidgets';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
@@ -84,96 +87,61 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
   }
 }
 
-// Helper for retrying dynamic imports with retry resilience
-const lazyWithRetry = (componentImport: () => Promise<any>) =>
-  lazy(async () => {
-    const pageHasBeenForceRefreshed = JSON.parse(
-      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
-    );
-
-    let attempts = 3;
-    for (let i = 0; i < attempts; i++) {
-      try {
-        const result = await componentImport();
-        // If successful, reset force refresh flag on next idle
-        if (typeof window !== 'undefined') {
-          setTimeout(() => window.sessionStorage.removeItem('page-has-been-force-refreshed'), 100);
-        }
-        return result;
-      } catch (error) {
-        console.warn(`Dynamic lazy-load attempt ${i + 1} of ${attempts} failed:`, error);
-        if (i < attempts - 1) {
-          // Wait longer on each successive attempt (exponential backoff)
-          await new Promise((resolve) => setTimeout(resolve, 800 * (i + 1)));
-        } else {
-          console.error('Lazy loading failed for a dynamic module after maximum attempts:', error);
-          if (!pageHasBeenForceRefreshed) {
-            window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-            window.location.reload();
-            // Return dummy component to prevent layout crash before reload
-            return { default: () => null };
-          }
-          throw error;
-        }
-      }
-    }
-    return { default: () => null };
-  });
-
 // Lazy loading views
-const PurchasesView = lazyWithRetry(() => import('@/modules/purchases/pages/PurchasesInvoice'));
-const SalesModule = lazyWithRetry(() => import('@/modules/sales/pages/SalesModule'));
-const InventoryModule = lazyWithRetry(() => import('@/modules/inventory/pages/InventoryModule'));
-const InventoryAuditModule = lazyWithRetry(() => import('@/modules/inventory/pages/InventoryAuditModule'));
-const AuditHistoryModule = lazyWithRetry(() => import('@/modules/settings/pages/AuditHistoryModule')); 
-const SettingsModule = lazyWithRetry(() => import('@/modules/settings/pages/SettingsModule'));
-const AccountingModule = lazyWithRetry(() => import('@/modules/accounting/pages/AccountingModule'));
-const ReconciliationModule = lazyWithRetry(() => import('@/modules/accounting/pages/ReconciliationModule'));
-const SystemHealthModule = lazyWithRetry(() => import('@/modules/settings/pages/SystemHealthModule'));
-const InvoicesArchiveModule = lazyWithRetry(() => import('@/modules/sales/pages/InvoicesArchiveModule'));
-const InvoiceHistoryModule = lazyWithRetry(() => import('@/modules/sales/pages/InvoiceHistoryModule'));
-const AdjustmentsArchiveModule = lazyWithRetry(() => import('@/modules/inventory/pages/AdjustmentsArchiveModule'));
-const SupplierPaymentModule = lazyWithRetry(() => import('@/modules/accounting/pages/SupplierPaymentModule'));
-const CustomerReceiptModule = lazyWithRetry(() => import('@/modules/accounting/pages/CustomerReceiptModule'));
-const VouchersModule = lazyWithRetry(() => import('@/modules/accounting/pages/VouchersModule'));
-const AgingReportModule = lazyWithRetry(() => import('@/modules/reports/pages/AgingReportModule'));
-const FinancialDashboard = lazyWithRetry(() => import('@/modules/dashboard/pages/FinancialDashboard'));
-const ReportsModule = lazyWithRetry(() => import('@/modules/reports/pages/ReportsModule'));
-const AdvancedReportsModule = lazyWithRetry(() => import('@/modules/reports/pages/AdvancedReportsModule'));
-const PartnersModule = lazyWithRetry(() => import('@/modules/partners/pages/PartnersModule'));
-const SaaSModule = lazyWithRetry(() => import('@/modules/saas/pages/SaaSModule'));
+const PurchasesView = lazyWithRetry(() => import('@features/purchases/pages/PurchasesInvoice'));
+const SalesModule = lazyWithRetry(() => import('@features/sales/pages/SalesModule'));
+const InventoryModule = lazyWithRetry(() => import('@features/inventory/pages/InventoryModule'));
+const InventoryAuditModule = lazyWithRetry(() => import('@features/inventory/pages/InventoryAuditModule'));
+const AuditHistoryModule = lazyWithRetry(() => import('@features/settings/pages/AuditHistoryModule')); 
+const SettingsModule = lazyWithRetry(() => import('@features/settings/pages/SettingsModule'));
+const AccountingModule = lazyWithRetry(() => import('@features/accounting/pages/AccountingModule'));
+const ReconciliationModule = lazyWithRetry(() => import('@features/accounting/pages/ReconciliationModule'));
+const SystemHealthModule = lazyWithRetry(() => import('@features/settings/pages/SystemHealthModule'));
+const InvoicesArchiveModule = lazyWithRetry(() => import('@features/sales/pages/InvoicesArchiveModule'));
+const InvoiceHistoryModule = lazyWithRetry(() => import('@features/sales/pages/InvoiceHistoryModule'));
+const AdjustmentsArchiveModule = lazyWithRetry(() => import('@features/inventory/pages/AdjustmentsArchiveModule'));
+const SupplierPaymentModule = lazyWithRetry(() => import('@features/accounting/pages/SupplierPaymentModule'));
+const CustomerReceiptModule = lazyWithRetry(() => import('@features/accounting/pages/CustomerReceiptModule'));
+const VouchersModule = lazyWithRetry(() => import('@features/accounting/pages/VouchersModule'));
+const AgingReportModule = lazyWithRetry(() => import('@features/reports/pages/AgingReportModule'));
+const FinancialDashboard = lazyWithRetry(() => import('@features/dashboard/pages/FinancialDashboard'));
+const ReportsModule = lazyWithRetry(() => import('@features/reports/pages/ReportsModule'));
+const AdvancedReportsModule = lazyWithRetry(() => import('@features/reports/pages/AdvancedReportsModule'));
+const PartnersModule = lazyWithRetry(() => import('@features/partners/pages/PartnersModule'));
+const SaaSModule = lazyWithRetry(() => import('@features/saas/pages/SaaSModule'));
 
 // Multi-branch module views
-const BranchesList = lazyWithRetry(() => import('@/modules/branches/pages/BranchesList').then(m => ({ default: m.BranchesList })));
-const BranchTransfers = lazyWithRetry(() => import('@/modules/branches/pages/BranchTransfers').then(m => ({ default: m.BranchTransfers })));
-const BranchReports = lazyWithRetry(() => import('@/modules/branches/pages/BranchReports').then(m => ({ default: m.BranchReports })));
-const ConsolidationDashboard = lazyWithRetry(() => import('@/modules/consolidation/pages/ConsolidationDashboard'));
+const BranchesList = lazyWithRetry(() => import('@features/branches/pages/BranchesList').then(m => ({ default: m.BranchesList })));
+const BranchTransfers = lazyWithRetry(() => import('@features/branches/pages/BranchTransfers').then(m => ({ default: m.BranchTransfers })));
+const BranchReports = lazyWithRetry(() => import('@features/branches/pages/BranchReports').then(m => ({ default: m.BranchReports })));
+const ConsolidationDashboard = lazyWithRetry(() => import('@features/consolidation/pages/ConsolidationDashboard'));
 
 // Lazy loading individual reports
-const RemainingStockReport = lazyWithRetry(() => import('@/modules/reports/pages/RemainingStockReport'));
-const ItemProfitsReport = lazyWithRetry(() => import('@/modules/reports/pages/ItemProfitsReport'));
-const CustomerProfitReport = lazyWithRetry(() => import('@/modules/reports/pages/CustomerProfitReport'));
-const SupplierProfitReport = lazyWithRetry(() => import('@/modules/reports/pages/SupplierProfitReport'));
-const AccountMovementReport = lazyWithRetry(() => import('@/modules/reports/pages/AccountMovementReport'));
-const PurchasesByItemReport = lazyWithRetry(() => import('@/modules/reports/pages/PurchasesByItemReport'));
-const SalesByItemReport = lazyWithRetry(() => import('@/modules/reports/pages/SalesByItemReport'));
-const ItemMovementDetailsReport = lazyWithRetry(() => import('@/modules/reports/pages/ItemMovementDetailsReport'));
-const ExpiryItemsReport = lazyWithRetry(() => import('@/modules/reports/pages/ExpiryItemsReport'));
-const FinancialEngineReport = lazyWithRetry(() => import('@/modules/reports/pages/FinancialEngineReport'));
-const PrivacyPolicy = lazyWithRetry(() => import('@/modules/legal/pages/PrivacyPolicy'));
-const TermsOfService = lazyWithRetry(() => import('@/modules/legal/pages/TermsOfService'));
-const SecurityAuditDashboard = lazyWithRetry(() => import('@/modules/settings/components/SecurityAuditDashboard'));
-const BackupManagement = lazyWithRetry(() => import('@/modules/settings/components/BackupManagement'));
+const RemainingStockReport = lazyWithRetry(() => import('@features/reports/pages/RemainingStockReport'));
+const ItemProfitsReport = lazyWithRetry(() => import('@features/reports/pages/ItemProfitsReport'));
+const CustomerProfitReport = lazyWithRetry(() => import('@features/reports/pages/CustomerProfitReport'));
+const SupplierProfitReport = lazyWithRetry(() => import('@features/reports/pages/SupplierProfitReport'));
+const AccountMovementReport = lazyWithRetry(() => import('@features/reports/pages/AccountMovementReport'));
+const PurchasesByItemReport = lazyWithRetry(() => import('@features/reports/pages/PurchasesByItemReport'));
+const SalesByItemReport = lazyWithRetry(() => import('@features/reports/pages/SalesByItemReport'));
+const ItemMovementDetailsReport = lazyWithRetry(() => import('@features/reports/pages/ItemMovementDetailsReport'));
+const ExpiryItemsReport = lazyWithRetry(() => import('@features/reports/pages/ExpiryItemsReport'));
+const FinancialEngineReport = lazyWithRetry(() => import('@features/reports/pages/FinancialEngineReport'));
+const PrivacyPolicy = lazyWithRetry(() => import('@features/legal/pages/PrivacyPolicy'));
+const TermsOfService = lazyWithRetry(() => import('@features/legal/pages/TermsOfService'));
+const SecurityAuditDashboard = lazyWithRetry(() => import('@features/settings/components/SecurityAuditDashboard'));
+const BackupManagement = lazyWithRetry(() => import('@features/settings/components/BackupManagement'));
 
-import { useAuth } from '@/modules/auth/hooks/useAuth';
-import LoginPage from '@/modules/auth/pages/LoginPage';
+import { useAuthStore } from '@/store/authStore';
+import { useAuth } from '@features/auth/hooks/useAuth';
+import LoginPage from '@features/auth/pages/LoginPage';
 import ProtectedRoute from '@/components/shared/ProtectedRoute';
 import { can } from '@/utils/permissions';
 import { MODULES } from '@/constants/navigation';
 import { LockScreen } from '@/layouts/LockScreen';
 
 import { appLockService } from '@/services/AppLockService';
-import { AccountingEngine } from '@/modules/accounting/services/AccountingEngine';
+import { AccountingEngine } from '@features/accounting/services/AccountingEngine';
 import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
 import { IntegritySweepService } from '@/services/integrity/IntegritySweepService';
 
@@ -201,13 +169,9 @@ function MainLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [, startTransition] = useTransition();
   const { setHeaderAction, refreshGlobal, isSettingsOpen, setSettingsOpen } = useUI();
-  const setEditingInvoiceId = useAppStore(state => state.setEditingInvoiceId);
-  const isTrialBlockedModalOpen = useAppStore(state => state.isTrialBlockedModalOpen);
-  const setTrialBlockedModalOpen = useAppStore(state => state.setTrialBlockedModalOpen);
-  const systemStatus = useAppStore(state => state.systemStatus);
-  const setSystemStatus = useAppStore(state => state.setSystemStatus);
-  const setCurrency = useAppStore(state => state.setCurrency);
-  const addToast = useAppStore(state => state.addToast);
+  const { setEditingInvoiceId } = useSalesStore();
+  const { isTrialBlockedModalOpen, setTrialBlockedModalOpen, systemStatus, setSystemStatus, addToast } = useUIStore();
+  const { setCurrency } = useSettingsStore();
   const [riskScore, setRiskScore] = useState<number>(0);
   const [isLocked, setIsLocked] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -250,12 +214,14 @@ function MainLayout() {
         
         if (!authEnabled) {
           // 2. IF FALSE: Bypass all network checks, initialize local administrator mocks, and resolve <MainApplication />
-          const BYPASS_USER = {
+          const BYPASS_USER: User = {
             id: "local-admin",
-            role: "ADMIN",
-            username: "Administrator",
-            tenantId: "local-tenant-01",
-            isActive: true
+            user_id: "local-admin",
+            Role: "Admin" as UserRole,
+            User_Name: "Administrator",
+            User_Email: "admin@admin.com",
+            tenant_id: "local-tenant-01",
+            Is_Active: true
           };
           localStorage.setItem('pharmaflow_user', JSON.stringify(BYPASS_USER));
           localStorage.setItem('pharmaflow_token', 'local-admin-token');
@@ -495,7 +461,7 @@ function MainLayout() {
     const isBypassView = ['privacy', 'terms'].includes(view);
 
     if (!isBypassView && view !== 'login' && view !== '403') {
-      const authed = !!(user && accessToken && user.isActive !== false);
+      const authed = !!(user && accessToken && user.Is_Active !== false);
       if (!authed) {
         window.location.hash = '#/login';
         view = 'login';
@@ -509,7 +475,7 @@ function MainLayout() {
     }
 
     if (view === 'settings') {
-      const authed = !!(user && accessToken && user.isActive !== false);
+      const authed = !!(user && accessToken && user.Is_Active !== false);
       if (!authed) {
         window.location.hash = '#/login';
         view = 'login';
@@ -721,7 +687,7 @@ function MainLayout() {
   }
 
   // Enforce secure authentications and reject unauthorized routing
-  if (!user || !accessToken || user.isActive === false) {
+  if (!user || !accessToken || user.Is_Active === false) {
     return <LoginPage onSuccess={() => handleNav('dashboard')} />;
   }
 

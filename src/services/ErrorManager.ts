@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
-import { authService } from '@/modules/auth/services/authService';
-import { useAppStore } from '@/hooks/useAppStore';
+import { authService } from '@features/auth/services/authService';
+import { useUIStore } from '@/store/useUIStore';
 import { SystemErrorLog } from '@/types';
 import { NotificationService } from '@/context/NotificationContext';
 
@@ -48,7 +48,7 @@ export class ErrorManager {
     }, 0);
 
     // 2. إظهار تنبيه غير حاجب للمستخدم (Non-blocking warning)
-    useAppStore.getState().addToast(`تنبيه نظام: فشل في محرك [${module}] - تم توثيق الخطأ برقم ${errorId}`, 'warning');
+    useUIStore.getState().addToast(`تنبيه نظام: فشل في محرك [${module}] - تم توثيق الخطأ برقم ${errorId}`, 'warning');
   }
 
   /**

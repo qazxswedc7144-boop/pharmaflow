@@ -1,18 +1,35 @@
 
 import { create } from 'zustand';
+import { CashFlow, AccountingEntry, Account } from '@/types';
+import { AccountingRepository } from '@/database/repositories/AccountingRepository';
+import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 
 interface AccountingState {
-  ledgerEntries: any[];
-  balances: Record<string, number>;
-  setEntries: (entries: any[]) => void;
-  updateBalance: (accountId: string, amount: number) => void;
+  cashFlow: CashFlow[];
+  journalEntries: AccountingEntry[];
+  accounts: Account[];
+  loadAccounting: () => Promise<void>;
+  addInvoice: (invoice: any) => Promise<any>;
+  addPartner: (partner: any, type: 'C' | 'S') => Promise<any>;
 }
 
 export const useAccountingStore = create<AccountingState>((set) => ({
-  ledgerEntries: [],
-  balances: {},
-  setEntries: (entries) => set({ ledgerEntries: entries }),
-  updateBalance: (accountId, amount) => set((state) => ({
-    balances: { ...state.balances, [accountId]: amount }
-  })),
+  cashFlow: [],
+  journalEntries: [],
+  accounts: [],
+  loadAccounting: async () => {
+    const [journalEntries, cashFlow, accounts] = await Promise.all([
+      AccountingRepository.getEntries(),
+      AccountingRepository.getCashFlow(),
+      AccountingRepository.getAccounts()
+    ]);
+    set({ journalEntries, cashFlow, accounts });
+  },
+  addInvoice: async (invoice) => {
+    return invoice.type === 'SALE' ? await InvoiceRepository.saveSale(invoice.payload) : await InvoiceRepository.savePurchase(invoice.payload);
+  },
+  addPartner: async (partner, _type) => {
+    // Basic placeholder implementation
+    return partner;
+  }
 }));

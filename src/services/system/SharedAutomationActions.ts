@@ -1,6 +1,6 @@
 
-import { InventoryService } from '@/modules/inventory/services/InventoryService';
-import { authService } from '@/modules/auth/services/authService';
+import { InventoryService } from '@features/inventory/services/InventoryService';
+import { authService } from '@features/auth/services/authService';
 import { ErrorManager } from '@/services/ErrorManager';
 import { BusinessRulesEngine } from '@/services/system/BusinessRulesEngine';
 import { db } from '@/core/db';

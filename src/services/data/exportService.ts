@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
 import { PrintTemplateEngine } from '@/services/integrity/shared/templateEngineService';
-import { authService } from '@/modules/auth/services/authService';
+import { authService } from '@features/auth/services/authService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 

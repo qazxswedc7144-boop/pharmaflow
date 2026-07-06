@@ -45,8 +45,8 @@ export class AppFaultBoundary extends Component<Props, State> {
     const user = userState.user;
     
     const payload = {
-      tenantId: user?.tenantId || "SYSTEM_TENANT",
-      branchId: user?.branchId || "SYSTEM_BRANCH",
+      tenantId: user?.tenant_id || "SYSTEM_TENANT",
+      branchId: user?.branch_id || "SYSTEM_BRANCH",
       userId: user?.id || "anonymous",
       route: window.location.hash || window.location.pathname || "/",
       deviceFingerprint: navigator.userAgent || "Unknown Device",
