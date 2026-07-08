@@ -30,6 +30,7 @@ process.on("uncaughtException", (errVal: any) => {
 
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { execSync } from "child_process";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -62,6 +63,7 @@ function killStaleProcesses(port: number) {
 
 async function startServer() {
   console.log("=== STARTING SERVER ===");
+  console.log("[BOOT] Environment: ", process.env.NODE_ENV);
   const PORT = 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
@@ -71,6 +73,7 @@ async function startServer() {
   }
 
   const app = express();
+  console.log("[BOOT] Express initialized.");
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
 
   // Production and Preview HTTP Traffic Logger Diagnostics
@@ -316,7 +319,15 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     console.log("[PRODUCTION] Serving static assets...");
-    const distPath = path.join(process.cwd(), 'dist');
+    
+    // Robust path resolution for production static files
+    // In production, server.cjs is in /app/dist/server.cjs.
+    // The dist files are in /app/dist/
+    const distPath = __dirname;
+    console.log("[PRODUCTION] Current working directory:", process.cwd());
+    console.log("[PRODUCTION] distPath (__dirname):", distPath);
+    console.log("[PRODUCTION] dist directory exists:", fs.existsSync(distPath));
+    console.log("[PRODUCTION] index.html exists:", fs.existsSync(path.join(distPath, 'index.html')));
     
     // Explicit static file serving options to guarantee perfect MIME-types, Hashing, and CORS headers
     app.use(express.static(distPath, {
@@ -369,7 +380,12 @@ async function startServer() {
     registerIdempotencyCleanupCron();
     
     // Initialize Real-Time Replication Engine
-    ReplicationGateway.init(server);
+    try {
+      ReplicationGateway.init(server);
+      console.log("[BOOT] ReplicationGateway initialized.");
+    } catch (e) {
+      console.error("[BOOT] ReplicationGateway failed to initialize:", e);
+    }
     ReplicationSubscriber.start().then(() => {
       console.log("[REPLICATION] Subscriber task listener successfully running.");
     }).catch((subErr) => {
@@ -380,7 +396,7 @@ async function startServer() {
   server.on("error", (errVal: any) => {
     const detail = (errVal?.message || String(errVal)).replace(/error/gi, "err_");
     console.warn("⚠️ Express server listener issue:", detail);
-    if (errVal?.code === "EADDRINUSE") {
+    if (errVal?.code === "EADDRINUSE" && process.env.NODE_ENV !== "production") {
       console.warn(`⚠️ Port ${PORT} is in use. Attempting to force-kill stale processes holding the port...`);
       try {
         execSync(`fuser -k ${PORT}/tcp 2>/dev/null || kill -9 $(lsof -t -i:${PORT} 2>/dev/null) 2>/dev/null`);

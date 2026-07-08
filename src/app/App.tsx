@@ -139,6 +139,7 @@ import ProtectedRoute from '@/components/shared/ProtectedRoute';
 import { can } from '@/utils/permissions';
 import { MODULES } from '@/constants/navigation';
 import { LockScreen } from '@/layouts/LockScreen';
+import { useAutoBackup } from '@/hooks/useAutoBackup';
 
 import { appLockService } from '@/services/AppLockService';
 import { AccountingEngine } from '@features/accounting/services/AccountingEngine';
@@ -146,6 +147,7 @@ import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
 import { IntegritySweepService } from '@/services/integrity/IntegritySweepService';
 
 function MainLayout() {
+  useAutoBackup();
   const { profile, user, accessToken, loading, signOut } = useAuth(); 
   const [currentView, setCurrentView] = useState<string>('dashboard');
 

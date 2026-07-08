@@ -46,8 +46,38 @@ function getPrismaClient(): PrismaClient {
   console.log("[Prisma] DATABASE_URL parsed:", databaseUrl ? "Set" : "Not set or empty");
   
   if (!databaseUrl) {
-    console.error("[Prisma] DATABASE_URL is not set or empty.");
-    throw new Error("DATABASE_URL is not set or empty");
+    console.warn("[Prisma] DATABASE_URL is not set or empty. Running in offline/local mode.");
+    isDatabaseDisabled = true;
+    return new Proxy({} as any, {
+      get: (_target, prop) => {
+        if (prop === '$connect' || prop === '$disconnect') return async () => {};
+        if (prop === '$transaction' || prop === '$queryRaw' || prop === '$executeRaw') return throwNoDb;
+        
+        return new Proxy({}, {
+          get: (_modelTarget, modelProp) => {
+            const operation = String(modelProp);
+            
+            // Read operations
+            if (['findUnique', 'findFirst', 'findUniqueOrThrow', 'findFirstOrThrow'].includes(operation)) {
+              return async () => null;
+            }
+            if (['findMany', 'groupBy'].includes(operation)) {
+              return async () => [];
+            }
+            if (operation === 'count') {
+              return async () => 0;
+            }
+            
+            // Write operations
+            if (['create', 'update', 'delete', 'upsert', 'createMany', 'updateMany', 'deleteMany'].includes(operation)) {
+              throw new OfflineDatabaseError(String(prop), operation);
+            }
+            
+            return async () => null;
+          }
+        });
+      }
+    });
   }
 
   try {

@@ -9,7 +9,7 @@ interface AccountingState {
   journalEntries: AccountingEntry[];
   accounts: Account[];
   loadAccounting: () => Promise<void>;
-  addInvoice: (invoice: any) => Promise<any>;
+  addInvoice: (invoice: any, type?: 'SALE' | 'PURCHASE') => Promise<any>;
   addPartner: (partner: any, type: 'C' | 'S') => Promise<any>;
 }
 
@@ -25,8 +25,8 @@ export const useAccountingStore = create<AccountingState>((set) => ({
     ]);
     set({ journalEntries, cashFlow, accounts });
   },
-  addInvoice: async (invoice) => {
-    return invoice.type === 'SALE' ? await InvoiceRepository.saveSale(invoice.payload) : await InvoiceRepository.savePurchase(invoice.payload);
+  addInvoice: async (invoice, type) => {
+    return (type || invoice.type) === 'SALE' ? await InvoiceRepository.saveSale(invoice.payload || invoice) : await InvoiceRepository.savePurchase(invoice.payload || invoice);
   },
   addPartner: async (partner, _type) => {
     // Basic placeholder implementation

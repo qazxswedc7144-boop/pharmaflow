@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Settings, Building2, Users, ShoppingCart, Truck, 
   Package, RefreshCw, Database, ShieldCheck, Code,
-  Search, Save, ArrowRight, CreditCard
+  Search, Save, ArrowRight, CreditCard, Shield
 } from 'lucide-react';
 import { LoadingSkeleton } from '../components/shared/SettingsUI';
 
@@ -20,6 +20,7 @@ const DatabaseTab = lazy(() => import('../components/tabs/DatabaseTab'));
 const SecurityTab = lazy(() => import('../components/tabs/SecurityTab'));
 const SubscriptionTab = lazy(() => import('../components/tabs/SubscriptionTab'));
 const DeveloperTab = lazy(() => import('../components/tabs/DeveloperTab'));
+const BackupTab = lazy(() => import('../components/tabs/BackupTab'));
 
 const TABS = [
   { id: 'general', label: 'إعدادات عامة', icon: Settings, component: GeneralTab },
@@ -32,6 +33,7 @@ const TABS = [
   { id: 'sync', label: 'المزامنة', icon: RefreshCw, component: SyncTab },
   { id: 'database', label: 'قاعدة البيانات', icon: Database, component: DatabaseTab },
   { id: 'security', label: 'الأمان', icon: ShieldCheck, component: SecurityTab },
+  { id: 'backup', label: 'النسخ الاحتياطي', icon: Shield, component: BackupTab },
   { id: 'developer', label: 'المطور', icon: Code, component: DeveloperTab }
 ];
 

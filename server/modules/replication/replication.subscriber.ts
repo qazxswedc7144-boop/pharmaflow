@@ -23,82 +23,83 @@ export class ReplicationSubscriber {
    */
   static async start(): Promise<void> {
     console.log("[REPLICATION_SUBSCRIBER] Starting...");
-    if (this.isSubscribed) {
-      console.log("[REPLICATION_SUBSCRIBER] Already subscribed.");
-      return;
-    }
-
-    // 1. Hook up to our local in-memory event bus to support seamless local-mode fallback
-    localReplicationBus.on("branch:*", (event: ReplicationEvent) => {
-      this.handleIncomingMessage("local_bus", event);
-    });
-    
-    localReplicationBus.on("group:all", (event: ReplicationEvent) => {
-      this.handleIncomingMessage("group:all", event);
-    });
-
-    // Also listen to any dynamically emitted channel on localReplicationBus
-    const originalEmit = localReplicationBus.emit.bind(localReplicationBus);
-    localReplicationBus.emit = (event: string | symbol, ...args: any[]): boolean => {
-      if (typeof event === "string" && (event.startsWith("branch:") || event === "group:all")) {
-        const payload = args[0] as ReplicationEvent;
-        if (payload && payload.id) {
-          this.handleIncomingMessage(event, payload);
-        }
-      }
-      return originalEmit(event, ...args);
-    };
-
-    // 2. Initialize Redis Subscription client
     try {
-      console.log(`[REPLICATION_SUBSCRIBER] Connecting to Pub/Sub on: ${REDIS_URL}`);
-      const options: RedisOptions = {
-        maxRetriesPerRequest: null, // Subscriptions shouldn't limit retries
-        enableOfflineQueue: true,
-        retryStrategy: (times) => {
-          if (times > 3) {
-            console.warn("[REPLICATION_SUBSCRIBER] Reached retry margin threshold for Pub/Sub. Activating secure in-memory backup distributed mock.");
-            return null; // Stop reconnecting and trigger fallback
+      if (this.isSubscribed) {
+        console.log("[REPLICATION_SUBSCRIBER] Already subscribed.");
+        return;
+      }
+
+      // 1. Hook up to our local in-memory event bus to support seamless local-mode fallback
+      localReplicationBus.on("branch:*", (event: ReplicationEvent) => {
+        this.handleIncomingMessage("local_bus", event);
+      });
+      
+      localReplicationBus.on("group:all", (event: ReplicationEvent) => {
+        this.handleIncomingMessage("group:all", event);
+      });
+
+      // Also listen to any dynamically emitted channel on localReplicationBus
+      const originalEmit = localReplicationBus.emit.bind(localReplicationBus);
+      localReplicationBus.emit = (event: string | symbol, ...args: any[]): boolean => {
+        if (typeof event === "string" && (event.startsWith("branch:") || event === "group:all")) {
+          const payload = args[0] as ReplicationEvent;
+          if (payload && payload.id) {
+            this.handleIncomingMessage(event, payload);
           }
-          return Math.min(times * 1000, 2000);
         }
+        return originalEmit(event, ...args);
       };
 
-      this.subClient = new Redis(REDIS_URL, options);
-
-      // Register error listener immediately to prevent unhandled socket error crashes on startup
-      this.subClient.on("error", (err) => {
-        console.warn("[REPLICATION_SUBSCRIBER] Redis subscription background adapter socket notice:", err.message);
-      });
-
-      this.subClient.on("connect", async () => {
-        console.log("✅ [REPLICATION_SUBSCRIBER] Redis Pub/Sub connection established.");
-        try {
-          if (this.subClient) {
-            // Subscribe to global and all branch-specific channels using pattern matching
-            this.subClient.psubscribe("branch:*", "group:all").catch(subErr => {
-              console.error("[REPLICATION_SUBSCRIBER] Redis subscribe failed:", subErr.message);
-            });
-            console.log("🚀 [REPLICATION_SUBSCRIBER] Registered subscriptions for branch:* and group:all");
+      // 2. Initialize Redis Subscription client
+      if (!REDIS_URL) {
+        console.warn("[REPLICATION_SUBSCRIBER] No REDIS_URL configured, skipping Redis subscriber.");
+      } else {
+        console.log(`[REPLICATION_SUBSCRIBER] Connecting to Pub/Sub on: ${REDIS_URL}`);
+        const options: RedisOptions = {
+          maxRetriesPerRequest: null,
+          enableOfflineQueue: true,
+          retryStrategy: (times) => {
+            if (times > 3) {
+              console.warn("[REPLICATION_SUBSCRIBER] Reached retry margin threshold for Pub/Sub. Activating secure in-memory backup distributed mock.");
+              return null;
+            }
+            return Math.min(times * 1000, 2000);
           }
-        } catch (subErr: any) {
-          console.error("[REPLICATION_SUBSCRIBER] Redis subscribe failed:", subErr.message);
-        }
-      });
+        };
 
-      this.subClient.on("pmessage", (_pattern, channel, message) => {
-        try {
-          const event: ReplicationEvent = JSON.parse(message);
-          this.handleIncomingMessage(channel, event);
-        } catch (jsonErr: any) {
-          console.warn(`[REPLICATION_SUBSCRIBER] Failed to parse message on ${channel}:`, jsonErr.message);
-        }
-      });
+        this.subClient = new Redis(REDIS_URL, options);
+
+        this.subClient.on("error", (err) => {
+          console.warn("[REPLICATION_SUBSCRIBER] Redis subscription background adapter socket notice:", err.message);
+        });
+
+        this.subClient.on("connect", async () => {
+          console.log("✅ [REPLICATION_SUBSCRIBER] Redis Pub/Sub connection established.");
+          try {
+            if (this.subClient) {
+              this.subClient.psubscribe("branch:*", "group:all").catch(subErr => {
+                console.error("[REPLICATION_SUBSCRIBER] Redis subscribe failed:", subErr.message);
+              });
+              console.log("🚀 [REPLICATION_SUBSCRIBER] Registered subscriptions for branch:* and group:all");
+            }
+          } catch (subErr: any) {
+            console.error("[REPLICATION_SUBSCRIBER] Redis subscribe failed:", subErr.message);
+          }
+        });
+
+        this.subClient.on("pmessage", (_pattern, channel, message) => {
+          try {
+            const event: ReplicationEvent = JSON.parse(message);
+            this.handleIncomingMessage(channel, event);
+          } catch (jsonErr: any) {
+            console.warn(`[REPLICATION_SUBSCRIBER] Failed to parse message on ${channel}:`, jsonErr.message);
+          }
+        });
+      }
 
       this.isSubscribed = true;
     } catch (e: any) {
-      console.warn("[REPLICATION_SUBSCRIBER] Failed to initialize Redis subscriber, relying solely on local memory fallback:", e.message || e);
-      this.isSubscribed = true; // Still marked as active so we don't spam start calls
+      console.error("[REPLICATION_SUBSCRIBER] Start function failed:", e);
     }
   }
 
@@ -160,7 +161,7 @@ export class ReplicationSubscriber {
         },
       });
     } catch (auditErr: any) {
-      console.error("[REPLICATION_SUBSCRIBER] Audit logging of REPLICATION_RECEIVED failed:", auditErr.message);
+      console.error("[REPLICATION_SUBSCRIBER] Audit logging of REPLICATION_RECEIVED failed. Error Type:", auditErr.name, "Message:", auditErr.message, "Stack:", auditErr.stack);
     }
 
     // 3. Dispatch to all active handlers (e.g., WebSocket active gateways)

@@ -2,15 +2,16 @@ import { initializeApp, getApps } from "firebase/app";
 import { getDatabase } from "firebase/database";
 import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import firebaseAppletConfig from "../../firebase-applet-config.json";
 
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "dummy",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "dummy",
-  databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL || "dummy",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "dummy",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "dummy",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "dummy",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "dummy"
+  apiKey: firebaseAppletConfig.apiKey,
+  authDomain: firebaseAppletConfig.authDomain,
+  projectId: firebaseAppletConfig.projectId,
+  storageBucket: firebaseAppletConfig.storageBucket,
+  messagingSenderId: firebaseAppletConfig.messagingSenderId,
+  appId: firebaseAppletConfig.appId,
+  ...(import.meta.env.VITE_FIREBASE_DATABASE_URL && { databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL })
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0]!;

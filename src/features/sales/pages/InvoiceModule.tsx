@@ -6,7 +6,8 @@ import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { useUI } from '@/contexts/AppContext';
 import { useAppStore } from '@/hooks/useAppStore';
 import { Button, Badge, Modal } from '@/components/shared/SharedUI';
-import { Clock, User, History, Archive, Search, Ban } from 'lucide-react';
+import { BluetoothPrintEngine } from '@/services/print/BluetoothPrintEngine';
+import { Clock, User, History, Archive, Search, Ban, Bluetooth } from 'lucide-react';
 
 interface InvoiceModuleProps {
   lang: 'en' | 'ar';
@@ -167,6 +168,16 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
                        <button onClick={(e) => handleCancelInvoice(e, item)} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-red-300 hover:text-red-500 transition-all shadow-sm" title={isAr ? "إلغاء المستند" : "Cancel Invoice"}><Ban size={16} /></button>
                      )}
                      <button onClick={(e) => { e.stopPropagation(); viewHistory(e, item.displayId); }} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm"><History size={16} /></button>
+                     <button onClick={async (e) => { 
+                       e.stopPropagation(); 
+                       try {
+                         const { characteristic } = await BluetoothPrintEngine.connect();
+                         await BluetoothPrintEngine.print(characteristic, new TextEncoder().encode(`Invoice: ${item.displayId}`));
+                         addToast(isAr ? "تم الطباعة بنجاح" : "Printed successfully", "success");
+                       } catch (err) {
+                         addToast(isAr ? "فشل الطباعة" : "Printing failed", "error");
+                       }
+                     }} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm"><Bluetooth size={16} /></button>
                    </div>
                  </div>
                  
