@@ -13,7 +13,9 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [themeMode, setThemeState] = useState<ThemeMode>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem('saas_theme_mode') as ThemeMode) || 'system';
+      const saved = localStorage.getItem('saas_theme_mode') as ThemeMode;
+      console.log(`[ThemeContext] Initializing, localStorage: ${saved}`);
+      return saved || 'system';
     }
     return 'system';
   });

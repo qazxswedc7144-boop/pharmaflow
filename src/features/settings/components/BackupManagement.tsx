@@ -534,6 +534,7 @@ const BackupManagement: React.FC = () => {
               >
                 <option value="local">تصدير وتخزين محلي (IndexedDB)</option>
                 <option value="gdrive">رفع وتأمين سحابي (Google Drive ☁️)</option>
+                <option value="device">تنزيل تلقائي وحفظ على الجهاز كملف مشفر (.enc)</option>
               </select>
             </div>
 

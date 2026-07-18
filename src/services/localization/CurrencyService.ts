@@ -103,11 +103,46 @@ export class CurrencyService {
     // سعر صرف افتراضي إذا لم يوجد (لأغراض العرض)
     const defaultRates: Record<string, number> = {
       'USD': 3.67,
-      'SAR': 1.0,
-      'YER': 0.014
+      'SAR': 0.98,
+      'YER': 0.0014,
+      'AED': 1.0,
+      'EGP': 0.075
     };
 
     const rate = defaultRates[fromCurrency] || 1;
     return { baseAmount: amount * rate, rate };
+  }
+
+  /**
+   * تحويل المبلغ بين أي عملتين
+   */
+  static async convert(amount: number, from: string, to: string, date?: string) {
+    if (from === to) return amount;
+    
+    // convert from to base
+    const fromToBase = await this.convertToBase(amount, from, date);
+    
+    // if to is base, return
+    const baseCurrency = await db.getSetting('BASE_CURRENCY', 'AED');
+    if (to === baseCurrency) return fromToBase.baseAmount;
+    
+    // convert from base to to
+    const rates = await db.getExchangeRates(date);
+    const rateEntry = rates.find((r: any) => r.fromCurrency === baseCurrency && r.toCurrency === to);
+    
+    if (rateEntry) {
+      return fromToBase.baseAmount * rateEntry.rate;
+    }
+    
+    // Default fallback
+    const defaultRates: Record<string, number> = {
+      'USD': 3.67,
+      'SAR': 1.0,
+      'YER': 0.014
+    };
+    
+    // Rough estimate
+    const rate = (defaultRates[to] || 1) / (defaultRates[from] || 1);
+    return amount * rate;
   }
 }

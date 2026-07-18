@@ -6,7 +6,7 @@ import { SystemBackup } from '@/types';
 export interface BackupScheduleConfig {
   enabled: boolean;
   frequency: 'daily' | 'weekly' | 'monthly';
-  destination: 'local' | 'gdrive';
+  destination: 'local' | 'gdrive' | 'device';
   password?: string;
 }
 
@@ -41,7 +41,7 @@ class BackupScheduler {
     const password = activeConfig.password || 'pharma-safe-123';
     
     const frequencyLabel = activeConfig.frequency === 'daily' ? 'يومي' : activeConfig.frequency === 'weekly' ? 'أسبوعي' : 'شهري';
-    const destinationLabel = activeConfig.destination === 'gdrive' ? 'جوجل درايف' : 'محلي';
+    const destinationLabel = activeConfig.destination === 'gdrive' ? 'جوجل درايف' : activeConfig.destination === 'device' ? 'تخزين الجهاز المحلي' : 'محلي';
     
     const name = `نسخة مجدولة تلقائية ${frequencyLabel} (${destinationLabel})`;
     const backupType: SystemBackup['backupType'] = activeConfig.frequency === 'daily' 
@@ -70,6 +70,24 @@ class BackupScheduler {
       // Upload to Google Drive
       await GoogleDriveService.uploadBackup(fileName, contentBlob, gdriveToken);
       console.log(`[UnifiedBackupScheduler] Successfully uploaded scheduled backup ${backupId} to Google Drive: ${fileName}`);
+    } else if (activeConfig.destination === 'device') {
+      const dateStr = new Date().toISOString().split('T')[0];
+      const timestamp = Date.now();
+      const fileName = `PharmaFlow_Auto_Backup_${dateStr}_${timestamp}.enc`;
+      
+      // Get the encrypted binary BLOB with GZip using our standard encryption key
+      const contentBlob = await BackupService.exportBackupToFile(password);
+      
+      if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(contentBlob);
+        a.download = fileName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+      }
+      console.log(`[UnifiedBackupScheduler] Successfully downloaded scheduled backup ${backupId} directly to local device storage.`);
     }
 
     // Save timestamp of last successful automation run

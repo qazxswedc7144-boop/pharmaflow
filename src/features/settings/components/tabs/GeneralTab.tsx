@@ -2,9 +2,11 @@ import { useState, useEffect } from 'react';
 import { SettingsCard, Accordion, SettingInput, SettingSelect } from '../shared/SettingsUI';
 import { Settings, Hash } from 'lucide-react';
 import { settingsService, type SettingValue } from '../../data/SettingsService';
+import { useTheme } from '../../../../contexts/ThemeContext';
 
 export default function GeneralTab() {
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});
+  const { themeMode, setThemeMode } = useTheme();
 
   useEffect(() => {
     settingsService.getSettingsGroup(['system_name', 'language', 'timezone', 'currency', 'date_format', 'time_format']).then(setSettings);
@@ -23,6 +25,16 @@ export default function GeneralTab() {
             label="اسم النظام"
             value={(settings.system_name as string) || 'PharmaFlow Pro'}
             onChange={(val: string) => handleChange('system_name', val)}
+          />
+          <SettingSelect
+            label="الوضع (ليلي/نهاري)"
+            value={themeMode}
+            onChange={(val: string) => setThemeMode(val as any)}
+            options={[
+              { value: 'light', label: 'نهاري (Light)' },
+              { value: 'dark', label: 'ليلي (Dark)' },
+              { value: 'system', label: 'تلقائي (System)' }
+            ]}
           />
           <SettingSelect
             label="اللغة الافتراضية"

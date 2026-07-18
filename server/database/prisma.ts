@@ -45,7 +45,8 @@ function getPrismaClient(): PrismaClient {
   console.log("[Prisma] DATABASE_URL raw length:", process.env.DATABASE_URL?.length);
   console.log("[Prisma] DATABASE_URL parsed:", databaseUrl ? "Set" : "Not set or empty");
   
-  if (!databaseUrl) {
+  const isValidUrl = databaseUrl && databaseUrl !== "undefined" && databaseUrl !== "null" && databaseUrl !== "" && databaseUrl.includes("://");
+  if (!isValidUrl) {
     console.warn("[Prisma] DATABASE_URL is not set or empty. Running in offline/local mode.");
     isDatabaseDisabled = true;
     return new Proxy({} as any, {
@@ -98,7 +99,8 @@ function getPrismaClient(): PrismaClient {
 }
 
 // Resilient proxy wrapper
-const hasDb = !!process.env.DATABASE_URL;
+const rawDbUrl = process.env.DATABASE_URL?.trim().replace(/^['"]|['"]$/g, '');
+const hasDb = !!rawDbUrl && rawDbUrl !== "undefined" && rawDbUrl !== "null" && rawDbUrl !== "" && rawDbUrl.includes("://");
 
 const prismaClient = hasDb ? new Proxy(getPrismaClient(), {
   get(target, prop, receiver) {

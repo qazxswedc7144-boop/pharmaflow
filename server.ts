@@ -30,7 +30,6 @@ process.on("uncaughtException", (errVal: any) => {
 
 import express from "express";
 import path from "path";
-import fs from "fs";
 import { execSync } from "child_process";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -64,6 +63,9 @@ function killStaleProcesses(port: number) {
 async function startServer() {
   console.log("=== STARTING SERVER ===");
   console.log("[BOOT] Environment: ", process.env.NODE_ENV);
+  console.log("[BOOT] DATABASE_URL defined: ", !!process.env.DATABASE_URL);
+  console.log("[BOOT] Starting server function...");
+
   const PORT = 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
@@ -320,63 +322,16 @@ async function startServer() {
   } else {
     console.log("[PRODUCTION] Serving static assets...");
     
-    // Robust path resolution for production static files
-    // In production, server.cjs is in /app/dist/server.cjs.
-    // The dist files are in /app/dist/
-    const distPath = __dirname;
-    console.log("[PRODUCTION] Current working directory:", process.cwd());
-    console.log("[PRODUCTION] distPath (__dirname):", distPath);
-    console.log("[PRODUCTION] dist directory exists:", fs.existsSync(distPath));
-    console.log("[PRODUCTION] index.html exists:", fs.existsSync(path.join(distPath, 'index.html')));
-    
-    // Explicit static file serving options to guarantee perfect MIME-types, Hashing, and CORS headers
-    app.use(express.static(distPath, {
-      dotfiles: 'ignore',
-      etag: true,
-      extensions: ['html', 'htm', 'js', 'css', 'png', 'jpg', 'svg', 'webp', 'ico'],
-      index: false,
-      maxAge: '1d',
-      setHeaders: (res, filePath) => {
-        // Enforce proper MIME types to prevent parser blockage on mobile/strict browser engines
-        if (filePath.endsWith('.js')) {
-          res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
-        } else if (filePath.endsWith('.css')) {
-          res.setHeader('Content-Type', 'text/css; charset=utf-8');
-        } else if (filePath.endsWith('.json')) {
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        } else if (filePath.endsWith('.map')) {
-          res.setHeader('Content-Type', 'application/json; charset=utf-8');
-        } else if (filePath.endsWith('.svg')) {
-          res.setHeader('Content-Type', 'image/svg+xml; charset=utf-8');
-        } else if (filePath.endsWith('.webmanifest')) {
-          res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
-        }
-
-        // Disable caching strictly for index.html to guarantee instantaneous preview-level updates after builds
-        if (filePath.endsWith('index.html')) {
-          res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-        } else {
-          // Serve compiled system files with aggressive immutable caching to optimize browser execution
-          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
-        }
-
-        // Allow CORS loading for asset maps
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
-      }
-    }));
-
-    // Universal single page application fallback routing (Vite SPA Fallback)
+    const distPath = path.join(process.cwd(), 'dist');
+    console.log(`[PRODUCTION] distPath: ${distPath}`);
+    app.use(express.static(distPath));
     app.get('*', (_req, res) => {
-      res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      res.setHeader('Access-Control-Allow-Origin', '*');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
   const server = app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://0.0.0.0:${PORT}`);
     registerIdempotencyCleanupCron();
     
     // Initialize Real-Time Replication Engine

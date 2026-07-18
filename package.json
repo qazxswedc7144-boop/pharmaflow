@@ -7,7 +7,7 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "dev": "tsx server.ts",
+    "dev": "NODE_ENV=development tsx server.ts",
     "build": "npx --yes prisma@6 generate && vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "postinstall": "npx --yes prisma@6 generate || true",
