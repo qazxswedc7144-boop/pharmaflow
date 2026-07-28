@@ -9,7 +9,8 @@ import Header from '@/layouts/Header';
 import { useUIStore } from '@/store/useUIStore';
 import { useSalesStore } from '@/store/useSalesStore';
 import { useSettingsStore } from '@/store/useSettingsStore';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, MotionConfig } from 'motion/react';
+import { useAdaptivePerformance } from '@/hooks/useAdaptivePerformance';
 import { db } from '@/core/db';
 import { DistributedSyncEngine } from '@features/sync/sync.engine';
 import { heartbeatService } from '@/services/heartbeatService';
@@ -148,6 +149,7 @@ import { IntegritySweepService } from '@/services/integrity/IntegritySweepServic
 
 function MainLayout() {
   useAutoBackup();
+  const { animationsEnabled, bgSyncInterval } = useAdaptivePerformance();
   const { profile, user, accessToken, loading, signOut } = useAuth(); 
   const [currentView, setCurrentView] = useState<string>('dashboard');
 
@@ -516,7 +518,6 @@ function MainLayout() {
 
   useEffect(() => {
     let stopCurrencyObserver: (() => void) | null = null;
-    let syncTimer: any;
     let syncEngine: DistributedSyncEngine | null = null;
 
     const init = async () => { 
@@ -564,17 +565,6 @@ function MainLayout() {
 
       await FinancialHealthService.refreshHealthMonitor().catch(e => console.error(e));
 
-      syncTimer = setInterval(() => {
-        (async () => {
-          try {
-            const threat = await db.getSetting('SYSTEM_THREAT_LEVEL', '0');
-            setRiskScore(parseInt(threat));
-          } catch (e) {
-            console.error("[SyncTimer] Risk score update failed:", e);
-          }
-        })().catch(e => console.error("[SyncTimer] Fatal error:", e));
-      }, 5000);
-
       let health = await BackupService.runIntegrityChecks().catch(e => ({ success: false, errors: [e.message] }));
       const savedStatus = await db.getSetting('SYSTEM_STATUS', 'ACTIVE');
       
@@ -614,7 +604,6 @@ function MainLayout() {
     return () => {
       heartbeatService.stop();
       backupService.stopAutoTimer();
-      clearInterval(syncTimer);
       if (syncEngine) {
         try {
           syncEngine.stop();
@@ -627,6 +616,25 @@ function MainLayout() {
       RealtimeReplicationService.disconnect();
     };
   }, [refreshGlobal, parseRoute, setCurrency, setSystemStatus, addToast]);
+
+  // Separate, lightweight adaptive threat monitor interval to prevent mobile CPU overload
+  useEffect(() => {
+    const fetchThreatLevel = async () => {
+      try {
+        const threat = await db.getSetting('SYSTEM_THREAT_LEVEL', '0');
+        setRiskScore(parseInt(threat));
+      } catch (e) {
+        console.error("[SyncTimer] Risk score update failed:", e);
+      }
+    };
+
+    fetchThreatLevel();
+    const interval = setInterval(() => {
+      fetchThreatLevel();
+    }, bgSyncInterval);
+
+    return () => clearInterval(interval);
+  }, [bgSyncInterval]);
 
   const handleNav = useCallback((view: string, params: any = null) => {
     if (view === 'settings') {
@@ -694,7 +702,8 @@ function MainLayout() {
   }
 
   return (
-    <div className="flex h-[100dvh] min-h-screen w-full mx-auto bg-[#F8FAFA] overflow-hidden font-sans relative text-slate-800 shadow-sm" dir="rtl">
+    <MotionConfig reducedMotion={animationsEnabled ? "never" : "always"}>
+      <div className="flex h-[100dvh] min-h-screen w-full mx-auto bg-[#F8FAFA] overflow-hidden font-sans relative text-slate-800 shadow-sm" dir="rtl">
       {/* SaaS Trial & Onboarding Gateways */}
       <SubscriptionOnboardingModal isOpen={onboardingOpen} onClose={handleCloseOnboarding} />
       <SubscriptionWarningInterceptor />
@@ -713,7 +722,7 @@ function MainLayout() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] lg:hidden" 
+            className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm z-[200] lg:hidden" 
             onClick={() => setIsSidebarOpen(false)} 
           />
         )}
@@ -1004,6 +1013,7 @@ function MainLayout() {
         )}
       </AnimatePresence>
     </div>
+    </MotionConfig>
   );
 }
 

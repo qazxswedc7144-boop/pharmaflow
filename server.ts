@@ -30,7 +30,26 @@ process.on("uncaughtException", (errVal: any) => {
 
 import express from "express";
 import path from "path";
-import { execSync } from "child_process";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { exec, execSync } from "child_process";
+
+let __filenameResolved = process.cwd();
+let __dirnameResolved = process.cwd();
+
+if (typeof __filename !== "undefined") {
+  __filenameResolved = __filename;
+  __dirnameResolved = __dirname;
+} else {
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.url) {
+      __filenameResolved = fileURLToPath(import.meta.url);
+      __dirnameResolved = path.dirname(__filenameResolved);
+    }
+  } catch {
+    // fallback to process.cwd()
+  }
+}
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import securityRouter from "./server/routes/security.routes";
@@ -66,7 +85,24 @@ async function startServer() {
   console.log("[BOOT] DATABASE_URL defined: ", !!process.env.DATABASE_URL);
   console.log("[BOOT] Starting server function...");
 
-  const PORT = 3000;
+  // Run database migrations asynchronously if DATABASE_URL is defined to prevent blocking port binding and startup probe timeouts
+  const rawDbUrl = process.env.DATABASE_URL?.trim().replace(/^['"]|['"]$/g, '');
+  const hasDb = !!rawDbUrl && rawDbUrl !== "undefined" && rawDbUrl !== "null" && rawDbUrl !== "" && rawDbUrl.includes("://");
+  if (hasDb) {
+    setTimeout(() => {
+      console.log("[BOOT] Applying Prisma database migrations asynchronously in background...");
+      exec("npx prisma migrate deploy", { timeout: 30000 }, (migrateErr, stdout) => {
+        if (migrateErr) {
+          console.error("[BOOT] Warning: Prisma database migrations failed to apply. Server continues to run:", migrateErr.message);
+        } else {
+          if (stdout) console.log("[BOOT] Prisma migrate stdout:", stdout.trim());
+          console.log("[BOOT] Prisma database migrations applied successfully.");
+        }
+      });
+    }, 100);
+  }
+
+  const PORT = Number(process.env.PORT) || 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
   if (process.env.NODE_ENV !== "production") {
@@ -322,11 +358,33 @@ async function startServer() {
   } else {
     console.log("[PRODUCTION] Serving static assets...");
     
-    const distPath = path.join(process.cwd(), 'dist');
-    console.log(`[PRODUCTION] distPath: ${distPath}`);
+    let distPath = path.join(process.cwd(), 'dist');
+    const possibleDistPaths = [
+      path.join(process.cwd(), 'dist'),
+      path.resolve(__dirnameResolved),
+      path.resolve(__dirnameResolved, '..', 'dist'),
+      '/app/applet/dist',
+      '/app/dist'
+    ];
+    for (const cand of possibleDistPaths) {
+      if (fs.existsSync(path.join(cand, 'index.html'))) {
+        distPath = cand;
+        break;
+      }
+    }
+    console.log(`[PRODUCTION] Resolved distPath: ${distPath}`);
     app.use(express.static(distPath));
     app.get('*', (_req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+      const indexPath = path.join(distPath, 'index.html');
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath, (err) => {
+          if (err && !res.headersSent) {
+            res.status(500).send("Error serving application index.");
+          }
+        });
+      } else {
+        res.status(404).send("Application index.html not found.");
+      }
     });
   }
 
@@ -348,18 +406,33 @@ async function startServer() {
     });
   });
 
+  const gracefulShutdown = (signal: string) => {
+    console.log(`[SERVER] Received ${signal} signal. Shutting down server gracefully...`);
+    server.close(() => {
+      console.log("[SERVER] HTTP server closed cleanly.");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.warn("[SERVER] Forcefully exiting after 5s graceful shutdown timeout.");
+      process.exit(0);
+    }, 5000);
+  };
+
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+
   server.on("error", (errVal: any) => {
     const detail = (errVal?.message || String(errVal)).replace(/error/gi, "err_");
-    console.warn("⚠️ Express server listener issue:", detail);
-    if (errVal?.code === "EADDRINUSE" && process.env.NODE_ENV !== "production") {
+    console.error("❌ Express server listener error:", detail);
+    if (errVal?.code === "EADDRINUSE") {
       console.warn(`⚠️ Port ${PORT} is in use. Attempting to force-kill stale processes holding the port...`);
       try {
         execSync(`fuser -k ${PORT}/tcp 2>/dev/null || kill -9 $(lsof -t -i:${PORT} 2>/dev/null) 2>/dev/null`);
       } catch (e) {
         // ignore
       }
-      process.exit(1);
     }
+    process.exit(1);
   });
 }
 

@@ -1,24 +1,11 @@
 // src/types/common.types.ts
+import { SyncableEntity as BaseSyncableEntity, SyncStatus as DomainSyncStatus, PaymentStatus as DomainPaymentStatus } from "../domain";
 
-export type SyncStatus = 'NEW' | 'UPDATED' | 'SYNCED' | 'CONFLICT' | 'PENDING';
-export type PaymentStatus = 'Unpaid' | 'Partially Paid' | 'Paid';
+export type SyncStatus = DomainSyncStatus;
+export type PaymentStatus = DomainPaymentStatus;
 export type SystemStatus = 'ACTIVE' | 'RECOVERY_MODE' | 'MAINTENANCE';
 
-export interface SyncableEntity {
-  id: string;
-  lastModified?: string;
-  updated_at?: string;
-  updatedAt?: string;
-  isSynced?: boolean;
-  version?: number;
-  syncStatus?: SyncStatus;
-  syncVersion?: number;
-  isDeleted?: boolean;
-  Created_By?: string;
-  Created_At?: string;
-  lastSync?: string;
-  tenant_id?: string;
-}
+export type SyncableEntity = BaseSyncableEntity;
 
 export type SubscriptionPlan = 'Free' | 'Basic' | 'Pro';
 export type TenantStatus = 'Active' | 'Suspended' | 'Expired';

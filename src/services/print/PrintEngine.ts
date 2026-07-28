@@ -2,6 +2,7 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { InvoiceTemplate, InvoiceItem, InvoiceTemplateProps } from '@/components/print/InvoiceTemplate';
 import { db } from '@/core/db';
+import { CurrencyService } from '@/services/localization/CurrencyService';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -41,7 +42,7 @@ export const PrintEngine = {
     };
     
     const companyConfig: CompanyConfiguration = await db.getSetting('invoice_config', {
-      pharmacyName: 'PharmaFlow Pro ERP',
+      pharmacyName: 'PharmaFlow',
       address: 'دبي، الإمارات العربية المتحدة',
       phone: '+971 4 000 0000',
       taxNumber: '100234567800003',
@@ -183,7 +184,7 @@ export const PrintEngine = {
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
     
     const companyConfig: CompanyConfiguration = await db.getSetting('invoice_config', {
-      pharmacyName: 'PharmaFlow Pro ERP',
+      pharmacyName: 'PharmaFlow',
       address: 'دبي، الإمارات العربية المتحدة',
       phone: '+971 4 000 0000',
       taxNumber: '100234567800003',
@@ -198,8 +199,8 @@ export const PrintEngine = {
     
     doc.setTextColor(255, 255, 255);
     doc.setFontSize(14);
-    doc.text(companyConfig.pharmacyName || 'PharmaFlow Pro ERP', 15, 10);
-    doc.text('ERP Pro Platform', 150, 10);
+    doc.text(companyConfig.pharmacyName || 'PharmaFlow', 15, 10);
+    doc.text('PharmaFlow Platform', 150, 10);
 
     doc.setTextColor(51, 65, 85);
     doc.setFontSize(16);
@@ -238,13 +239,15 @@ export const PrintEngine = {
     
     // Financial numbers
     const total = Number(data.finalTotal || data.totalAmount || data.amount || 0);
+    const currencyCode = data.currency || CurrencyService.getCurrentCurrencyCode();
+    const currencySymbol = CurrencyService.getCurrencySymbol(currencyCode);
     doc.setFontSize(11);
-    doc.text(`إجمالي الخاضع للضريبة: ${(total / 1.05).toFixed(2)} AED`, 120, finalY + 15);
-    doc.text(`ضريبة القيمة المضافة (5% VAT): ${(total * 0.05 / 1.05).toFixed(2)} AED`, 120, finalY + 22);
+    doc.text(`إجمالي الخاضع للضريبة: ${(total / 1.05).toFixed(2)} ${currencySymbol}`, 120, finalY + 15);
+    doc.text(`ضريبة القيمة المضافة (5% VAT): ${(total * 0.05 / 1.05).toFixed(2)} ${currencySymbol}`, 120, finalY + 22);
     
     doc.setFontSize(13);
     doc.setTextColor(30, 77, 77);
-    doc.text(`الإجمالي العام المستحق: ${total.toFixed(2)} AED`, 120, finalY + 30);
+    doc.text(`الإجمالي العام المستحق: ${total.toFixed(2)} ${currencySymbol}`, 120, finalY + 30);
 
     // Save of document
     doc.save(`Invoice_${refId}.pdf`);

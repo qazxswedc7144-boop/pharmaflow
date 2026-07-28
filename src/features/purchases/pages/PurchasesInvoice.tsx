@@ -661,26 +661,46 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
             </p>
           </div>
 
-          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex-1 overflow-y-auto max-h-[300px]">
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 flex-1 overflow-y-auto max-h-[360px]">
+             <div className="bg-emerald-50/80 border border-emerald-200/60 rounded-lg p-2.5 mb-3 flex items-start gap-2">
+               <Sparkles className="text-emerald-600 shrink-0 mt-0.5" size={16} />
+               <p className="text-[10px] font-bold text-emerald-800 leading-snug">
+                 تم تحليل الفاتورة واستخراج الأعمدة المطلوبة فقط (الاسم، الكمية، سعر الشراء، الصلاحية، الباركود، الخصم) والتخلص الذكي من بقية أعمدة المورد غير الضرورية.
+               </p>
+             </div>
+
              <div className="grid grid-cols-2 gap-2 mb-3">
                <div className="p-2 bg-white rounded-lg border border-slate-100 italic">
-                 <span className="block text-[11px] text-slate-400">المورد</span>
+                 <span className="block text-[10px] text-slate-400">المورد المكتشف</span>
                  <span className="text-[11px] font-black text-[#1E4D4D]">{aiParsedData?.supplier || 'غير مكتشف'}</span>
                </div>
                <div className="p-2 bg-white rounded-lg border border-slate-100">
-                 <span className="block text-[11px] text-slate-400">رقم الفاتورة</span>
+                 <span className="block text-[10px] text-slate-400">رقم الفاتورة</span>
                  <span className="text-[11px] font-black text-[#1E4D4D]">{aiParsedData?.invoice_number || '---'}</span>
                </div>
              </div>
 
-             <div className="space-y-1">
-               <p className="text-[11px] font-black text-slate-500 mb-2 border-b border-slate-200 pb-1">الأصناف المكتشفة ({aiParsedData?.items?.length || 0}):</p>
+             <div className="space-y-1.5">
+               <div className="flex justify-between items-center text-[10px] font-black text-slate-500 border-b border-slate-200 pb-1">
+                 <span>الأصناف المفلترة والمستخرجة ({aiParsedData?.items?.length || 0}):</span>
+                 <span className="text-emerald-600 font-bold">جاهز للمراجعة</span>
+               </div>
                {aiParsedData?.items?.map((item: any, i: number) => (
-                 <div key={i} className="flex justify-between items-center bg-white p-2 rounded-lg border border-slate-100 text-[11px]">
-                   <span className="font-bold text-[#1E4D4D] truncate flex-1">{item.name}</span>
-                   <div className="flex items-center gap-2 shrink-0 pr-2">
-                     <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black">x{item.quantity}</span>
-                     <span className="text-slate-400">{item.price}</span>
+                 <div key={i} className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] space-y-1">
+                   <div className="flex justify-between items-center">
+                     <span className="font-black text-[#1E4D4D] truncate flex-1">{item.name}</span>
+                     <div className="flex items-center gap-1.5 shrink-0 pr-2">
+                       <span className="bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded font-black text-[10px]">
+                         x{item.quantity}{item.bonusQty ? ` (+${item.bonusQty} مجاني)` : ''}
+                       </span>
+                       <span className="font-bold text-slate-700">{item.price}</span>
+                     </div>
+                   </div>
+                   <div className="flex flex-wrap gap-2 text-[10px] text-slate-400 pt-0.5 border-t border-slate-50">
+                     {item.barcode && <span className="bg-slate-100 px-1 rounded text-slate-600">كود: {item.barcode}</span>}
+                     {item.expiryDate && <span className="bg-amber-50 text-amber-700 px-1 rounded">انتهاء: {item.expiryDate}</span>}
+                     {item.discountPercent > 0 && <span className="bg-blue-50 text-blue-700 px-1 rounded">خصم: {item.discountPercent}%</span>}
+                     {item.batchNumber && <span className="bg-purple-50 text-purple-700 px-1 rounded">تشغيلة: {item.batchNumber}</span>}
                    </div>
                  </div>
                ))}

@@ -1,17 +1,7 @@
 // src/types/branch.types.ts
+import { Branch as DomainBranch, BranchTransferStatus as DomainBranchTransferStatus } from "../domain";
 
-import { SyncableEntity } from "./common.types";
-
-export interface Branch extends SyncableEntity {
-  id: string;
-  code: string;
-  name: string;
-  location?: string;
-  phone?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+export type Branch = DomainBranch;
 
 export interface BranchSettings {
   id: string;
@@ -33,7 +23,7 @@ export interface BranchInventory {
   updatedAt: string;
 }
 
-export type TransferStatus = 'DRAFT' | 'APPROVED' | 'IN_TRANSIT' | 'RECEIVED' | 'CANCELLED';
+export type TransferStatus = DomainBranchTransferStatus;
 
 export interface BranchTransfer {
   id: string;

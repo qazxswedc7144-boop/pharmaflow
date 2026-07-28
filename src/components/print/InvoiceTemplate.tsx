@@ -1,5 +1,6 @@
 import React from 'react';
 import { sanitizeHTML } from '@/services/print/sanitizeHTML';
+import { CurrencyService } from '@/services/localization/CurrencyService';
 
 export interface InvoiceItem {
   name: string;
@@ -33,7 +34,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   mode,
   layoutConfig = { primaryColor: '#1E4D4D', font: 'Cairo' },
   invoiceConfig = {
-    pharmacyName: 'PharmaFlow ERP Pro',
+    pharmacyName: 'PharmaFlow',
     address: 'شارع الشيخ زايد، دبي، الإمارات العربية المتحدة',
     phone: '+971 4 123 4567',
     taxNumber: '100234567800003',
@@ -51,6 +52,8 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   
   const finalItems: InvoiceItem[] = propItems || data.items || [];
   const total = Number(data.finalTotal || data.totalAmount || data.amount || 0);
+  const currencyCode = data.currency || CurrencyService.getCurrentCurrencyCode();
+  const currencySymbol = CurrencyService.getCurrencySymbol(currencyCode);
   const taxRate = 0.05; // 5% VAT
   const vatAmount = total * (taxRate / (1 + taxRate)); // inclusive tax calculation
   const netTotal = total - vatAmount;
@@ -60,7 +63,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
   const sanitizedNote = sanitizeHTML(rawNoteHTML);
 
   // QR Code payload text
-  const qrDataText = `الشركة: ${invoiceConfig.pharmacyName}\nرقم المستند: #${refId}\nالتاريخ: ${displayDate}\nالإجمالي: ${total.toFixed(2)} AED\nالضريبة: ${vatAmount.toFixed(2)} AED`;
+  const qrDataText = `الشركة: ${invoiceConfig.pharmacyName}\nرقم المستند: #${refId}\nالتاريخ: ${displayDate}\nالإجمالي: ${total.toFixed(2)} ${currencySymbol}\nالضريبة: ${vatAmount.toFixed(2)} ${currencySymbol}`;
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrDataText)}`;
 
   if (mode === '58mm' || mode === '80mm' || mode === 'THERMAL') {
@@ -157,15 +160,15 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         <div className={`space-y-1 ${fontSizeBase} pb-2 mb-2 border-b border-dashed border-gray-400`}>
           <div className="flex justify-between text-opacity-80">
             <span>الإجمالي الخاضع (Net):</span>
-            <span>{netTotal.toFixed(2)} AED</span>
+            <span>{netTotal.toFixed(2)} {currencySymbol}</span>
           </div>
           <div className="flex justify-between text-opacity-80">
             <span>الضريبة (5% VAT):</span>
-            <span>{vatAmount.toFixed(2)} AED</span>
+            <span>{vatAmount.toFixed(2)} {currencySymbol}</span>
           </div>
           <div className="flex justify-between text-[11px] font-black pt-1 border-t border-dotted border-gray-500">
             <span>المجموع النهائي (Total):</span>
-            <span>{total.toFixed(2)} AED</span>
+            <span>{total.toFixed(2)} {currencySymbol}</span>
           </div>
         </div>
 
@@ -278,7 +281,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
                     </td>
                     <td className="py-4 px-4 text-center text-xs font-mono font-black text-slate-800">{item.qty}</td>
                     <td className="py-4 px-6 text-left text-xs font-black text-slate-900">
-                      {item.sum ? item.sum.toLocaleString() : (item.price * item.qty).toLocaleString()} AED
+                      {item.sum ? item.sum.toLocaleString() : (item.price * item.qty).toLocaleString()} {currencySymbol}
                     </td>
                   </tr>
                 ))}
@@ -368,18 +371,18 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
           <div className="w-72 space-y-2 text-right">
             <div className="flex justify-between text-xs text-slate-500 font-bold">
               <span>قيمة البضاعة غير شامل الضريبة:</span>
-              <span>{netTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED</span>
+              <span>{netTotal.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</span>
             </div>
             <div className="flex justify-between text-xs text-slate-500 font-bold">
               <span>ضريبة القيمة المضافة (5% VAT):</span>
-              <span>{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED</span>
+              <span>{vatAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</span>
             </div>
             <div 
               className="flex justify-between text-lg font-black pt-3 border-t-2 border-slate-100/80"
               style={{ color: layoutConfig.primaryColor }}
             >
               <span>الإجمالي العام للفرع الحسابي:</span>
-              <span>{total.toLocaleString(undefined, { minimumFractionDigits: 2 })} AED</span>
+              <span>{total.toLocaleString(undefined, { minimumFractionDigits: 2 })} {currencySymbol}</span>
             </div>
           </div>
         </div>
@@ -387,7 +390,7 @@ export const InvoiceTemplate: React.FC<InvoiceTemplateProps> = ({
         {/* Audit Trailer & System Stamp */}
         <div className="mt-8 border-t border-slate-100 pt-4 flex justify-between items-center text-[9px] font-black text-slate-400 uppercase tracking-widest">
           <div>
-            <span>PharmaFlow Pro Document rendering engine v2.5.0-Enterprise</span>
+            <span>PharmaFlow Document rendering engine v2.5.0</span>
           </div>
           <div>
             <span>التوثيق المؤتمن: مستند معتمد ولا يتطلب توقيع فيزيائي</span>

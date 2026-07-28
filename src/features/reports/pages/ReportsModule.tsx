@@ -1,11 +1,11 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { SafeMarkdown } from '@/components/shared/SafeMarkdown';
 import { 
   BarChart3, PieChart, TrendingUp, Users, Truck, Package, 
-  Calendar, History, ArrowRight, Search, 
-  Layers, Clock, LayoutGrid, Sparkles, BrainCircuit,
+  Calendar, History, ArrowRight, 
+  Layers, Clock, Sparkles, BrainCircuit,
   Download
 } from 'lucide-react';
 
@@ -45,14 +45,6 @@ const ReportCard: React.FC<ReportCardProps> = ({ title, icon, onClick, descripti
 interface ReportsModuleProps {
   onNavigate: (view: string, params?: any) => void;
 }
-
-const CATEGORIES = [
-  { id: 'all', title: 'الكل', icon: <LayoutGrid size={18} /> },
-  { id: 'stock', title: 'المخزون', icon: <Package size={18} /> },
-  { id: 'sales', title: 'المبيعات', icon: <TrendingUp size={18} /> },
-  { id: 'financial', title: 'المالية', icon: <BarChart3 size={18} /> },
-  { id: 'partners', title: 'الشركاء', icon: <Users size={18} /> },
-];
 
 const REPORTS = [
   { 
@@ -157,18 +149,8 @@ const REPORTS = [
 ];
 
 const ReportsModule: React.FC<ReportsModuleProps> = ({ onNavigate }) => {
-  const [activeCategory, setActiveCategory] = useState('all');
-  const [searchTerm, setSearchTerm] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
-
-  const filteredReports = useMemo(() => {
-    return REPORTS.filter(report => {
-      const matchesCategory = activeCategory === 'all' || report.category === activeCategory;
-      const matchesSearch = report.title.includes(searchTerm) || report.description.includes(searchTerm);
-      return matchesCategory && matchesSearch;
-    });
-  }, [activeCategory, searchTerm]);
 
   const handleGenerateAIInsights = async () => {
     setIsAnalyzing(true);
@@ -185,7 +167,7 @@ const ReportsModule: React.FC<ReportsModuleProps> = ({ onNavigate }) => {
   return (
     <div className="flex flex-col min-h-full h-full bg-[#F8FAFA] font-cairo overflow-x-hidden w-full relative" dir="rtl" id="reports-module-root">
       {/* Header Section */}
-      <header className="px-6 py-6 sm:p-10 pb-8 shrink-0 bg-white border-b border-slate-100 z-20 relative" id="reports-header-section">
+      <header className="px-6 py-5 sm:px-10 sm:py-6 shrink-0 bg-white border-b border-slate-100 z-20 relative" id="reports-header-section">
         <div className="max-w-7xl mx-auto relative z-10 flex flex-col">
           {/* Row 1: Single Horizontal Row [Back Arrow] [Reports Icon] مركز التقارير الذكي */}
           <div className="flex items-center gap-3 w-full" id="reports-header-row-1">
@@ -205,18 +187,18 @@ const ReportsModule: React.FC<ReportsModuleProps> = ({ onNavigate }) => {
           </div>
 
           {/* Row 2: English Subtitle */}
-          <div className="w-full text-center" style={{ marginTop: '8px' }} id="reports-header-row-2">
+          <div className="w-full text-center mt-2" id="reports-header-row-2">
             <p className="text-xs tracking-[0.25em] font-medium text-slate-400 whitespace-nowrap uppercase" id="reports-english-subtitle">
               Intelligence Reports Center
             </p>
           </div>
 
           {/* Row 3: Button - تحليل ذكي للأداء */}
-          <div className="w-full" style={{ marginTop: '20px' }} id="reports-header-row-3">
+          <div className="w-full mt-4" id="reports-header-row-3">
             <button 
               onClick={handleGenerateAIInsights}
               disabled={isAnalyzing}
-              className="w-full flex items-center justify-center gap-3 px-8 py-4 bg-[#1E4D4D] text-white rounded-2xl font-black shadow-xl shadow-emerald-900/20 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 disabled:scale-100"
+              className="w-full flex items-center justify-center gap-3 px-8 py-3.5 bg-[#1E4D4D] text-white rounded-2xl font-black shadow-xl shadow-emerald-900/20 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50 disabled:scale-100"
               id="btn-smart-analysis"
             >
               {isAnalyzing ? (
@@ -226,41 +208,6 @@ const ReportsModule: React.FC<ReportsModuleProps> = ({ onNavigate }) => {
               )}
               {isAnalyzing ? 'جاري التحليل...' : 'تحليل ذكي للأداء'}
             </button>
-          </div>
-
-          {/* Row 4: Search Field */}
-          <div className="w-full" style={{ marginTop: '16px' }} id="reports-header-row-4">
-            <div className="w-full relative group" id="reports-search-input-wrapper">
-              <Search className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-300 group-focus-within:text-[#1E4D4D] transition-colors" size={20} />
-              <input 
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full h-14 bg-slate-50 border border-slate-100 rounded-[20px] pr-14 pl-6 text-xs font-black focus:bg-white focus:border-[#1E4D4D] outline-none shadow-inner transition-all" 
-                placeholder="ابحث عن تقرير" 
-                id="reports-search-input"
-              />
-            </div>
-          </div>
-
-          {/* Category Tabs Section (positioned directly below Search Field with 16px mt) */}
-          <div className="w-full flex justify-center" style={{ marginTop: '16px' }} id="reports-categories-container">
-            <div className="flex items-center gap-2 p-1.5 bg-slate-50 rounded-[22px] border border-slate-100 overflow-x-auto no-scrollbar max-w-full justify-start md:justify-center" id="reports-categories-tabs-track">
-              {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.id}
-                  onClick={() => setActiveCategory(cat.id)}
-                  className={`flex items-center gap-2 px-6 py-2.5 rounded-[18px] text-[11px] font-black transition-all whitespace-nowrap ${
-                    activeCategory === cat.id 
-                    ? 'bg-white text-[#1E4D4D] shadow-sm border border-slate-100' 
-                    : 'text-slate-400 hover:text-[#1E4D4D]'
-                  }`}
-                  id={`cat-tab-${cat.id}`}
-                >
-                  {cat.icon}
-                  {cat.title}
-                </button>
-              ))}
-            </div>
           </div>
         </div>
       </header>
@@ -307,45 +254,20 @@ const ReportsModule: React.FC<ReportsModuleProps> = ({ onNavigate }) => {
       </div>
 
       {/* Reports Grid */}
-      <div className="flex-1 overflow-y-auto p-10 custom-scrollbar">
+      <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
         <div className="max-w-4xl mx-auto">
-          <AnimatePresence mode="popLayout">
-            {filteredReports.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-32 flex flex-col items-center justify-center text-center space-y-4 opacity-30"
-              >
-                <Search size={64} />
-                <p className="text-lg font-black italic">لا توجد نتائج تطابق بحثك</p>
-              </motion.div>
-            ) : (
-              <motion.div 
-                layout
-                className="grid grid-cols-1 gap-4"
-              >
-                {filteredReports.map((report) => (
-                  <motion.div
-                    layout
-                    key={report.id}
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.9 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <ReportCard 
-                      title={report.title}
-                      icon={report.icon}
-                      color={report.color}
-                      description={report.description}
-                      onClick={() => onNavigate(report.route)}
-                    />
-                  </motion.div>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          <div className="grid grid-cols-1 gap-4">
+            {REPORTS.map((report) => (
+              <ReportCard 
+                key={report.id}
+                title={report.title}
+                icon={report.icon}
+                color={report.color}
+                description={report.description}
+                onClick={() => onNavigate(report.route)}
+              />
+            ))}
+          </div>
         </div>
       </div>
 

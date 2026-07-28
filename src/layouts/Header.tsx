@@ -32,9 +32,9 @@ const DynamicLogo = () => {
 
   if (hasError || !logoSrc) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 rounded-xl border border-emerald-100">
-        <HeartPulse className="text-emerald-600" size={24} />
-        <span className="font-black text-emerald-800 text-lg tracking-tight">
+      <div className="flex items-center gap-2 px-3 py-1 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-100 dark:border-emerald-800">
+        <HeartPulse className="text-emerald-600 dark:text-emerald-400" size={24} />
+        <span className="font-black text-emerald-800 dark:text-emerald-300 text-lg tracking-tight">
           {companyName}
         </span>
       </div>
@@ -49,10 +49,8 @@ const DynamicLogo = () => {
       className="h-10 md:h-12 w-auto object-contain transition-opacity duration-500"
       onError={() => {
         if (logoSrc === defaultLogoImg) {
-          // If even SVG fails, fallback to icon
           setHasError(true);
         } else {
-          // If IDB logo fails, try default SVG
           setLogoSrc(defaultLogoImg);
         }
       }}
@@ -62,17 +60,18 @@ const DynamicLogo = () => {
 
 const Header = ({ pageTitle, showBackButton, onBackClick }: { pageTitle?: string, showBackButton?: boolean, onBackClick?: () => void }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
-    <header className="w-full bg-white border-b border-gray-100 px-4 pt-3.5 pb-3 flex items-center justify-between sticky top-0 z-50 shadow-sm min-h-[64px]" dir="rtl">
+    <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 pt-3.5 pb-3 flex items-center justify-between sticky top-0 z-50 shadow-sm min-h-[64px]" dir="rtl">
       
       <SidebarMenu isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
 
       {/* الجهة اليمنى (بداية الصف في RTL): أيقونة الإعدادات وزر العودة متبوعاً بالعنوان */}
-      <div className="flex items-center gap-3 z-10">
+      <div className="flex items-center gap-2 md:gap-3 z-10">
         <RoleGuard permission="MANAGE_SYSTEM">
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="w-10 h-10 flex items-center justify-center bg-slate-50 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-xl transition-all active:scale-95"
+            className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-xl transition-all active:scale-95 cursor-pointer"
             title="القائمة"
           >
             <Menu size={20} />
@@ -82,7 +81,7 @@ const Header = ({ pageTitle, showBackButton, onBackClick }: { pageTitle?: string
         {showBackButton && (
           <button 
             onClick={onBackClick}
-            className="text-2xl text-gray-600 hover:text-emerald-600 transition-all duration-300 transform hover:scale-110 p-2 rounded-full hover:bg-emerald-50 flex items-center justify-center"
+            className="text-2xl text-gray-600 dark:text-gray-300 hover:text-emerald-600 dark:hover:text-emerald-400 transition-all duration-300 transform hover:scale-110 p-2 rounded-full hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center justify-center cursor-pointer"
             title="العودة"
           >
             <span className="leading-none">➟</span>
@@ -90,7 +89,7 @@ const Header = ({ pageTitle, showBackButton, onBackClick }: { pageTitle?: string
         )}
         
         {/* عنوان الصفحة الحالي */}
-        <h1 className="text-base font-bold text-gray-800 hidden md:block">
+        <h1 className="text-base font-bold text-gray-800 dark:text-gray-100 hidden md:block">
           {pageTitle || "PharmaFlow"}
         </h1>
       </div>
@@ -100,8 +99,8 @@ const Header = ({ pageTitle, showBackButton, onBackClick }: { pageTitle?: string
         <DynamicLogo />
       </div>
 
-      {/* الجهة اليسرى (نهاية الصف في RTL): أيقونة التنبيهات مع المنبه */}
-      <div className="flex items-center gap-3 z-10">
+      {/* الجهة اليسرى (نهاية الصف في RTL): التنبيهات فقط */}
+      <div className="flex items-center gap-2 md:gap-3 z-10">
         <NotificationCenter />
       </div>
     </header>

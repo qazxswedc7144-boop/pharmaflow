@@ -121,7 +121,7 @@ const ReconciliationModule: React.FC<{ onNavigate?: (v: any) => void }> = ({ onN
                     <div className="space-y-3 pt-4 border-t border-white/10">
                        <div className="flex justify-between text-xs">
                           <span className="opacity-70">إجمالي الفروقات:</span>
-                          <span className="font-black text-emerald-300">{report.totalDiff.toLocaleString()} AED</span>
+                          <span className="font-black text-emerald-300">{report.totalDiff.toLocaleString()} {currency}</span>
                        </div>
                        <div className="flex justify-between text-xs">
                           <span className="opacity-70">تاريخ آخر تدقيق:</span>

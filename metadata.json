@@ -1,5 +1,5 @@
 {
-  "name": "PharmaFlow PRO ERP",
+  "name": "PharmaFlow",
   "description": "Enterprise-grade ERP for pharmacies with Offline-First, encrypted local storage, AI analytics, and strict financial auditing.",
   "requestFramePermissions": [
     "camera",

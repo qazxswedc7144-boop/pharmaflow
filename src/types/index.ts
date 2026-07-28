@@ -1,15 +1,19 @@
 // src/types/index.ts
 
+// Re-export Canonical Domain Models & Contracts
+export * from "../domain";
+
 // Re-export modular Type-safe Enterprise types
-export * from "./common.types";
-export * from "./invoice.types";
-export * from "./accounting.types";
-export * from "./inventory.types";
+export type { SystemStatus, SubscriptionPlan, TenantStatus } from "./common.types";
+export { AppError, ValidationError, AccountingError, InventoryError, SecurityError } from "./common.types";
+export type { InvoiceItem, UnifiedInvoice } from "./invoice.types";
+export type { AccountingEntry, PartnerLedgerEntry } from "./accounting.types";
+export type { InventoryTransactionType, InventoryTransaction, StockReservation, InventoryLayer, FIFOConsumptionLog, FIFOCostLayer } from "./inventory.types";
 export * from "./api.types";
 export * from "./ai.types";
-export * from "./auth.types";
+export type { UserRoleEntry } from "./auth.types";
 export * from "./database.types";
-export * from "./branch.types";
+export type { BranchSettings, BranchInventory, TransferStatus, BranchTransfer, BranchTransferItem, BranchUser } from "./branch.types";
 export * from "@features/events/event.types";
 
 import { SyncableEntity, SubscriptionPlan, TenantStatus } from "./common.types";
@@ -334,18 +338,6 @@ export interface VoucherInvoiceLink extends SyncableEntity {
   supplier_id?: string;
   customer_id?: string;
   customerId?: string;
-}
-
-export interface Supplier extends SyncableEntity {
-  Supplier_ID: string;      
-  Supplier_Name: string;    
-  name?: string; 
-  Phone?: string;
-  Address?: string;
-  balance: number;          
-  openingBalance: number; 
-  purchaseHistory?: any[];
-  Is_Active?: boolean;
 }
 
 export interface MedicineAlert extends SyncableEntity {

@@ -1,8 +1,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '@/hooks/useAppStore';
+import { useSettingsStore } from '@/store/useSettingsStore';
 import { eventBus } from '@/services/eventBus';
 import { db } from '@/core/db';
+
+import { CurrencyService } from '@/services/localization/CurrencyService';
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const store = useAppStore();
@@ -11,6 +14,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const init = async () => {
       try {
         await db.init();
+        await useSettingsStore.getState().loadSettings();
         await refreshData();
       } catch (e) {
         console.error("[AppContext] Initialization failed:", e);
@@ -23,8 +27,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
 export const useUI = () => {
   const store = useAppStore();
+  const currency = store.currency || 'YER';
   return {
-    currency: store.currency,
+    currency,
+    currencySymbol: CurrencyService.getCurrencySymbol(currency),
+    formatCurrency: (amount: number | string | null | undefined, customCode?: string) =>
+      CurrencyService.formatAmount(amount, customCode || currency),
     setCurrency: store.setCurrency,
     version: store.version,
     toasts: store.toasts,

@@ -6,6 +6,7 @@ import ReportPageLayout from '../components/ReportPageLayout';
 import { Badge } from '@/components/shared/SharedUI';
 import { Hash, ArrowUpRight, ArrowDownLeft, Wallet, CreditCard } from 'lucide-react';
 import { ExportService } from '@/services/data/exportService';
+import { FixedSizeList as List } from 'react-window';
 
 const AccountMovementReport: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavigate }) => {
   const [data, setData] = useState<any[]>([]);
@@ -107,51 +108,64 @@ const AccountMovementReport: React.FC<{ onNavigate?: (view: any) => void }> = ({
       )}
       onPrint={() => window.print()}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-right zebra-table min-w-[900px]">
-          <thead className="bg-[#F8FAFA] text-slate-400 font-black text-[10px] uppercase tracking-widest border-b border-slate-100">
-            <tr>
-              <th className="px-6 py-5 text-right font-black">التاريخ</th>
-              <th className="px-6 py-5 text-right font-black">رقم العملية</th>
-              <th className="px-6 py-5 text-right font-black">نوع العملية</th>
-              <th className="px-6 py-5 text-right font-black">الحساب</th>
-              <th className="px-6 py-5 text-center font-black">المبلغ</th>
-              <th className="px-6 py-5 text-center font-black">الرصيد بعد العملية</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filteredData.map((m, idx) => (
-              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-5 text-xs font-bold text-slate-500">
-                  {new Date(m.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </td>
-                <td className="px-6 py-5 text-slate-700 font-bold">
-                  <div className="flex items-center gap-2">
-                    <Hash size={12} className="text-slate-300" />
-                    <span>{m.ref}</span>
+      <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+        <div className="bg-[#F8FAFA] text-slate-400 font-black text-[10px] uppercase tracking-widest border-b border-slate-100 flex px-6 py-4">
+          <div className="w-2/12 text-right">التاريخ</div>
+          <div className="w-2/12 text-right">رقم العملية</div>
+          <div className="w-2/12 text-right">نوع العملية</div>
+          <div className="w-3/12 text-right">الحساب</div>
+          <div className="w-1/12 text-center">المبلغ</div>
+          <div className="w-2/12 text-center">الرصيد بعد العملية</div>
+        </div>
+
+        {filteredData.length === 0 ? (
+          <div className="px-6 py-20 text-center text-slate-300 font-black italic">
+            لا توجد نتائج تطابق البحث أو الفلترة المختارة
+          </div>
+        ) : (
+          <List
+            height={Math.min(500, Math.max(200, filteredData.length * 60))}
+            itemCount={filteredData.length}
+            itemSize={60}
+            width="100%"
+            className="custom-scrollbar divide-y divide-slate-50"
+          >
+            {({ index, style }) => {
+              const m = filteredData[index];
+              if (!m) return null;
+
+              return (
+                <div
+                  style={style}
+                  key={index}
+                  className="flex items-center text-right text-xs px-6 py-3 hover:bg-slate-50/80 transition-colors border-b border-slate-50"
+                >
+                  <div className="w-2/12 font-bold text-slate-500">
+                    {new Date(m.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </div>
-                </td>
-                <td className="px-6 py-5">
-                   <Badge variant="info">{m.type}</Badge>
-                </td>
-                <td className="px-6 py-5 font-bold text-slate-700">{m.accountName}</td>
-                <td className={`px-6 py-5 text-center font-black ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {m.amount.toLocaleString()} {currency}
-                </td>
-                <td className="px-6 py-5 text-center font-black text-[#1E4D4D]">
-                  {m.balanceAfter.toLocaleString()} {currency}
-                </td>
-              </tr>
-            ))}
-            {filteredData.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-300 font-black italic">
-                  لا توجد نتائج تطابق البحث أو الفلترة المختارة
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  <div className="w-2/12 text-slate-700 font-bold truncate">
+                    <div className="flex items-center gap-2">
+                      <Hash size={12} className="text-slate-300 shrink-0" />
+                      <span className="truncate">{m.ref}</span>
+                    </div>
+                  </div>
+                  <div className="w-2/12">
+                    <Badge variant="info">{m.type}</Badge>
+                  </div>
+                  <div className="w-3/12 font-bold text-slate-700 truncate">
+                    {m.accountName}
+                  </div>
+                  <div className={`w-1/12 text-center font-black ${m.amount >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {m.amount.toLocaleString()} {currency}
+                  </div>
+                  <div className="w-2/12 text-center font-black text-[#1E4D4D]">
+                    {m.balanceAfter.toLocaleString()} {currency}
+                  </div>
+                </div>
+              );
+            }}
+          </List>
+        )}
       </div>
     </ReportPageLayout>
   );

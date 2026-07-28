@@ -3,27 +3,95 @@ import { db } from '@/core/db';
 import { Currency } from '@/types';
 import { eventBus, EVENTS } from '@/services/eventBus';
 
+export interface CurrencyMetadata {
+  code: string;
+  name: string;
+  symbol: string;
+}
+
+export const KNOWN_CURRENCIES: Record<string, CurrencyMetadata> = {
+  YER: { code: 'YER', name: 'ريال يمني', symbol: 'ر.ي' },
+  SAR: { code: 'SAR', name: 'ريال سعودي', symbol: 'ر.س' },
+  USD: { code: 'USD', name: 'دولار أمريكي', symbol: '$' },
+  AED: { code: 'AED', name: 'درهم إماراتي', symbol: 'د.إ' },
+  EGP: { code: 'EGP', name: 'جنيه مصري', symbol: 'ج.م' },
+};
+
 export class CurrencyService {
   private static ACTIVE_CURRENCY_KEY = 'ACTIVE_CURRENCY';
   private static CURRENCY_NAME_KEY = 'ACTIVE_CURRENCY_NAME';
 
   /**
+   * Returns current active currency code synchronously from window or localStorage
+   */
+  static getCurrentCurrencyCode(): string {
+    if (typeof window !== 'undefined') {
+      const cached = (window as any).currentSystemCurrency || 
+                     localStorage.getItem('pharmaflow_currency') || 
+                     localStorage.getItem('pharma_currency');
+      if (cached && typeof cached === 'string') {
+        return cached.toUpperCase();
+      }
+    }
+    return 'YER';
+  }
+
+  /**
+   * Get currency symbol from currency code
+   */
+  static getCurrencySymbol(code?: string): string {
+    const c = (code || this.getCurrentCurrencyCode()).toUpperCase();
+    return KNOWN_CURRENCIES[c]?.symbol || c;
+  }
+
+  /**
+   * Get localized currency name from currency code
+   */
+  static getCurrencyName(code?: string): string {
+    const c = (code || this.getCurrentCurrencyCode()).toUpperCase();
+    return KNOWN_CURRENCIES[c]?.name || c;
+  }
+
+  /**
+   * Format a numeric amount with current or given currency symbol/code
+   */
+  static formatAmount(
+    amount: number | string | null | undefined,
+    currencyCode?: string,
+    options?: { showSymbol?: boolean; showCode?: boolean; decimals?: number }
+  ): string {
+    const num = typeof amount === 'number' ? amount : parseFloat(String(amount || 0)) || 0;
+    const formattedNum = num.toLocaleString('ar-EG', {
+      minimumFractionDigits: options?.decimals ?? 0,
+      maximumFractionDigits: options?.decimals ?? 2,
+    });
+
+    const code = (currencyCode || this.getCurrentCurrencyCode()).toUpperCase();
+    if (options?.showCode) {
+      return `${formattedNum} ${code}`;
+    }
+    const symbol = this.getCurrencySymbol(code);
+    return `${formattedNum} ${symbol}`;
+  }
+
+  /**
    * دالة تحديث العملة للنظام بالكامل
    * @param {string} code - رمز العملة (مثل YER)
-   * @param {string} label - اسم العملة (مثل يمني)
+   * @param {string} label - اسم العملة (مثل ريال يمني)
    * @param {boolean} isNew - هل هي عملة جديدة تضاف لأول مرة؟
    */
-  static async setGlobalCurrency(code: string, label: string, isNew: boolean = false) {
+  static async setGlobalCurrency(code: string, label?: string, isNew: boolean = false) {
     const upperCode = code.toUpperCase();
+    const resolvedLabel = label || this.getCurrencyName(upperCode);
     
     // 1. إذا كانت عملة جديدة، تضاف لقائمة العملات المتاحة مستقبلاً
     if (isNew) {
       const newCurrency: Currency = {
         id: db.generateId('CUR'),
         code: upperCode,
-        name: label,
-        symbol: upperCode,
-        isBase: false,
+        name: resolvedLabel,
+        symbol: this.getCurrencySymbol(upperCode),
+        isBase: upperCode === 'YER',
         lastModified: new Date().toISOString()
       };
       await db.saveCurrency(newCurrency);
@@ -32,17 +100,28 @@ export class CurrencyService {
     // 2. تعيين العملة كـ "عملة نشطة" للنظام بالكامل في الإعدادات
     await db.runTransaction(async () => {
       await db.saveSetting(this.ACTIVE_CURRENCY_KEY, upperCode);
-      await db.saveSetting(this.CURRENCY_NAME_KEY, label);
+      await db.saveSetting('currency', upperCode);
+      await db.saveSetting(this.CURRENCY_NAME_KEY, resolvedLabel);
+      await db.saveSetting('currencyLabel', resolvedLabel);
     }, ['settings']);
 
     // 3. تحديث الذاكرة المؤقتة (للتوافق مع الكود القديم إن وجد)
-    (window as any).currentSystemCurrency = upperCode;
-    localStorage.setItem('pharma_currency', upperCode);
+    if (typeof window !== 'undefined') {
+      (window as any).currentSystemCurrency = upperCode;
+      localStorage.setItem('pharmaflow_currency', upperCode);
+      localStorage.setItem('pharma_currency', upperCode);
+    }
 
     // 4. إرسال حدث لتنبيه الواجهة بالتغيير
-    eventBus.emit(EVENTS.CURRENCY_CHANGED, { code: upperCode, label });
+    eventBus.emit(EVENTS.CURRENCY_CHANGED, { code: upperCode, label: resolvedLabel });
     
-    console.log(`✅ النظام الآن يعمل بعملة: ${label} (${upperCode})`);
+    if (typeof document !== 'undefined') {
+      document.querySelectorAll(".currency-label").forEach((el: Element) => {
+        (el as HTMLElement).innerText = upperCode;
+      });
+    }
+
+    console.log(`✅ النظام الآن يعمل بعملة: ${resolvedLabel} (${upperCode})`);
     return upperCode;
   }
 
@@ -50,11 +129,15 @@ export class CurrencyService {
    * جلب العملة النشطة الحالية
    */
   static async getActiveCurrency(): Promise<{ code: string; label: string }> {
-    const code = await db.getSetting(this.ACTIVE_CURRENCY_KEY, 'AED');
-    const label = await db.getSetting(this.CURRENCY_NAME_KEY, 'درهم إماراتي');
+    const code = await db.getSetting(this.ACTIVE_CURRENCY_KEY, 'YER');
+    const label = await db.getSetting(this.CURRENCY_NAME_KEY, 'ريال يمني');
     
     // Update window cache
-    (window as any).currentSystemCurrency = code;
+    if (typeof window !== 'undefined') {
+      (window as any).currentSystemCurrency = code;
+      localStorage.setItem('pharmaflow_currency', code);
+      localStorage.setItem('pharma_currency', code);
+    }
     
     return { code, label };
   }
@@ -74,10 +157,11 @@ export class CurrencyService {
       if (data && data.code) {
         onUpdate(data.code, data.label);
         
-        // تحديث جميع العناصر التي تحمل كلاس العملة في الواجهة (DOM Manipulation as requested)
-        document.querySelectorAll(".currency-label").forEach((el: Element) => {
-          (el as HTMLElement).innerText = data.code;
-        });
+        if (typeof document !== 'undefined') {
+          document.querySelectorAll(".currency-label").forEach((el: Element) => {
+            (el as HTMLElement).innerText = data.code;
+          });
+        }
       }
     });
   }
@@ -86,7 +170,7 @@ export class CurrencyService {
    * تحويل المبلغ إلى العملة الأساسية (Base Currency)
    */
   static async convertToBase(amount: number, fromCurrency: string, date?: string) {
-    const baseCurrency = await db.getSetting('BASE_CURRENCY', 'AED');
+    const baseCurrency = await db.getSetting('BASE_CURRENCY', 'YER');
     
     if (fromCurrency === baseCurrency) {
       return { baseAmount: amount, rate: 1 };
@@ -102,11 +186,11 @@ export class CurrencyService {
 
     // سعر صرف افتراضي إذا لم يوجد (لأغراض العرض)
     const defaultRates: Record<string, number> = {
-      'USD': 3.67,
-      'SAR': 0.98,
-      'YER': 0.0014,
-      'AED': 1.0,
-      'EGP': 0.075
+      'USD': 530,
+      'SAR': 140,
+      'YER': 1.0,
+      'AED': 144,
+      'EGP': 11
     };
 
     const rate = defaultRates[fromCurrency] || 1;
@@ -123,7 +207,7 @@ export class CurrencyService {
     const fromToBase = await this.convertToBase(amount, from, date);
     
     // if to is base, return
-    const baseCurrency = await db.getSetting('BASE_CURRENCY', 'AED');
+    const baseCurrency = await db.getSetting('BASE_CURRENCY', 'YER');
     if (to === baseCurrency) return fromToBase.baseAmount;
     
     // convert from base to to
@@ -136,13 +220,15 @@ export class CurrencyService {
     
     // Default fallback
     const defaultRates: Record<string, number> = {
-      'USD': 3.67,
-      'SAR': 1.0,
-      'YER': 0.014
+      'USD': 530,
+      'SAR': 140,
+      'YER': 1.0,
+      'AED': 144,
+      'EGP': 11
     };
     
-    // Rough estimate
     const rate = (defaultRates[to] || 1) / (defaultRates[from] || 1);
     return amount * rate;
   }
 }
+

@@ -5,6 +5,7 @@ import { useUI } from '@/contexts/AppContext';
 import { useAppStore } from '@/hooks/useAppStore';
 import { Card, Badge } from '@/components/shared/SharedUI';
 import { Search, Tag, Wallet, Scale, FileText, Trash2 } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 import { InvoiceAdjustment } from '@/types';
 
 interface AdjustmentsArchiveModuleProps {
@@ -167,83 +168,89 @@ const AdjustmentsArchiveModule: React.FC<AdjustmentsArchiveModuleProps> = ({ onN
       </div>
 
       <Card noPadding className="shadow-2xl border-slate-100 overflow-hidden !rounded-[40px] animate-in slide-in-from-bottom-4 duration-700 bg-white">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-right text-[11px]">
-            <thead className="bg-[#F8FAFA] text-slate-400 font-black uppercase border-b-2 border-slate-100">
-              <tr>
-                <th className="px-8 py-6">المرجع (Invoice)</th>
-                <th className="px-8 py-6">نوع التعديل</th>
-                <th className="px-8 py-6">البيان / الملاحظة</th>
-                <th className="px-8 py-6 text-center">القيمة</th>
-                <th className="px-8 py-6 text-left">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filteredAdjustments.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-32 text-center text-slate-300 italic font-black text-sm uppercase tracking-[4px] opacity-40">No Adjustments Found</td>
-                </tr>
-              ) : filteredAdjustments.map((adj, idx) => {
-                const isDiscount = adj.Type === 'Discount';
-
-                return (
-                  <tr 
-                    key={adj.AdjustmentID || idx} 
-                    className="hover:bg-slate-50 cursor-pointer group transition-all relative active:bg-slate-100"
-                    onClick={() => handleGoToInvoice(adj.InvoiceID)}
-                  >
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-4">
-                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner ${getTypeColor(adj.Type)}`}>
-                           {getTypeIcon(adj.Type)}
-                        </div>
-                        <div>
-                          <span className="font-black text-[#1E4D4D] text-sm block">#{adj.InvoiceID}</span>
-                          <span className="text-[9px] font-black text-slate-300 uppercase">Document Ref</span>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <Badge variant={getBadgeVariant(adj.Type)}>
-                        {getTypeLabel(adj.Type)}
-                      </Badge>
-                    </td>
-                    <td className="px-8 py-6 font-black text-slate-500 truncate max-w-[250px]">
-                      {adj.Note || '---'}
-                    </td>
-                    <td className="px-8 py-6 text-center">
-                      <div className="flex flex-col items-center">
-                         <span className={`font-black text-sm ${isDiscount ? 'text-red-500' : 'text-[#1E4D4D]'}`}>
-                            {isDiscount ? '-' : '+'}{(adj.Value || 0).toLocaleString()}
-                            {adj.IsPercentage ? '%' : ` ${currency}`}
-                         </span>
-                         {adj.IsPercentage && <span className="text-[8px] font-bold text-slate-300 uppercase">حساب نسبي</span>}
-                      </div>
-                    </td>
-                    <td className="px-8 py-6">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0 translate-x-4">
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); handleGoToInvoice(adj.InvoiceID); }}
-                          className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-blue-500 hover:bg-blue-500 hover:text-white hover:shadow-lg transition-all active:scale-90 flex items-center justify-center"
-                          title="فتح الفاتورة"
-                        >
-                          <FileText size={16}/>
-                        </button>
-                        <button 
-                          onClick={(e) => handleDelete(e, adj.AdjustmentID)}
-                          className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-red-400 hover:bg-red-500 hover:text-white hover:shadow-lg transition-all active:scale-90 flex items-center justify-center"
-                          title="حذف"
-                        >
-                          <Trash2 size={16}/>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="bg-[#F8FAFA] text-slate-400 font-black uppercase border-b-2 border-slate-100 flex text-right text-[11px] px-8 py-5">
+          <div className="w-3/12">المرجع (Invoice)</div>
+          <div className="w-2/12">نوع التعديل</div>
+          <div className="w-3/12">البيان / الملاحظة</div>
+          <div className="w-2/12 text-center">القيمة</div>
+          <div className="w-2/12 text-left">إجراءات</div>
         </div>
+
+        {filteredAdjustments.length === 0 ? (
+          <div className="py-24 text-center text-slate-300 italic font-black text-sm uppercase tracking-[4px] opacity-40">
+            No Adjustments Found
+          </div>
+        ) : (
+          <List
+            height={Math.min(500, Math.max(200, filteredAdjustments.length * 75))}
+            itemCount={filteredAdjustments.length}
+            itemSize={75}
+            width="100%"
+            className="custom-scrollbar divide-y divide-slate-50"
+          >
+            {({ index, style }) => {
+              const adj = filteredAdjustments[index];
+              if (!adj) return null;
+              const isDiscount = adj.Type === 'Discount';
+
+              return (
+                <div
+                  style={style}
+                  key={adj.AdjustmentID || index}
+                  className="flex items-center text-right text-[11px] px-8 py-3 hover:bg-slate-50 cursor-pointer group transition-all relative border-b border-slate-50"
+                  onClick={() => handleGoToInvoice(adj.InvoiceID)}
+                >
+                  <div className="w-3/12">
+                    <div className="flex items-center gap-4">
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-inner shrink-0 ${getTypeColor(adj.Type)}`}>
+                        {getTypeIcon(adj.Type)}
+                      </div>
+                      <div className="truncate">
+                        <span className="font-black text-[#1E4D4D] text-sm block">#{adj.InvoiceID}</span>
+                        <span className="text-[9px] font-black text-slate-300 uppercase">Document Ref</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-2/12">
+                    <Badge variant={getBadgeVariant(adj.Type)}>
+                      {getTypeLabel(adj.Type)}
+                    </Badge>
+                  </div>
+                  <div className="w-3/12 font-black text-slate-500 truncate max-w-[250px]">
+                    {adj.Note || '---'}
+                  </div>
+                  <div className="w-2/12 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className={`font-black text-sm ${isDiscount ? 'text-red-500' : 'text-[#1E4D4D]'}`}>
+                        {isDiscount ? '-' : '+'}{(adj.Value || 0).toLocaleString()}
+                        {adj.IsPercentage ? '%' : ` ${currency}`}
+                      </span>
+                      {adj.IsPercentage && <span className="text-[8px] font-bold text-slate-300 uppercase">حساب نسبي</span>}
+                    </div>
+                  </div>
+                  <div className="w-2/12">
+                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all transform group-hover:translate-x-0 translate-x-4">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleGoToInvoice(adj.InvoiceID); }}
+                        className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-blue-500 hover:bg-blue-500 hover:text-white hover:shadow-lg transition-all active:scale-90 flex items-center justify-center"
+                        title="فتح الفاتورة"
+                      >
+                        <FileText size={16}/>
+                      </button>
+                      <button 
+                        onClick={(e) => handleDelete(e, adj.AdjustmentID)}
+                        className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-red-400 hover:bg-red-500 hover:text-white hover:shadow-lg transition-all active:scale-90 flex items-center justify-center"
+                        title="حذف"
+                      >
+                        <Trash2 size={16}/>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
+          </List>
+        )}
       </Card>
     </div>
   );

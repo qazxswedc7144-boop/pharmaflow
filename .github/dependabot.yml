@@ -1,9 +1,0 @@
-version: 2
-updates:
-  - package-ecosystem: "npm"
-    directory: "/"
-    schedule:
-      interval: "weekly"
-    # هذا الإعداد اختياري لتقليل الإزعاج، يقوم بتجميع التحديثات في Pull Request واحد
-    open-pull-requests-limit: 10
-    

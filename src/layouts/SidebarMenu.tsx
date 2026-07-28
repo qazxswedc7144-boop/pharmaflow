@@ -4,8 +4,10 @@ import {
   X, Database, Settings, CreditCard, 
   ChevronDown, ChevronUp,
   CloudUpload, Printer, LogOut,
-  FileSpreadsheet, FileJson, Upload, Phone, LifeBuoy, Key, User, Moon
+  FileSpreadsheet, FileJson, Upload, Phone, LifeBuoy, Key, User, Moon, Sun, Globe
 } from 'lucide-react';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useUI } from '@/contexts/AppContext';
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -43,7 +45,9 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
 };
 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { resolvedTheme, setThemeMode } = useTheme();
+  const { currency, setCurrency } = useUI();
+  const isDarkMode = resolvedTheme === 'dark';
 
   return (
     <AnimatePresence>
@@ -52,12 +56,12 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[200]"
           />
           <motion.div 
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed top-0 right-0 h-full w-[340px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-50 flex flex-col font-cairo"
+            className="absolute inset-y-0 right-0 h-full w-[340px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-[201] flex flex-col font-cairo"
             dir="rtl"
           >
             <div className="p-4 border-b dark:border-gray-800 flex items-center justify-between bg-[#1E4D4D] text-white">
@@ -66,6 +70,60 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar">
+              {/* ⚡ Quick Preferences Card */}
+              <div className="p-4 bg-emerald-50/50 dark:bg-emerald-950/20 border-b border-emerald-100 dark:border-emerald-900/40 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    {isDarkMode ? <Moon size={15} className="text-indigo-400" /> : <Sun size={15} className="text-amber-500" />}
+                    مظهر النظام
+                  </span>
+                  <div className="flex items-center bg-white dark:bg-gray-800 p-0.5 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <button
+                      type="button"
+                      onClick={() => setThemeMode('light')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                        !isDarkMode 
+                          ? 'bg-emerald-600 text-white shadow-sm' 
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <Sun size={13} />
+                      نهاري
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setThemeMode('dark')}
+                      className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                        isDarkMode 
+                          ? 'bg-emerald-600 text-white shadow-sm' 
+                          : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
+                      }`}
+                    >
+                      <Moon size={13} />
+                      ليلي
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-1">
+                  <span className="text-xs font-black text-emerald-800 dark:text-emerald-300 flex items-center gap-1.5">
+                    <Globe size={15} className="text-emerald-600 dark:text-emerald-400" />
+                    عملة النظام
+                  </span>
+                  <select
+                    value={currency || 'YER'}
+                    onChange={(e) => setCurrency(e.target.value)}
+                    className="text-xs p-1.5 px-2.5 border border-emerald-200 dark:border-emerald-800 rounded-lg bg-white dark:bg-gray-800 text-emerald-950 dark:text-emerald-100 font-bold focus:ring-2 focus:ring-[#10B981] outline-none transition-all cursor-pointer shadow-xs"
+                  >
+                    <option value="YER">ريال يمني (YER)</option>
+                    <option value="SAR">ريال سعودي (SAR)</option>
+                    <option value="USD">دولار أمريكي (USD)</option>
+                    <option value="AED">درهم إماراتي (AED)</option>
+                    <option value="EGP">جنيه مصري (EGP)</option>
+                  </select>
+                </div>
+              </div>
+
               {/* 1️⃣ Backup & Security */}
               <AccordionSection title="النسخ الاحتياطي والأمان" icon={Database}>
                 <button className="w-full text-right text-sm text-[#1E4D4D] dark:text-emerald-100 bg-emerald-50 dark:bg-emerald-900/20 py-2.5 px-3 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800/40 transition-colors flex items-center justify-center gap-2 border border-emerald-100 dark:border-emerald-800/50 focus:outline-none">
@@ -174,27 +232,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
                         <Key size={14} /> تغيير كلمة المرور
                       </button>
                     </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                    <div className="flex items-center gap-2 text-sm font-bold text-gray-700 dark:text-gray-200">
-                      <Moon size={18} className="text-indigo-500" /> الوضع الليلي (Dark Mode)
-                    </div>
-                    <button 
-                      onClick={() => setIsDarkMode(!isDarkMode)}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex items-center focus:outline-none ${isDarkMode ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600'}`}
-                    >
-                      <span className={`w-4 h-4 rounded-full bg-white absolute top-1 transition-transform ${isDarkMode ? 'translate-x-1 left-0' : 'translate-x-6 left-0'}`} />
-                    </button>
-                  </div>
-
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 block">العملة الافتراضية للنظام</label>
-                    <select className="w-full text-sm p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#10B981] outline-none transition-all cursor-pointer">
-                      <option value="YER">ريال يمني (YER)</option>
-                      <option value="SAR">ريال سعودي (SAR)</option>
-                      <option value="USD">دولار أمريكي (USD)</option>
-                    </select>
                   </div>
                 </div>
               </AccordionSection>

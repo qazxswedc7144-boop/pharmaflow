@@ -7,6 +7,7 @@ import { Badge } from '@/components/shared/SharedUI';
 import { ArrowLeftRight, ArrowUpRight, ArrowDownLeft, RotateCcw, BarChart3 } from 'lucide-react';
 import { ExportService } from '@/services/data/exportService';
 import { Sale, Purchase, UnifiedInvoice } from '@/types';
+import { FixedSizeList as List } from 'react-window';
 
 function mapInvoiceToSale(inv: UnifiedInvoice): Sale {
   return {
@@ -181,49 +182,64 @@ const ItemMovementDetailsReport: React.FC<{ onNavigate?: (view: any) => void }> 
       )}
       onPrint={() => window.print()}
     >
-      <div className="overflow-x-auto">
-        <table className="w-full text-right zebra-table min-w-[900px]">
-          <thead className="bg-[#F8FAFA] text-slate-400 font-black text-[10px] uppercase tracking-widest border-b border-slate-100">
-            <tr>
-              <th className="px-6 py-5 text-right font-black">التاريخ</th>
-              <th className="px-6 py-5 text-right font-black">نوع الحركة</th>
-              <th className="px-6 py-5 text-right font-black">الصنف</th>
-              <th className="px-6 py-5 text-center font-black">الكمية</th>
-              <th className="px-6 py-5 text-center font-black">الرصيد بعد الحركة</th>
-              <th className="px-6 py-5 text-right font-black">المرجع</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50">
-            {filteredData.map((m, idx) => (
-              <tr key={idx} className="hover:bg-slate-50/50 transition-colors">
-                <td className="px-6 py-5 text-xs font-bold text-slate-500">
-                  {new Date(m.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
-                </td>
-                <td className="px-6 py-5">
-                  <div className="flex items-center gap-2">
-                    {getTypeIcon(m.typeName)}
-                    {getTypeBadge(m)}
+      <div className="bg-white rounded-3xl border border-slate-100 overflow-hidden shadow-sm">
+        <div className="bg-[#F8FAFA] text-slate-400 font-black text-[10px] uppercase tracking-widest border-b border-slate-100 flex px-6 py-4">
+          <div className="w-2/12 text-right">التاريخ</div>
+          <div className="w-2/12 text-right">نوع الحركة</div>
+          <div className="w-3/12 text-right">الصنف</div>
+          <div className="w-2/12 text-center">الكمية</div>
+          <div className="w-2/12 text-center">الرصيد بعد الحركة</div>
+          <div className="w-1/12 text-right">المرجع</div>
+        </div>
+
+        {filteredData.length === 0 ? (
+          <div className="px-6 py-20 text-center text-slate-300 font-black italic">
+            لا توجد نتائج تطابق البحث أو الفلترة المختارة
+          </div>
+        ) : (
+          <List
+            height={Math.min(500, Math.max(200, filteredData.length * 60))}
+            itemCount={filteredData.length}
+            itemSize={60}
+            width="100%"
+            className="custom-scrollbar divide-y divide-slate-50"
+          >
+            {({ index, style }) => {
+              const m = filteredData[index];
+              if (!m) return null;
+
+              return (
+                <div
+                  style={style}
+                  key={index}
+                  className="flex items-center text-right text-xs px-6 py-3 hover:bg-slate-50/80 transition-colors border-b border-slate-50"
+                >
+                  <div className="w-2/12 font-bold text-slate-500">
+                    {new Date(m.date).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
                   </div>
-                </td>
-                <td className="px-6 py-5 font-bold text-slate-700">{m.itemName}</td>
-                <td className={`px-6 py-5 text-center font-black ${m.qty > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                  {m.qty > 0 ? `+${m.qty}` : m.qty} {m.unit}
-                </td>
-                <td className="px-6 py-5 text-center font-black text-[#1E4D4D]">
-                  {m.balance} {m.unit}
-                </td>
-                <td className="px-6 py-5 text-slate-400 font-mono text-[10px]">{m.ref}</td>
-              </tr>
-            ))}
-            {filteredData.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-6 py-20 text-center text-slate-300 font-black italic">
-                  لا توجد نتائج تطابق البحث أو الفلترة المختارة
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+                  <div className="w-2/12">
+                    <div className="flex items-center gap-2">
+                      {getTypeIcon(m.typeName)}
+                      {getTypeBadge(m)}
+                    </div>
+                  </div>
+                  <div className="w-3/12 font-bold text-slate-700 truncate">
+                    {m.itemName}
+                  </div>
+                  <div className={`w-2/12 text-center font-black ${m.qty > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                    {m.qty > 0 ? `+${m.qty}` : m.qty} {m.unit}
+                  </div>
+                  <div className="w-2/12 text-center font-black text-[#1E4D4D]">
+                    {m.balance} {m.unit}
+                  </div>
+                  <div className="w-1/12 text-slate-400 font-mono text-[10px] truncate">
+                    {m.ref}
+                  </div>
+                </div>
+              );
+            }}
+          </List>
+        )}
       </div>
     </ReportPageLayout>
   );

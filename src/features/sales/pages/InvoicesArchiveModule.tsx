@@ -14,6 +14,7 @@ import {
   Search, Edit3, ArrowRight, Tag, History, Filter, Fingerprint,
   Plus, Banknote, Clock, Lock, Ban, Cloud, RefreshCw
 } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 
 interface InvoicesArchiveModuleProps {
   onNavigate?: (view: any, params?: any) => void;
@@ -373,133 +374,171 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:hidden gap-4">
-        {paginatedInvoices.map(inv => {
-          const id = inv.entityType === 'SALE' ? (inv.SaleID || inv.id) : (inv.invoiceId || inv.purchase_id || inv.id);
-          const total = finalTotals[id] || 0;
-          const paid = inv.paidAmount || 0;
-          const isFinancialLocked = inv.payment_status && inv.payment_status !== 'Unpaid';
-          const invDate = inv.entityType === 'SALE' ? (inv.date || inv.Date) : inv.date;
-          const isPeriodLocked = lockedInvoices[id] || false;
-          const partner = inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId);
+      {/* Virtualized Mobile Cards View */}
+      <div className="lg:hidden w-full" style={{ height: Math.min(600, Math.max(300, filteredInvoices.length * 170)) }}>
+        {filteredInvoices.length === 0 ? (
+          <div className="py-12 text-center text-slate-300 font-black italic bg-white rounded-3xl border border-slate-100">
+            لا توجد فواتير مطابقة للبحث
+          </div>
+        ) : (
+          <List
+            height={Math.min(600, Math.max(300, filteredInvoices.length * 170))}
+            itemCount={filteredInvoices.length}
+            itemSize={170}
+            width="100%"
+            className="custom-scrollbar"
+          >
+            {({ index, style }) => {
+              const inv = filteredInvoices[index];
+              if (!inv) return null;
+              const id = inv.entityType === 'SALE' ? (inv.SaleID || inv.id) : (inv.invoiceId || inv.purchase_id || inv.id);
+              const total = finalTotals[id] || 0;
+              const paid = inv.paidAmount || 0;
+              const isFinancialLocked = inv.payment_status && inv.payment_status !== 'Unpaid';
+              const invDate = inv.entityType === 'SALE' ? (inv.date || inv.Date) : inv.date;
+              const isPeriodLocked = lockedInvoices[id] || false;
+              const partner = inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId);
 
-          return (
-            <Card key={id} onClick={() => handleOpenInvoice(inv)} className="hover:shadow-md transition-all cursor-pointer border-slate-100 !p-5 relative group">
-              <div className="flex justify-between items-start mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
-                    {inv.entityType === 'SALE' ? '🛒' : '📦'}
-                  </span>
-                  <div>
-                    <div className="flex items-center gap-1">
-                      <span className="font-black text-[#1E4D4D] text-sm">{id}</span>
-                      {(isFinancialLocked || isPeriodLocked) && (
-                        <Lock size={10} className={isPeriodLocked ? "text-amber-500" : "text-red-400"} />
-                      )}
+              return (
+                <div style={style} className="pb-3 px-1" key={id}>
+                  <Card onClick={() => handleOpenInvoice(inv)} className="hover:shadow-md transition-all cursor-pointer border-slate-100 !p-4 relative group h-full flex flex-col justify-between">
+                    <div className="flex justify-between items-start mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center text-xs">
+                          {inv.entityType === 'SALE' ? '🛒' : '📦'}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-1">
+                            <span className="font-black text-[#1E4D4D] text-sm">{id}</span>
+                            {(isFinancialLocked || isPeriodLocked) && (
+                              <Lock size={10} className={isPeriodLocked ? "text-amber-500" : "text-red-400"} />
+                            )}
+                          </div>
+                          <p className="text-[9px] font-bold text-slate-400">{new Date(invDate).toLocaleDateString('ar-SA')}</p>
+                        </div>
+                      </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {getPaymentStatusBadge(inv, total)}
+                        {getSyncBadge(inv)}
+                      </div>
                     </div>
-                    <p className="text-[9px] font-bold text-slate-400">{new Date(invDate).toLocaleDateString('ar-SA')}</p>
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-1">
-                  {getPaymentStatusBadge(inv, total)}
-                  {getSyncBadge(inv)}
-                </div>
-              </div>
 
-              <div className="space-y-3">
-                <div className="flex justify-between items-end">
-                  <div>
-                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">الطرف الثاني</p>
-                    <p className="text-xs font-black text-slate-700 truncate max-w-[150px]">{partner}</p>
-                  </div>
-                  <div className="text-left">
-                    <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5 text-left">الإجمالي</p>
-                    <p className="text-sm font-black text-[#1E4D4D]">{total.toLocaleString()} <span className="text-[10px] opacity-40">{currency}</span></p>
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">الطرف الثاني</p>
+                          <p className="text-xs font-black text-slate-700 truncate max-w-[150px]">{partner}</p>
+                        </div>
+                        <div className="text-left">
+                          <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5 text-left">الإجمالي</p>
+                          <p className="text-sm font-black text-[#1E4D4D]">{total.toLocaleString()} <span className="text-[10px] opacity-40">{currency}</span></p>
+                        </div>
+                      </div>
 
-                <div className="pt-3 border-t border-slate-50 flex items-center justify-between">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-[10px] font-black text-slate-400">المسدد: <span className="text-emerald-600">{paid.toLocaleString()}</span></span>
-                  </div>
-                  <div className="flex gap-1">
-                    <button onClick={(e) => { e.stopPropagation(); handleViewAudit(e, inv); }} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-[#1E4D4D] hover:text-white transition-colors"><Fingerprint size={14}/></button>
-                    <button onClick={(e) => { e.stopPropagation(); handleOpenSettlements(e, inv); }} className="p-2 bg-slate-50 text-blue-500 rounded-lg hover:bg-blue-505 hover:text-white transition-colors"><History size={14}/></button>
-                  </div>
+                      <div className="pt-2 border-t border-slate-50 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                          <span className="text-[10px] font-black text-slate-400">المسدد: <span className="text-emerald-600">{paid.toLocaleString()}</span></span>
+                        </div>
+                        <div className="flex gap-1">
+                          <button onClick={(e) => { e.stopPropagation(); handleViewAudit(e, inv); }} className="p-2 bg-slate-50 text-slate-400 rounded-lg hover:bg-[#1E4D4D] hover:text-white transition-colors"><Fingerprint size={14}/></button>
+                          <button onClick={(e) => { e.stopPropagation(); handleOpenSettlements(e, inv); }} className="p-2 bg-slate-50 text-blue-500 rounded-lg hover:bg-blue-505 hover:text-white transition-colors"><History size={14}/></button>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
                 </div>
-              </div>
-            </Card>
-          );
-        })}
+              );
+            }}
+          </List>
+        )}
       </div>
 
+      {/* Virtualized Desktop Table View */}
       <Card noPadding className="hidden lg:block shadow-xl overflow-hidden !rounded-[40px] bg-white border-slate-100">
-        <div className="overflow-x-auto custom-scrollbar">
-          <table className="w-full text-right text-[11px]">
-            <thead className="bg-[#F8FAFA] text-slate-400 font-black border-b border-slate-50">
-              <tr>
-                <th className="px-8 py-5">المرجع</th>
-                <th className="px-8 py-5">التاريخ</th>
-                <th className="px-8 py-5">الطرف</th>
-                <th className="px-8 py-5 text-center">الحالة</th>
-                <th className="px-8 py-5 text-center">المسدد</th>
-                <th className="px-8 py-5 text-left">إجراءات</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {paginatedInvoices.map(inv => {
-                const id = inv.entityType === 'SALE' ? (inv.SaleID || inv.id) : (inv.invoiceId || inv.purchase_id || inv.id);
-                const total = finalTotals[id] || 0;
-                const paid = inv.paidAmount || 0;
-                const isFinancialLocked = inv.payment_status && inv.payment_status !== 'Unpaid';
-                const invDate = inv.entityType === 'SALE' ? (inv.date || inv.Date) : inv.date;
-                const isPeriodLocked = lockedInvoices[id] || false;
-                const partner = inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId);
-
-                return (
-                  <tr key={id} onClick={() => handleOpenInvoice(inv)} className="hover:bg-slate-50 cursor-pointer group">
-                    <td className="px-8 py-5">
-                       <div className="flex items-center gap-2">
-                          <span className="font-black text-[#1E4D4D]">{id}</span>
-                          {(isFinancialLocked || isPeriodLocked) && (
-                            <Lock size={12} className={isPeriodLocked ? "text-amber-500" : "text-red-400"} />
-                          )}
-                       </div>
-                    </td>
-                    <td className="px-8 py-5 font-bold text-slate-400">{new Date(invDate).toLocaleDateString('ar-SA')}</td>
-                    <td className="px-8 py-5 font-black text-slate-600">{partner}</td>
-                    <td className="px-8 py-5 text-center">
-                       <div className="flex flex-col items-center gap-1">
-                          {getPaymentStatusBadge(inv, total)}
-                          {getSyncBadge(inv)}
-                       </div>
-                    </td>
-                    <td className="px-8 py-5 text-center">
-                       <div className="flex flex-col items-center">
-                          <span className={`font-black ${paid >= total ? 'text-emerald-500' : 'text-blue-500'}`}>{paid.toLocaleString()}</span>
-                          <span className="text-[7px] font-bold opacity-30 uppercase">من {total.toLocaleString()}</span>
-                       </div>
-                    </td>
-                    <td className="px-8 py-5">
-                       <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
-                          {inv.InvoiceStatus === 'POSTED' || inv.invoiceStatus === 'POSTED' ? (
-                            <button onClick={(e) => handleUnpostAndEdit(e, inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-indigo-500 hover:text-indigo-600 shadow-sm" title="إلغاء الترحيل والتعديل"><Edit3 size={16} /></button>
-                          ) : (
-                            <button onClick={() => handleOpenInvoice(inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-emerald-500 hover:text-emerald-600 shadow-sm" title="تعديل"><Edit3 size={16} /></button>
-                          )}
-                          <button onClick={(e) => { e.stopPropagation(); setTargetInvoice(inv); setIsAdjModalOpen(true); }} className={`w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center transition-all ${isPeriodLocked && !isAdmin ? 'text-slate-200 cursor-not-allowed' : 'text-amber-500 hover:text-amber-600 shadow-sm'}`} title="تعديل مالي"><Tag size={16} /></button>
-                          <button onClick={(e) => handleCancelInvoice(e, inv)} className={`w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center transition-all ${isPeriodLocked && !isAdmin ? 'text-slate-200 cursor-not-allowed' : 'text-red-300 hover:text-red-500 shadow-sm'}`} title="إلغاء المستند"><Ban size={16} /></button>
-                          <button onClick={(e) => handleViewAudit(e, inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-slate-900 flex items-center justify-center hover:bg-slate-900 hover:text-white" title="تاريخ التدقيق"><Fingerprint size={16}/></button>
-                          <button onClick={(e) => handleOpenSettlements(e, inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-blue-500 flex items-center justify-center hover:shadow-md" title="سجل الدفعات"><History size={16}/></button>
-                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="bg-[#F8FAFA] text-slate-400 font-black border-b border-slate-50 flex text-right text-[11px] px-8 py-5">
+          <div className="w-2/12">المرجع</div>
+          <div className="w-2/12">التاريخ</div>
+          <div className="w-3/12">الطرف</div>
+          <div className="w-2/12 text-center">الحالة</div>
+          <div className="w-1/12 text-center">المسدد</div>
+          <div className="w-2/12 text-left">إجراءات</div>
         </div>
+
+        {filteredInvoices.length === 0 ? (
+          <div className="py-20 text-center text-slate-300 font-black italic">
+            لا توجد فواتير مطابقة للبحث
+          </div>
+        ) : (
+          <List
+            height={Math.min(550, Math.max(250, filteredInvoices.length * 68))}
+            itemCount={filteredInvoices.length}
+            itemSize={68}
+            width="100%"
+            className="custom-scrollbar divide-y divide-slate-50"
+          >
+            {({ index, style }) => {
+              const inv = filteredInvoices[index];
+              if (!inv) return null;
+              const id = inv.entityType === 'SALE' ? (inv.SaleID || inv.id) : (inv.invoiceId || inv.purchase_id || inv.id);
+              const total = finalTotals[id] || 0;
+              const paid = inv.paidAmount || 0;
+              const isFinancialLocked = inv.payment_status && inv.payment_status !== 'Unpaid';
+              const invDate = inv.entityType === 'SALE' ? (inv.date || inv.Date) : inv.date;
+              const isPeriodLocked = lockedInvoices[id] || false;
+              const partner = inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId);
+
+              return (
+                <div 
+                  style={style} 
+                  key={id} 
+                  onClick={() => handleOpenInvoice(inv)} 
+                  className="flex items-center text-right text-[11px] px-8 py-3 hover:bg-slate-50 cursor-pointer group transition-colors border-b border-slate-50"
+                >
+                  <div className="w-2/12">
+                    <div className="flex items-center gap-2">
+                      <span className="font-black text-[#1E4D4D]">{id}</span>
+                      {(isFinancialLocked || isPeriodLocked) && (
+                        <Lock size={12} className={isPeriodLocked ? "text-amber-500" : "text-red-400"} />
+                      )}
+                    </div>
+                  </div>
+                  <div className="w-2/12 font-bold text-slate-400">
+                    {new Date(invDate).toLocaleDateString('ar-SA')}
+                  </div>
+                  <div className="w-3/12 font-black text-slate-600 truncate">
+                    {partner}
+                  </div>
+                  <div className="w-2/12 text-center">
+                    <div className="flex flex-col items-center gap-1">
+                      {getPaymentStatusBadge(inv, total)}
+                      {getSyncBadge(inv)}
+                    </div>
+                  </div>
+                  <div className="w-1/12 text-center">
+                    <div className="flex flex-col items-center">
+                      <span className={`font-black ${paid >= total ? 'text-emerald-500' : 'text-blue-500'}`}>{paid.toLocaleString()}</span>
+                      <span className="text-[7px] font-bold opacity-30 uppercase">من {total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                  <div className="w-2/12">
+                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-all">
+                      {inv.InvoiceStatus === 'POSTED' || inv.invoiceStatus === 'POSTED' ? (
+                        <button onClick={(e) => handleUnpostAndEdit(e, inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-indigo-500 hover:text-indigo-600 shadow-sm" title="إلغاء الترحيل والتعديل"><Edit3 size={16} /></button>
+                      ) : (
+                        <button onClick={() => handleOpenInvoice(inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-emerald-500 hover:text-emerald-600 shadow-sm" title="تعديل"><Edit3 size={16} /></button>
+                      )}
+                      <button onClick={(e) => { e.stopPropagation(); setTargetInvoice(inv); setIsAdjModalOpen(true); }} className={`w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center transition-all ${isPeriodLocked && !isAdmin ? 'text-slate-200 cursor-not-allowed' : 'text-amber-500 hover:text-amber-600 shadow-sm'}`} title="تعديل مالي"><Tag size={16} /></button>
+                      <button onClick={(e) => handleCancelInvoice(e, inv)} className={`w-9 h-9 bg-white border border-slate-100 rounded-xl flex items-center justify-center transition-all ${isPeriodLocked && !isAdmin ? 'text-slate-200 cursor-not-allowed' : 'text-red-300 hover:text-red-500 shadow-sm'}`} title="إلغاء المستند"><Ban size={16} /></button>
+                      <button onClick={(e) => { e.stopPropagation(); handleViewAudit(e, inv); }} className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-slate-900 flex items-center justify-center hover:bg-slate-900 hover:text-white" title="تاريخ التدقيق"><Fingerprint size={16}/></button>
+                      <button onClick={(e) => handleOpenSettlements(e, inv)} className="w-9 h-9 bg-white border border-slate-100 rounded-xl text-blue-500 flex items-center justify-center hover:shadow-md" title="سجل الدفعات"><History size={16}/></button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }}
+          </List>
+        )}
       </Card>
 
       {/* Pagination Controls */}

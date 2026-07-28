@@ -2,14 +2,11 @@
 
 import Redis, { RedisOptions } from "ioredis";
 
-let REDIS_URL = process.env.REDIS_URL || "redis://localhost:6379";
-if (typeof REDIS_URL === "string") {
-  REDIS_URL = REDIS_URL.trim().replace(/^['"]|['"]$/g, '');
-}
+let REDIS_URL = process.env.REDIS_URL ? process.env.REDIS_URL.trim().replace(/^['"]|['"]$/g, '') : "";
 
 class RedisConnectionManager {
   private static instance: Redis | null = null;
-  private static isMemoryFallback = false;
+  private static isMemoryFallback = !REDIS_URL;
   private static memoryCache: Map<string, { value: string; expiresAt: number }> = new Map();
 
   /**

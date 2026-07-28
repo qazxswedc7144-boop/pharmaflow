@@ -17,9 +17,23 @@ async function withRetry<T>(operation: () => Promise<T>, operationName: string):
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
       return await operation();
-    } catch (error) {
+    } catch (error: any) {
       lastError = error;
-      console.warn(`[Prisma] Operation '${operationName}' failed (attempt ${i + 1}/${MAX_RETRIES}):`, error);
+      const errMsg = error?.message || String(error);
+      console.warn(`[Prisma] Operation '${operationName}' failed (attempt ${i + 1}/${MAX_RETRIES}):`, errMsg);
+      
+      // If PostgreSQL connection dropped or closed, reset basePrisma so next getPrismaClient() reconnects
+      if (errMsg.includes('Closed') || errMsg.includes('connection') || errMsg.includes('EngineState') || errMsg.includes('p1001') || errMsg.includes('P1001')) {
+        if (basePrisma) {
+          try {
+            await basePrisma.$disconnect().catch(() => {});
+          } catch (e) {
+            // ignore
+          }
+          basePrisma = null;
+        }
+      }
+
       if (i < MAX_RETRIES - 1) {
         const delay = INITIAL_DELAY * Math.pow(2, i);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -102,31 +116,37 @@ function getPrismaClient(): PrismaClient {
 const rawDbUrl = process.env.DATABASE_URL?.trim().replace(/^['"]|['"]$/g, '');
 const hasDb = !!rawDbUrl && rawDbUrl !== "undefined" && rawDbUrl !== "null" && rawDbUrl !== "" && rawDbUrl.includes("://");
 
-const prismaClient = hasDb ? new Proxy(getPrismaClient(), {
-  get(target, prop, receiver) {
+const prismaClient = hasDb ? new Proxy({} as any, {
+  get(_target, prop, receiver) {
+    const currentClient = getPrismaClient();
+
     // Standard behavior for essential properties
     if (typeof prop === 'symbol' || prop === 'then' || prop === 'toJSON') {
-      return Reflect.get(target, prop, receiver);
+      return Reflect.get(currentClient, prop, receiver);
     }
 
-    const value = target[prop as keyof typeof target];
+    const value = (currentClient as any)[prop];
 
     // Handle top-level functions directly
     if (typeof value === 'function') {
       if (prop === '$transaction') {
-        return (callback: any) => withRetry(() => (target as any).$transaction(callback), '$transaction');
+        return (callback: any) => withRetry(() => (getPrismaClient() as any).$transaction(callback), '$transaction');
       }
-      return value.bind(target);
+      return value.bind(currentClient);
     }
 
     // Handle models (objects that don't start with '$')
     if (typeof value === 'object' && value !== null && !String(prop).startsWith('$')) {
       return new Proxy(value, {
-        get(modelTarget, modelProp, modelReceiver) {
-          const modelValue = Reflect.get(modelTarget, modelProp, modelReceiver);
+        get(_modelTarget, modelProp) {
+          const freshModel = (getPrismaClient() as any)[prop];
+          const modelValue = freshModel ? freshModel[modelProp] : undefined;
           
           if (typeof modelValue === 'function') {
-            return (...args: any[]) => withRetry(() => modelValue.apply(modelTarget, args), `${String(prop)}.${String(modelProp)}`);
+            return (...args: any[]) => withRetry(() => {
+              const latestModel = (getPrismaClient() as any)[prop];
+              return latestModel[modelProp].apply(latestModel, args);
+            }, `${String(prop)}.${String(modelProp)}`);
           }
           
           return modelValue;

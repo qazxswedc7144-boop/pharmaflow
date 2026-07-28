@@ -1,20 +1,29 @@
 import { ai } from '@features/ai/services/gemini';
 import { ParsedInvoiceSchema } from '@/shared/validation/ai.schema';
 
+export interface ParsedInvoiceItem {
+  name: string;
+  quantity: number;
+  price: number;
+  expiryDate?: string;
+  barcode?: string;
+  discountPercent?: number;
+  bonusQty?: number;
+  batchNumber?: string;
+  unit?: string;
+  notes?: string;
+}
+
 export interface ParsedInvoice {
   type: 'cash' | 'credit' | 'return';
   supplier: string;
   invoice_number: string;
   date?: string;
   notes: string;
-  items: {
-    name: string;
-    quantity: number;
-    price: number;
-    expiryDate?: string;
-  }[];
+  items: ParsedInvoiceItem[];
   status: 'Draft'; // 1. Any invoice processed/read via AI model must obligatorily be saved with "Draft" status.
   warning: string; // 4. Mandatory warning message stating it is awaiting human audit/review.
+  discardedColumnsCount?: number;
 }
 
 let lastAICall = 0;
@@ -78,37 +87,59 @@ export async function parseInvoice(text: string): Promise<ParsedInvoice> {
   const humanReviewWarning = "⚠️ هذه الفاتورة تم توليدها تلقائياً بوسطة الذكاء الاصطناعي، وهي بانتظار المراجعة والتدقيق البشري واليدوي الفوري قبل الاعتماد.";
 
   try {
-    const prompt = `أنت خبير في استخراج البيانات من فواتير الأدوية والمشتريات الطبية باللغة العربية والإنجليزية. 
-قم بتحليل النص التالي واستخرج المعلومات المطلوبة بدقة عالية. 
-ملاحظات هامة جداً:
-1. إذا وجد صنف مكتوب باللغة الإنجليزية أو العربية، استخرج الاسم كما هو.
-2. حاول تحديد نوع الفاتورة (cash، credit، return) من السياق.
-3. استخرج تاريخ الصلاحية (Expiry Date) لكل صنف إذا وجد بتنسيق YYYY-MM-DD.
-4. أرجع النتيجة ككائن JSON مطابقة للشكل التالي فقط دون نصوص أخرى مرافقة.
+    const prompt = `أنت خبير فائق الذكاء ومتخصص في استخراج وتحليل بيانات فواتير مشتريات الأدوية والمنتجات الصيدلانية والموردين باللغة العربية والإنجليزية.
 
-الشكل المطلوب:
+الهدف الأساسي:
+قد تحتوي فاتورة المورد الحالية على عدد كبير جداً من الأعمدة المعقدة (مثل: كود المخزن الداخلي، كود التعبئة، رقم الصفحة، المجموع القبلي، نسبة ضريبة القيمة المضافة، القيمة المضافة، التسلسل الداخلي، إلخ).
+مهمتك المحورية هي:
+1. قراءة الجداول والصفوف بدقة مهما كان عدد الأعمدة.
+2. استخراج الحقول الضرورية فقط التي تحتاجها فاتورة المشتريات داخل التطبيق.
+3. التخلص والاستغناء التام عن كافة الأعمدة والبيانات الإضافية الزائدة.
+
+الحقول المستهدفة والضرورية المسموح باستخراجها فقط:
+- name: اسم الصنف أو الدواء (بالعربية أو الإنجليزية كما هو مكتوب في الفاتورة).
+- barcode: الباركود أو كود المنتج إن وجد (مثل 628... أو GTIN).
+- quantity: الكمية المشتراة الفعلية (رقم موجب).
+- price: سعر الشراء / سعر التكلفة للوحدة (رقم موجب غير سالب).
+- expiryDate: تاريخ الصلاحية / الانتهاء بتنسيق YYYY-MM-DD إن وجد (مثال 2026-12-31).
+- bonusQty: كمية المجاني أو البونص إن وجدت (رقم موجب).
+- discountPercent: نسبة الخصم المئوية إن وجدت (رقم مثل 5 أو 10).
+- batchNumber: رقم التشغيلة أو الباتش (Batch / Lot Number) إن وجد.
+- unit: وحدة القياس (عبوة، علبة، شريط، كرتونة) إن وجدت.
+
+توجيهات معالجة البيانات:
+- حدد اسم المورد ورقم الفاتورة ونوع الفاتورة (cash، credit، return) إن أمكن.
+- قم بتنظيف كافة الأسعار والكميات من الرموز أو العملات (مثل $، ر.س، ج.م، %).
+- أرجِع فقط كائن JSON صريح وبدون أي كتل ماركداون إضافية أو شرح خارج عن التنسيق.
+
+تنسيق الاستجابة JSON المطلوب:
 {
   "type": "cash" | "credit" | "return",
-  "supplier": "اسم المورد/الشركة",
+  "supplier": "اسم المورد أو الشركة",
   "invoice_number": "رقم الفاتورة",
   "date": "YYYY-MM-DD",
-  "notes": "الملاحظات المستخرجة",
+  "notes": "أي ملاحظات عامة حول الفاتورة",
   "items": [
-    { 
-      "name": "اسم الدواء/الصنف", 
-      "quantity": 1, 
-      "price": 10.0, 
-      "expiryDate": "YYYY-MM-DD" 
+    {
+      "name": "اسم الدواء أو الصنف",
+      "barcode": "الباركود إن وجد",
+      "quantity": 10,
+      "price": 25.5,
+      "expiryDate": "YYYY-MM-DD",
+      "bonusQty": 0,
+      "discountPercent": 0,
+      "batchNumber": "LOT123",
+      "unit": "علبة"
     }
   ]
 }
 
-نص الفاتورة المطلوب معالجتها:
+نص الفاتورة / المستند المراد تحليله:
 ${text}
 `;
 
     const response = await ai.models.generateContent({
-      model: "gemini-flash-latest",
+      model: "gemini-3.5-flash",
       contents: prompt,
     });
 
@@ -118,18 +149,21 @@ ${text}
     }
     
     // تنظيف المخرجات من كتل الماركداون البرمجية إن وجدت
-    if (jsonStr.startsWith('\`\`\`json')) {
-      jsonStr = jsonStr.replace(/\`\`\`json/g, '').replace(/\`\`\`/g, '');
-    } else if (jsonStr.startsWith('\`\`\`')) {
-      jsonStr = jsonStr.replace(/\`\`\`/g, '');
+    jsonStr = jsonStr.trim();
+    if (jsonStr.includes('{')) {
+      const startIndex = jsonStr.indexOf('{');
+      const endIndex = jsonStr.lastIndexOf('}');
+      if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+        jsonStr = jsonStr.substring(startIndex, endIndex + 1);
+      }
     }
 
-    const rawObject = JSON.parse(jsonStr.trim());
+    const rawObject = JSON.parse(jsonStr);
     
     // Validate schema safety
     const validation = ParsedInvoiceSchema.safeParse(rawObject);
     if (!validation.success) {
-      console.warn("⚠️ AI Response validation failed. Fallback to raw object mapper.", validation.error.format());
+      console.warn("⚠️ AI Response validation warning:", validation.error.format());
     }
 
     const validatedData = validation.success ? validation.data : rawObject;
@@ -143,13 +177,19 @@ ${text}
       invoice_number: validatedData.invoice_number || 'INV-' + Math.floor(Math.random() * 100000),
       date: validatedData.date || new Date().toISOString().split('T')[0],
       notes: validatedData.notes 
-        ? `[بانتظار المراجعة والتدقيق البشري واليدوي] ${validatedData.notes}` 
-        : '[بانتظار المراجعة والتدقيق البشري واليدوي]',
+        ? `[استيراد ذكي: تم تصفية الأعمدة الزائدة والاحتفاظ بالبيانات المطلوبة فقط] ${validatedData.notes}` 
+        : '[استيراد ذكي: تم تصفية الأعمدة الزائدة والاحتفاظ بالبيانات المطلوبة فقط]',
       items: (validatedData.items || []).map((item: any) => ({
         name: item.name || 'مادة مجهولة الاسم',
-        quantity: typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1,
-        price: typeof item.price === 'number' && item.price >= 0 ? item.price : 0,
-        expiryDate: item.expiryDate || undefined
+        barcode: item.barcode || undefined,
+        quantity: typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : (Number(item.quantity) || 1),
+        price: typeof item.price === 'number' && item.price >= 0 ? item.price : (Number(item.price) || 0),
+        expiryDate: item.expiryDate || undefined,
+        discountPercent: typeof item.discountPercent === 'number' ? item.discountPercent : (Number(item.discountPercent) || 0),
+        bonusQty: typeof item.bonusQty === 'number' ? item.bonusQty : (Number(item.bonusQty) || 0),
+        batchNumber: item.batchNumber || undefined,
+        unit: item.unit || undefined,
+        notes: item.notes || undefined
       })),
       status: 'Draft', // فرض حالة مسودة إجبارياً بحسب الشرط رقم 1
       warning: humanReviewWarning // إرفاق الرسالة التحذيرية المطابقة للشرط رقم 4

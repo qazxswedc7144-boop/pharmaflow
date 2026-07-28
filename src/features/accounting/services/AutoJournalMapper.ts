@@ -1,4 +1,5 @@
 import { db } from '@/core/db';
+import { CurrencyService } from '@/services/localization/CurrencyService';
 import { FIFOEngine } from '@features/inventory/services/fifoEngine';
 import { StockMovementEngine } from '@features/inventory/services/stockMovementEngine';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
@@ -42,7 +43,7 @@ export const AutoJournalMapper = {
     const isReturn = !!options?.isReturn;
     const finalStatus = options?.invoiceStatus || 'POSTED';
     const isPosting = finalStatus === 'POSTED' || finalStatus === 'LOCKED' || finalStatus === 'APPROVED';
-    const currency = options?.currency || 'USD';
+    const currency = options?.currency || CurrencyService.getCurrentCurrencyCode();
     const paymentStatus = options?.paymentStatus || 'Cash';
     
     const invoiceId = payload.id || db.generateId(type === 'SALE' ? 'SAL' : 'PUR');

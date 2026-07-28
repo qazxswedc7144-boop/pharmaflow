@@ -16,7 +16,7 @@ interface VouchersModuleProps {
 }
 
 const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType = 'RECEIPT' }) => {
-  const { version, refreshGlobal, addToast } = useUI();
+  const { version, refreshGlobal, addToast, currency } = useUI();
   const [vType, setVType] = useState<'RECEIPT' | 'PAYMENT'>(initialType);
   const [searchTerm, setSearchTerm] = useState('');
   const [history, setHistory] = useState<(Receipt | Payment)[]>([]);
@@ -192,32 +192,36 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
   }, [history, searchTerm, customers, suppliers]);
 
   return (
-    <div className="p-4 md:p-8 space-y-8 pb-24 font-cairo bg-[#F8FAFA] min-h-full" dir="rtl">
+    <div className="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24 font-cairo bg-[#F8FAFA] min-h-full w-full" dir="rtl">
       {/* Modern Header */}
-      <header className="bg-white p-6 sm:p-10 pb-8 rounded-[32px] border border-slate-100 shadow-sm relative z-20">
-        {/* Row 1: Back, Spacer, Centered Title */}
-        <div className="flex items-center w-full relative">
+      <header className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm relative z-20 w-full overflow-hidden">
+        <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
+          {/* Back Button */}
           <button 
             onClick={() => onNavigate?.('dashboard')}
-            className="w-14 h-14 bg-white border-2 border-slate-50 text-[#1E4D4D] rounded-[24px] flex items-center justify-center shadow-lg shadow-slate-200/40 active:scale-95 active:bg-slate-100 hover:bg-slate-50 transition-all z-10"
+            className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 border border-slate-200 text-[#1E4D4D] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs active:scale-95 hover:bg-slate-100 transition-all shrink-0"
+            title="العودة للشاشة الرئيسية"
           >
-            <ArrowRight size={26} strokeWidth={3.5} />
+            <ArrowRight size={22} className="stroke-[2.5]" />
           </button>
           
-          <div className="w-[15%] shrink-0" />
-
-          <div className="flex-1 flex items-center justify-center gap-4">
-            <div className="w-14 h-14 bg-[#1E4D4D] text-white rounded-[24px] flex items-center justify-center shadow-2xl shadow-emerald-900/30 font-black shrink-0">
-              <CreditCard size={28} />
+          {/* Title & Icon */}
+          <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-4 text-center sm:text-right min-w-0 px-2 overflow-hidden">
+            <div className="w-11 h-11 sm:w-13 sm:h-13 bg-[#1E4D4D] text-white rounded-xl sm:rounded-2xl flex items-center justify-center shadow-md shadow-emerald-950/20 font-black shrink-0">
+              <CreditCard size={24} />
             </div>
-            <div className="flex flex-col items-center text-center">
-              <h2 className="text-xl md:text-2xl font-black text-[#1E4D4D] tracking-tight leading-none whitespace-nowrap">سندات القبض والصرف</h2>
-              <p className="text-[11px] font-bold text-slate-300 uppercase tracking-[2px] mt-2 whitespace-nowrap">Voucher Management System</p>
+            <div className="flex flex-col items-center sm:items-start text-center sm:text-right min-w-0 max-w-full">
+              <h2 className="text-lg sm:text-xl md:text-2xl font-black text-[#1E4D4D] tracking-tight leading-snug truncate max-w-full">
+                سندات القبض والصرف
+              </h2>
+              <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 uppercase tracking-wider truncate max-w-full mt-0.5">
+                Voucher Management System
+              </p>
             </div>
           </div>
           
-          <div className="w-[15%] shrink-0" />
-          <div className="w-14" />
+          {/* Symmetric Spacer */}
+          <div className="w-10 h-10 sm:w-12 sm:h-12 shrink-0 invisible sm:block" aria-hidden="true" />
         </div>
       </header>
 
@@ -308,7 +312,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
                        value={form.amount}
                        onChange={e => setForm({...form, amount: e.target.value})}
                      />
-                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 font-black text-[11px]">AED</div>
+                     <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none opacity-20 font-black text-[11px]">{currency}</div>
                    </div>
                 </div>
                 <div className="space-y-1.5">
@@ -417,7 +421,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
                     
                     <div className="text-center sm:text-left mt-4 sm:mt-0 w-full sm:w-auto flex sm:flex-col items-center sm:items-end justify-between sm:justify-center border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100">
                         <p className={`text-2xl font-black ${isReceipt ? 'text-emerald-600' : 'text-red-500'} mb-2`}>
-                          {isReceipt ? '+' : '-'}{h.amount.toLocaleString()} <span className="text-xs font-normal opacity-40">AED</span>
+                          {isReceipt ? '+' : '-'}{h.amount.toLocaleString()} <span className="text-xs font-normal opacity-40">{currency}</span>
                         </p>
                         <div className="flex items-center gap-2">
                           <PrintMenu data={h} type="VOUCHER" />

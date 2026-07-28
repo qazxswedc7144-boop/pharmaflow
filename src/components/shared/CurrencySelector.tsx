@@ -73,7 +73,8 @@ export const CurrencySelector: React.FC = () => {
             <option value="SAR">سعودي SAR</option>
             <option value="USD">دولار USD</option>
             <option value="AED">درهم إماراتي AED</option>
-            {currencies.filter(c => !['YER', 'SAR', 'USD', 'AED'].includes(c.code)).map(c => (
+            <option value="EGP">جنيه مصري EGP</option>
+            {currencies.filter(c => !['YER', 'SAR', 'USD', 'AED', 'EGP'].includes(c.code)).map(c => (
               <option key={c.id} value={c.code}>{c.name} {c.code}</option>
             ))}
             <option value="CUSTOM">+ إضافة عملة أخرى...</option>

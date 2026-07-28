@@ -61,7 +61,7 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = (sale as any).currencyCode || 'USD';
+    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal, currencyCode, sale.date);
 
     // 1. Revenue Impact
@@ -109,7 +109,7 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = (purchase as any).currencyCode || 'USD';
+    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
 
     // Debit Inventory
@@ -151,7 +151,7 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = (sale as any).currencyCode || 'USD';
+    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal, currencyCode, sale.date);
 
     // Reverse Revenue: Debit Revenue, Credit Cash/AR
@@ -197,7 +197,7 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = (purchase as any).currencyCode || 'USD';
+    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
 
     // Debit Cash or Payable, Credit Inventory

@@ -1,5 +1,6 @@
 
 import { db } from '@/core/db';
+import { CurrencyService } from '@/services/localization/CurrencyService';
 import { PrintTemplateEngine } from '@/services/integrity/shared/templateEngineService';
 import { authService } from '@features/auth/services/authService';
 import { jsPDF } from 'jspdf';
@@ -84,7 +85,7 @@ export const ExportService = {
     if (!printWindow) return;
 
     const invoiceConfig = await db.getSetting('invoice_config', {
-      pharmacyName: 'PharmaFlow ERP',
+      pharmacyName: 'PharmaFlow',
       address: 'الموقع غير محدد',
       phone: '-',
       taxNumber: '-',
@@ -94,7 +95,7 @@ export const ExportService = {
     const refId = data.SaleID || data.invoiceId || data.purchase_id || data.id || 'N/A';
     const date = new Date(data.date || data.Date || Date.now()).toLocaleDateString('ar-SA');
     const total = data.finalTotal || data.totalAmount || data.amount || 0;
-    const currency = 'AED';
+    const currency = data.currency || CurrencyService.getCurrentCurrencyCode();
     const user = authService.getCurrentUser();
 
     let contentHtml = '';

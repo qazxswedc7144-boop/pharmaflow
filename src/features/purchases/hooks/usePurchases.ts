@@ -527,19 +527,35 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
     const matchedSupplierId = matchedSupplier ? (matchedSupplier.id || matchedSupplier.Supplier_ID) : (suppliers?.[0]?.id || '');
 
     // Transform extracted raw items into standard local InvoiceItem array
-    const mappedItems: InvoiceItem[] = cleanedItems.map((item: any, idx: number) => ({
-      id: `PUR-DET-${Date.now()}-${idx}`,
-      parent_id: aiParsedData.invoice_number || `INV-${Math.floor(Math.random() * 100000)}`,
-      product_id: item.product_id || `manual-${Date.now()}-${idx}`,
-      name: item.name,
-      qty: Number(item.quantity || 1),
-      price: Number(item.price || 0),
-      sum: Number(item.quantity || 1) * Number(item.price || 0),
-      row_order: idx + 1,
-      expiryDate: item.expiryDate || '',
-      notes: item.notes || '',
-      categoryId: item.categoryId || ''
-    } as any));
+    const mappedItems: InvoiceItem[] = cleanedItems.map((item: any, idx: number) => {
+      const q = Number(item.quantity || 1);
+      const p = Number(item.price || 0);
+      const disc = Number(item.discountPercent || 0);
+      const sub = q * p;
+      const finalSum = disc > 0 ? sub * (1 - disc / 100) : sub;
+
+      const notesParts = [
+        item.barcode ? `باركود: ${item.barcode}` : '',
+        item.bonusQty ? `بونص: +${item.bonusQty}` : '',
+        item.batchNumber ? `تشغيلة: ${item.batchNumber}` : '',
+        item.notes || ''
+      ].filter(Boolean);
+
+      return {
+        id: `PUR-DET-${Date.now()}-${idx}`,
+        parent_id: aiParsedData.invoice_number || `INV-${Math.floor(Math.random() * 100000)}`,
+        product_id: item.product_id || `manual-${Date.now()}-${idx}`,
+        name: item.name,
+        qty: q,
+        price: p,
+        sum: finalSum,
+        discount_val: disc,
+        row_order: idx + 1,
+        expiryDate: item.expiryDate || '',
+        notes: notesParts.join(' | '),
+        categoryId: item.categoryId || ''
+      } as any;
+    });
 
     // Update screen reactive states (Intermediate Review Space)
     setItems(mappedItems);
