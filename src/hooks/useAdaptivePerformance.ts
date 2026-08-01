@@ -32,10 +32,11 @@ export function useAdaptivePerformance() {
 
       // 2. Device Memory (RAM in GB)
       // Note: navigator.deviceMemory is available in Chrome/Chromium but undefined in Firefox/Safari
-      const ram = (navigator as any).deviceMemory || 4;
+      const navWithMem = navigator as Navigator & { deviceMemory?: number; connection?: { saveData?: boolean } };
+      const ram = navWithMem.deviceMemory || 4;
 
       // 3. Save Data (Data saver mode)
-      const connection = (navigator as any).connection;
+      const connection = navWithMem.connection;
       const saveData = connection ? !!connection.saveData : false;
 
       // 4. Mobile size check
@@ -82,7 +83,7 @@ export function useAdaptivePerformance() {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const updateSetting = useCallback(async (key: 'eco_mode' | 'simplified_animations', value: any) => {
+  const updateSetting = useCallback(async (key: 'eco_mode' | 'simplified_animations', value: EcoModeValue | boolean) => {
     if (key === 'eco_mode') {
       setEcoMode(value as EcoModeValue);
     } else if (key === 'simplified_animations') {

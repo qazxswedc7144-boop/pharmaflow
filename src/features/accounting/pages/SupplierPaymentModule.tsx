@@ -12,7 +12,7 @@ import {
   Banknote, User, CheckSquare, Square, Calendar
 } from 'lucide-react';
 
-const SupplierPaymentModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavigate }) => {
+const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { suppliers } = useAccounting();
   const { currency, addToast, refreshGlobal } = useUI();
   
@@ -136,7 +136,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: any) => void }> = ({
   };
 
   const totalAllocated = useMemo(() => 
-    Object.values(allocations).reduce((a: number, b: any) => a + b.amount, 0),
+    Object.values(allocations).reduce((a: number, b: { amount: number }) => a + b.amount, 0),
     [allocations]
   );
 
@@ -180,8 +180,9 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: any) => void }> = ({
       addToast("تمت معالجة السداد بنجاح ✅", "success");
       refreshGlobal();
       onNavigate?.('dashboard');
-    } catch (e: any) {
-      addToast(`خطأ: ${e.message}`, "error");
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      addToast(`خطأ: ${errMsg}`, "error");
     } finally {
       setIsProcessing(false);
     }
@@ -284,7 +285,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: any) => void }> = ({
                    {unpaidInvoices.map(inv => {
                      const isSelected = selectedInvoiceIds.has(inv.id);
                      const remaining = inv.totalAmount - (inv.paidAmount || 0);
-                     const allocation = (allocations[inv.id] as any) || { amount: 0, note: '' };
+                     const allocation = allocations[inv.id] || { amount: 0, note: '' };
                      const status = inv.paidAmount && inv.paidAmount > 0 ? 'PartiallyPaid' : 'Unpaid';
 
                      return (

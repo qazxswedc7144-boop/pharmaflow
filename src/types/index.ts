@@ -6,7 +6,7 @@ export * from "../domain";
 // Re-export modular Type-safe Enterprise types
 export type { SystemStatus, SubscriptionPlan, TenantStatus } from "./common.types";
 export { AppError, ValidationError, AccountingError, InventoryError, SecurityError } from "./common.types";
-export type { InvoiceItem, UnifiedInvoice } from "./invoice.types";
+export type { InvoiceItem, UnifiedInvoice, InvoiceStatus } from "./invoice.types";
 export type { AccountingEntry, PartnerLedgerEntry } from "./accounting.types";
 export type { InventoryTransactionType, InventoryTransaction, StockReservation, InventoryLayer, FIFOConsumptionLog, FIFOCostLayer } from "./inventory.types";
 export * from "./api.types";
@@ -15,6 +15,19 @@ export type { UserRoleEntry } from "./auth.types";
 export * from "./database.types";
 export type { BranchSettings, BranchInventory, TransferStatus, BranchTransfer, BranchTransferItem, BranchUser } from "./branch.types";
 export * from "@features/events/event.types";
+
+import { InvoiceStatus } from "./invoice.types";
+
+export interface TransactionOptions {
+  isCash?: boolean;
+  isReturn?: boolean;
+  paymentStatus?: 'Cash' | 'Credit' | string;
+  invoiceStatus?: InvoiceStatus;
+  date?: string;
+  originalInvoiceId?: string;
+  currency?: string;
+  [key: string]: any;
+}
 
 import { SyncableEntity, SubscriptionPlan, TenantStatus } from "./common.types";
 

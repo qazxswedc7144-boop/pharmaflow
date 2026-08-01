@@ -11,8 +11,8 @@ export class InventoryService {
    */
   static async getProducts(): Promise<Product[]> {
     try {
-      const products = await db.products.filter((p: any) => !p.deletedAt).toArray();
-      return (products || []) as any[];
+      const products = await db.products.filter(p => !p.deletedAt).toArray();
+      return products || [];
     } catch (error) {
       console.error('Error fetching products from Dexie:', error);
       return [];
@@ -25,7 +25,7 @@ export class InventoryService {
   static async saveProduct(product: Product): Promise<string> {
     const isNew = !product.id;
     const now = new Date().toISOString();
-    const productPayload = {
+    const productPayload: Product & { Created_At?: string; createdAt?: number } = {
       ...product,
       updated_at: now,
       updatedAt: now,
@@ -34,15 +34,16 @@ export class InventoryService {
 
     if (isNew) {
       productPayload.id = `PRD-${Date.now()}`;
-      (productPayload as any).Created_At = now;
-      (productPayload as any).createdAt = Date.now();
+      productPayload.Created_At = now;
+      productPayload.createdAt = Date.now();
     }
 
     try {
       await db.products.put(productPayload);
       return productPayload.id;
-    } catch (error: any) {
-      throw new Error(`Failed to save product to Dexie: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Failed to save product to Dexie: ${errMsg}`);
     }
   }
 
@@ -118,7 +119,11 @@ export class InventoryService {
   /**
    * Batch processes a list of inventory items safely.
    */
-  static async processItems(items: any[], type: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER' | 'RETURN', userId: string): Promise<void> {
+  static async processItems(
+    items: Array<{ productId?: string; product_id?: string; quantity?: number; qty?: number; warehouseId?: string; notes?: string }>,
+    type: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER' | 'RETURN',
+    userId: string
+  ): Promise<void> {
     if (!Array.isArray(items)) {
       console.warn("InventoryService.processItems: Input 'items' is not an array. Ignoring.");
       return;
@@ -154,7 +159,7 @@ export class InventoryService {
   static async getMedicineBatches(): Promise<MedicineBatch[]> {
     try {
       const batches = await db.medicineBatches.toArray();
-      return (batches || []) as any[];
+      return batches || [];
     } catch (error) {
        console.warn('Error fetching medicine batches from Dexie:', error);
        return [];
@@ -260,7 +265,7 @@ export class InventoryService {
         return;
       }
 
-      const product = await safeGetById<any>(db.products, movement.productId);
+      const product = await safeGetById<Product>(db.products, movement.productId);
       if (!product) {
         console.warn(`InventoryService.recordMovement: Product [${movement.productId}] not found.`);
         return;
@@ -286,7 +291,7 @@ export class InventoryService {
         TransactionID: db.generateId('ITX'),
         productId: movement.productId,
         warehouseId: movement.warehouseId || 'WH-MAIN',
-        SourceDocumentType: finalSourceType as any,
+        SourceDocumentType: finalSourceType,
         SourceDocumentID: finalSourceId,
         QuantityChange: actualChange,
         before_qty: currentQty,
@@ -308,7 +313,7 @@ export class InventoryService {
         table: 'products',
         action: movement.type === 'ADJUSTMENT' ? 'INVENTORY_ADJUSTMENT' : 
                 movement.type === 'SALE' ? 'STOCK_OUT' : 
-                movement.type === 'PURCHASE' ? 'STOCK_IN' : 'UPDATE' as any,
+                movement.type === 'PURCHASE' ? 'STOCK_IN' : 'STOCK_TRANSFER',
         entityId: movement.productId,
         oldData: { qty: currentQty },
         newData: { qty: newQty },

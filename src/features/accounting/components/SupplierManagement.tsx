@@ -15,7 +15,7 @@ import { motion, AnimatePresence } from 'motion/react';
 
 interface SupplierManagementProps {
   lang: 'en' | 'ar';
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 type PartnerType = 'supplier' | 'customer';
@@ -29,7 +29,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [ledgerData, setLedgerData] = useState<any[]>([]);
+  const [ledgerData, setLedgerData] = useState<{ id?: string; date: string; description: string; debit: number; credit: number; balance: number }[]>([]);
   const [newPartner, setNewPartner] = useState({ name: '', phone: '', address: '', openingBalance: 0 });
   const [partnerBalances, setPartnerBalances] = useState<Record<string, number>>({});
   

@@ -12,9 +12,11 @@ import {
   Wrench, Activity, Database, Check, Cpu
 } from 'lucide-react';
 
+import { Product } from '@/types';
+
 interface InventoryAuditModuleProps {
   lang: 'en' | 'ar';
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNavigate }) => {
@@ -40,17 +42,17 @@ const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNav
         let currentTask = await db.getDailyAuditTask(todayStr);
         if (!currentTask) {
           const products = await db.getProducts();
-          const items = products.slice(0, 10).map((p: any) => ({
+          const items = products.slice(0, 10).map((p: Product) => ({
             id: p.id,
             product_id: p.id,
             name: p.name,
             bookQty: p.stock ?? p.StockQuantity ?? 0,
             actualQty: undefined,
-            status: 'pending',
+            status: 'pending' as const,
             date: todayStr
           }));
           const id = db.generateId('DT');
-          const newTask = {
+          const newTask: DailyAuditTask = {
             id,
             taskId: id,
             date: todayStr,
@@ -59,7 +61,7 @@ const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNav
             status: 'PENDING'
           };
           await db.createDailyAuditTask(newTask);
-          currentTask = newTask as any;
+          currentTask = newTask;
         }
         if (currentTask) {
           setTask(currentTask);
@@ -132,7 +134,7 @@ const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNav
           );
         }
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       NotificationService.error(isAr ? "فشل تشغيل محرك الجرد" : "Failed running systemic audit");
     } finally {
       setIsAuditing(false);
@@ -156,8 +158,9 @@ const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNav
       } else {
         NotificationService.error(isAr ? "فشلت عملية الإصلاح التلقائي" : "Repair execution failed");
       }
-    } catch (err: any) {
-      NotificationService.error(err.message || "Error during automatic repair");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      NotificationService.error(errMsg || "Error during automatic repair");
     } finally {
       setIsRepairing(false);
     }

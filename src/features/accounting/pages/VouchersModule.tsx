@@ -11,7 +11,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface VouchersModuleProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
   initialType?: 'RECEIPT' | 'PAYMENT';
 }
 
@@ -141,17 +141,18 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
       setForm({ partnerId: '', amount: '', notes: '', paymentMethod: 'CASH', date: new Date().toISOString().split('T')[0] });
       setPartnerSearch('');
       refreshGlobal();
-    } catch (err: any) {
-      addToast(err.message || "فشل الحفظ", "error");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      addToast(errMsg || "فشل الحفظ", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (item: any) => {
+  const handleDelete = async (item: (Receipt & { type?: string }) | (Payment & { type?: string })) => {
     if (window.confirm('هل أنت متأكد من حذف هذا السند؟')) {
       try {
-        if (item.type === 'RECEIPT') {
+        if ('customer_id' in item) {
           await db.db.receipts.delete(item.id);
           await db.updateCustomerBalance(item.customer_id, item.amount); // Reverse: add back to receivable
         } else {
@@ -171,8 +172,9 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
 
         addToast('تم الحذف بنجاح ✅', 'success');
         refreshGlobal();
-      } catch (e: any) {
-        addToast(`فشل الحذف: ${e.message}`, 'error');
+      } catch (e: unknown) {
+        const errMsg = e instanceof Error ? e.message : String(e);
+        addToast(`فشل الحذف: ${errMsg}`, 'error');
       }
     }
   };
@@ -181,7 +183,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
     if (!searchTerm.trim()) return history;
     const term = searchTerm.toLowerCase();
     return history.filter(h => {
-       const partnerName = (h as any).type === 'RECEIPT' 
+       const partnerName = 'customer_id' in h 
          ? customers.find(c => c.id === (h as Receipt).customer_id)?.Supplier_Name 
          : suppliers.find(s => s.id === (h as Payment).supplier_id)?.Supplier_Name;
        
@@ -389,7 +391,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
            
            <div className="space-y-4 overflow-y-auto custom-scrollbar pr-2 flex-1 pb-4">
               {filteredHistory.map(h => {
-                const isReceipt = (h as any).type === 'RECEIPT';
+                const isReceipt = 'customer_id' in h;
                 const partner = isReceipt 
                   ? customers.find(c => c.id === (h as Receipt).customer_id)
                   : suppliers.find(s => s.id === (h as Payment).supplier_id);

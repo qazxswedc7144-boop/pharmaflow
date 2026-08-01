@@ -3,7 +3,13 @@ import { db } from '@/core/db';
 import { InvoiceItem, ItemUsageLog } from '@/types';
 import { PriceHistoryRepository } from '@/database/repositories/PriceHistoryRepository';
 
-const PRICE_CACHE = new Map<string, { result: any, timestamp: number }>();
+interface SuggestedPriceResult {
+  suggestedPrice: number | null;
+  basis: 'partner' | 'preferred' | 'average' | 'none';
+  insight?: string;
+}
+
+const PRICE_CACHE = new Map<string, { result: SuggestedPriceResult, timestamp: number }>();
 
 /**
  * Price Intelligence Service - محرك تحليل سجل الأسعار (Phase 13)

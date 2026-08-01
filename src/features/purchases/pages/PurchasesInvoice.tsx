@@ -32,6 +32,8 @@ const formatDateDisplay = (dateStr: string) => {
 };
 
 // Memoized Item Row Component for Performance
+import { Product, InvoiceItem, Supplier } from '@/types';
+
 const InvoiceItemRow = React.memo(({ 
   item, 
   onDelete, 
@@ -40,11 +42,11 @@ const InvoiceItemRow = React.memo(({
   isPriceHigher,
   idx
 }: { 
-  item: any; 
+  item: InvoiceItem; 
   onDelete: (idx: number) => void; 
   onClick?: () => void;
   isExpirySoon: (date: string) => boolean;
-  isPriceHigher: (item: any) => boolean;
+  isPriceHigher: (item: InvoiceItem) => boolean;
   idx: number;
 }) => (
   <motion.div 
@@ -91,11 +93,11 @@ const InvoiceItemRow = React.memo(({
   </motion.div>
 ));
 
-const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => void }> = ({ onNavigate }) => {
+const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<string, unknown>) => void }> = ({ onNavigate }) => {
   const { addToast, refreshGlobal } = useUI();
   const [isAddItemModalOpen, setIsAddItemModalOpen] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-  const [editingItem, setEditingItem] = React.useState<any | null>(null);
+  const [editingItem, setEditingItem] = React.useState<Partial<InvoiceItem> | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
 
   const {
@@ -155,7 +157,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
     discardDraft
   } = usePurchases(onNavigate);
 
-  const selectedSupplierObj = suppliers?.find((s: any) => s.id === header.supplier_id || s.Supplier_ID === header.supplier_id);
+  const selectedSupplierObj = suppliers?.find(s => s.id === header.supplier_id || s.Supplier_ID === header.supplier_id);
 
   // Navigation Guard: Browser Refresh/Close
   React.useEffect(() => {
@@ -170,16 +172,16 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
   }, [isProcessingAI, hasUnsavedAI, items.length]);
 
   // Helper to open modal with product data
-  const handleSelectProduct = (p: any) => {
+  const handleSelectProduct = (p: Product) => {
     setEditingItem(null);
     selectProduct(p);
     setIsAddItemModalOpen(true);
   };
 
-  const handleAddItem = (item: any) => {
-    const newItem = {
+  const handleAddItem = (item: InvoiceItem & { productId?: string }) => {
+    const newItem: InvoiceItem = {
       ...item,
-      product_id: item.productId,
+      product_id: item.productId || item.product_id,
       parent_id: header.invoice_number,
       row_order: items.length + 1
     };
@@ -194,7 +196,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
           ...existing,
           ...newItem,
           row_order: existing.row_order
-        } as any;
+        };
       }
       setItems(updated);
       return;
@@ -214,16 +216,16 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
           ...existingItem,
           qty: existingItem.qty + newItem.qty,
           sum: (existingItem.qty + newItem.qty) * existingItem.price
-        } as any;
+        };
       }
       setItems(updatedItems);
       addToast("تم دمج الكمية للصنف المكرر", "info");
     } else {
-      setItems([...items, newItem as any]);
+      setItems([...items, newItem]);
     }
   };
 
-  const handleRowClick = React.useCallback((item: any) => {
+  const handleRowClick = React.useCallback((item: InvoiceItem) => {
     if (isLocked) return;
 
     setEditingItem({
@@ -232,24 +234,22 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
       qty: item.qty,
       price: item.price,
       expiryDate: item.expiryDate || '',
-      category: item.category || '',
-      notes: item.note || item.notes || ''
+      notes: item.notes || ''
     });
     setIsEditModalOpen(true);
   }, [isLocked]);
 
-  const handleSaveModalData = React.useCallback((updatedItem: any) => {
-    setItems((prev: any[]) => prev.map(i => {
+  const handleSaveModalData = React.useCallback((updatedItem: Partial<InvoiceItem>) => {
+    setItems(prev => prev.map(i => {
       if (i.id === updatedItem.id) {
         return {
           ...i,
-          name: updatedItem.name,
-          qty: updatedItem.qty,
-          price: updatedItem.price,
-          expiryDate: updatedItem.expiryDate,
-          note: updatedItem.notes,
-          notes: updatedItem.notes,
-          sum: updatedItem.qty * updatedItem.price
+          name: updatedItem.name || i.name,
+          qty: updatedItem.qty !== undefined ? updatedItem.qty : i.qty,
+          price: updatedItem.price !== undefined ? updatedItem.price : i.price,
+          expiryDate: updatedItem.expiryDate !== undefined ? updatedItem.expiryDate : i.expiryDate,
+          notes: updatedItem.notes !== undefined ? updatedItem.notes : i.notes,
+          sum: (updatedItem.qty !== undefined ? updatedItem.qty : i.qty) * (updatedItem.price !== undefined ? updatedItem.price : i.price)
         };
       }
       return i;
@@ -258,16 +258,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
     setEditingItem(null);
   }, [setItems]);
 
-  const handleSaveInvoice = () => {
-    // Auto-Fix: Generate temporary invoice number if empty
-    if (!header.invoice_number) {
-      const tempNum = `TEMP-${Date.now().toString().slice(-6)}`;
-      setHeader(prev => ({ ...prev, invoice_number: tempNum }));
-    }
-    setIsConfirmSaveOpen(true);
-  };
-
-  const isPriceHigher = React.useCallback((item: any) => {
+  const isPriceHigher = React.useCallback((item: InvoiceItem) => {
     const product = filteredProducts.find(p => p.id === item.product_id);
     if (product && product.LastPurchasePrice && item.price > product.LastPurchasePrice) {
       return true;
@@ -629,7 +620,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
           <button 
             type="button"
             disabled={isSaving || items.length === 0 || isProcessingAI}
-            onClick={handleSaveInvoice}
+            onClick={handlePost}
             className="flex-[2] h-11 bg-[#1E4D4D] text-white rounded-xl font-black text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 disabled:opacity-50"
           >
             {isSaving ? (
@@ -685,7 +676,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: any, params?: any) => voi
                  <span>الأصناف المفلترة والمستخرجة ({aiParsedData?.items?.length || 0}):</span>
                  <span className="text-emerald-600 font-bold">جاهز للمراجعة</span>
                </div>
-               {aiParsedData?.items?.map((item: any, i: number) => (
+               {aiParsedData?.items?.map((item, i: number) => (
                  <div key={i} className="bg-white p-2.5 rounded-lg border border-slate-100 text-[11px] space-y-1">
                    <div className="flex justify-between items-center">
                      <span className="font-black text-[#1E4D4D] truncate flex-1">{item.name}</span>

@@ -30,8 +30,8 @@ export class YearEndClosingService {
       let totalRevenue = 0;
       let totalExpenses = 0;
 
-      entries.forEach((e: any) => {
-        (e.lines || []).forEach((l: any) => {
+      entries.forEach((e: AccountingEntry) => {
+        (e.lines || []).forEach((l: JournalLine) => {
           if (l.accountId === revenueAcc) totalRevenue += ((l.credit || 0) - (l.debit || 0));
           if (l.accountId === expenseAcc) totalExpenses += ((l.debit || 0) - (l.credit || 0));
         });

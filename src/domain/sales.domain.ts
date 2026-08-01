@@ -61,6 +61,8 @@ export interface SalesInvoice extends DomainEntity {
 
   // Compatibility fields for UnifiedInvoice & Sale
   SaleID?: string;
+  Date?: string;
+  customer_id?: string;
   partnerId?: string;
   partnerName?: string;
   type?: 'SALE' | 'PURCHASE' | string;

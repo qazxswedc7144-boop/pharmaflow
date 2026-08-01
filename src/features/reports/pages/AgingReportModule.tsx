@@ -7,7 +7,7 @@ import { useSafeNavigation } from '@/utils/navigation';
 import { 
   ArrowRight, Search, 
   BarChart3, Clock,
-  Download, AlertCircle, CheckCircle2,
+  Download, Printer, AlertCircle, CheckCircle2,
   TrendingDown, TrendingUp
 } from 'lucide-react';
 import { ExportService } from '@/services/data/exportService';
@@ -101,6 +101,15 @@ const AgingReportModule: React.FC<{ onNavigate?: (v: any) => void }> = ({ onNavi
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={() => window.print()} 
+            className="!py-1.5 !px-4 !text-[10px] bg-[#1E4D4D] text-white hover:bg-[#153737] border-transparent shadow-sm print:hidden"
+            icon={<Printer size={14}/>}
+          >
+            طباعة التقرير
+          </Button>
           <Button 
             variant="secondary" 
             size="sm"

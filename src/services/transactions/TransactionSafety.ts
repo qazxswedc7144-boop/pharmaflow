@@ -45,16 +45,18 @@ const checkDuplicateInvoice = async (invoiceNumber: string) => {
   }
 }
 
-const validateStock = async (items: any[]) => {
+import { Product, InvoiceItem } from "@/types";
+
+const validateStock = async (items: InvoiceItem[]) => {
   for (const item of items) {
     // Try primary standardized name then fallback
     let products = await safeWhereEqual(db.db.products, "name", item.name);
     if (products.length === 0) {
       products = await safeWhereEqual(db.db.products, "Name", item.name);
     }
-    const product = products[0] as any || null;
+    const product = (products[0] as unknown as Product) || null;
 
-    if (product && (product.stock || product.StockQuantity || 0) < item.quantity) {
+    if (product && (product.stock || product.StockQuantity || 0) < (item.qty || item.quantity || 0)) {
       throw new Error(`❌ المخزون غير كافي: ${item.name}`)
     }
   }

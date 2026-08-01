@@ -23,7 +23,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
       InventoryService.getProducts(),
       db.db.categories.toArray(),
     ]);
-    set({ products, categories: categories as any[] });
+    set({ products, categories: categories as unknown as Category[] });
   },
   updateStockDirectly: async (productId: string, delta: number) => {
     await InventoryService.updateStock(productId, delta);

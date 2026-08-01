@@ -34,9 +34,11 @@ export interface PurchaseInvoice extends DomainEntity {
   // Compatibility fields matching Purchase and UnifiedInvoice
   purchase_id?: string;
   invoiceId?: string;
+  supplier_id?: string;
   partnerId?: string;
   partnerName?: string;
   totalAmount?: number;
+  finalTotal?: number;
   tax?: number;
   status?: 'PAID' | 'UNPAID' | string;
   payment_status?: PaymentStatus;

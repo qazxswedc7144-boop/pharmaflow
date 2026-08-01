@@ -1,5 +1,6 @@
 
 import { db } from '@/core/db';
+import { PeriodLockedError, ErrorManager } from '@/core/errors';
 
 export class PeriodLockEngine {
   static async isPeriodLocked(dateStr: string): Promise<boolean> {
@@ -13,7 +14,7 @@ export class PeriodLockEngine {
       });
       return matchingPeriod ? matchingPeriod.Is_Locked : false;
     } catch (error) {
-      console.error('[PeriodLockEngine] Error checking lock:', error);
+      ErrorManager.handleError(error, { module: 'ACCOUNTING', action: 'CHECK_PERIOD_LOCK', showToast: false });
       return false;
     }
   }
@@ -22,10 +23,17 @@ export class PeriodLockEngine {
     return await db.db.accountingPeriods.update(periodId, { Is_Locked: true, Locked_At: new Date().toISOString() });
   }
 
-  static async validateOperation(dateStr: string, _optional?: any) {
+  static async validateOperation(dateStr: string, operationName?: string) {
     const isLocked = await this.isPeriodLocked(dateStr);
     if (isLocked) {
-      throw new Error('This period is locked for accounting.');
+      const formattedDate = dateStr ? dateStr.split('T')[0] : '';
+      const action = operationName ? `إجراء "${operationName}"` : 'إجراء المعاملة';
+      throw new PeriodLockedError({
+        message: `Period locked for date ${formattedDate}. Cannot perform ${action}.`,
+        arabicMessage: `الفترة المحاسبية لتاريخ (${formattedDate}) مغلقة. لا يمكن ${action} في فترة مغلقة.`,
+        module: 'ACCOUNTING',
+        metadata: { dateStr, operationName },
+      });
     }
     return true;
   }

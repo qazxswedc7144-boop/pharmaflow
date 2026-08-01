@@ -4,6 +4,7 @@ import { db } from '@/core/db';
 import { Product, InvoiceStatus, InvoiceItem, PaymentStatus, Supplier } from '@/types';
 import { useUI, useInventory, useAccounting } from '@/contexts/AppContext';
 import { useUIStore } from '@/store/useUIStore';
+import { ErrorManager } from '@/core/errors';
 import { useSalesStore } from '@/store/useSalesStore';
 import { authService } from '@features/auth/services/authService';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
@@ -20,7 +21,7 @@ import { ReportEngine } from '@/services/reports/reportEngine';
 
 const DRAFT_KEY = 'pharmaflow_sales_draft';
 
-export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
+export const useSales = (onNavigate?: (view: string, params?: Record<string, unknown>) => void) => {
   const { addToast, currency, refreshGlobal } = useUI();
   const { showNotification } = useAppNotification();
   const { addInvoice, customers } = useAccounting();
@@ -68,7 +69,7 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
   } | null>(null);
 
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
-  const [recoveryDraftData, setRecoveryDraftData] = useState<any>(null);
+  const [recoveryDraftData, setRecoveryDraftData] = useState<Record<string, unknown> | null>(null);
 
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -276,9 +277,9 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
     }
   }, [filteredCustomers, selectedCustomerIndex]);
 
-  const selectCustomer = useCallback((c: any) => {
+  const selectCustomer = useCallback((c: Supplier) => {
     setHeader(prev => ({ ...prev, customer_id: c.id }));
-    setCustomerSearchTerm(c.Supplier_Name);
+    setCustomerSearchTerm(c.Supplier_Name || c.name || '');
     setShowCustomerDropdown(false);
   }, []);
 
@@ -305,7 +306,7 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
         openingBalance: 0,
         Is_Active: true,
         Created_At: new Date().toISOString()
-      } as any;
+      };
       
       await db.saveCustomer(newCus);
       await refreshGlobal();
@@ -360,9 +361,9 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
               payment_method: inv.paymentStatus, status: inv.documentStatus,
               payment_status: inv.financialStatus, date: inv.date.split('T')[0],
               isReturn: inv.isReturn,
-              notes: (inv as any).notes || '',
-              attachment: (inv as any).attachment || '',
-              warehouse: (inv as any).warehouse || ''
+              notes: inv.notes || '',
+              attachment: inv.attachment || '',
+              warehouse: inv.warehouse || ''
             };
             setHeader(h);
             setItems(inv.items);
@@ -419,10 +420,10 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
   }, [items, header, adjData, vTotalSum, editingInvoiceId, customers]);
 
   // Immediate save on specific changes: Add Item, Remove Item, Change Qty/Price, Change Customer, Change Notes
-  const prevItemsRef = useRef<any[]>(items);
+  const prevItemsRef = useRef<InvoiceItem[]>(items);
   const prevCustomerIdRef = useRef<string>(header.customer_id);
   const prevNotesRef = useRef<string>(header.notes);
-  const prevAdjDataRef = useRef<any>(adjData);
+  const prevAdjDataRef = useRef<{ discountPercent: number; otherFees: number; tax: number }>(adjData);
 
   useEffect(() => {
     if (editingInvoiceId) return;
@@ -486,7 +487,7 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
             },
             options: { 
               isCash: header.payment_method === 'Cash', 
-              paymentStatus: header.payment_method as any,
+              paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
               isReturn: header.isReturn, 
               currency,
               invoiceStatus: header.status,
@@ -506,8 +507,8 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
     try {
       setSelectedProduct(p);
       setManualItemName(p.Name || p.name);
-      setCategoryName(p.categoryName || (p as any).category || '');
-      setTempExpiry(p.ExpiryDate || (p as any).expiryDate || '');
+      setCategoryName(p.categoryName || p.category || '');
+      setTempExpiry(p.ExpiryDate || p.expiryDate || '');
       const suggestion = await priceIntelligenceService.getSuggestedPrice(p.id, 'SALE', header.customer_id);
       setTempPrice(suggestion.suggestedPrice || p.UnitPrice || p.price || 0);
       setTempQty(1);
@@ -539,16 +540,19 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
         prod = products.find(p => (p.Name || p.name || '').toLowerCase() === name.toLowerCase()) || null;
       }
       
+      const priceVal = typeof tempPrice === 'number' ? tempPrice : parseFloat(tempPrice) || 0;
+      const qtyVal = typeof tempQty === 'number' ? tempQty : Number(tempQty) || 1;
+
       const newItem: InvoiceItem = {
         id: db.generateId('SALE_DET'), parent_id: header.invoice_number,
         product_id: prod?.id || db.generateId('NEW'),
         name: prod?.Name || name, 
-        price: parseFloat(tempPrice as any) || 0, 
-        qty: Number(tempQty) || 1,
-        sum: (Number(tempQty) || 1) * (parseFloat(tempPrice as any) || 0), 
+        price: priceVal, 
+        qty: qtyVal,
+        sum: qtyVal * priceVal, 
         row_order: items.length + 1,
-        expiryDate: tempExpiry || prod?.ExpiryDate || (prod as any)?.expiryDate || '',
-        category: categoryName || prod?.categoryName || (prod as any)?.category || '',
+        expiryDate: tempExpiry || prod?.ExpiryDate || prod?.expiryDate || '',
+        category: categoryName || prod?.categoryName || prod?.category || '',
         notes: tempNote
       };
       setItems(prev => [...prev, newItem]);
@@ -596,12 +600,14 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
     }
   }, [filteredProducts, selectedIndex, selectProduct, manualItemName]);
 
-  const updateItem = useCallback((id: string, field: keyof InvoiceItem, val: any) => {
+  const updateItem = useCallback((id: string, field: keyof InvoiceItem, val: unknown) => {
     if (isLocked) return;
     setItems(prev => prev.map(item => {
       if (item.id === id) {
         const next = { ...item, [field]: val };
-        next.sum = (parseFloat(next.qty as any) || 0) * (parseFloat(next.price as any) || 0);
+        const q = typeof next.qty === 'number' ? next.qty : parseFloat(String(next.qty)) || 0;
+        const p = typeof next.price === 'number' ? next.price : parseFloat(String(next.price)) || 0;
+        next.sum = q * p;
         return next;
       }
       return item;
@@ -642,7 +648,7 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
           },
           options: { 
             isCash: header.payment_method === 'Cash', 
-            paymentStatus: header.payment_method as any,
+            paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
             invoiceStatus: nextStatus, 
             isReturn: header.isReturn, 
             currency,
@@ -711,19 +717,20 @@ export const useSales = (onNavigate?: (view: any, params?: any) => void) => {
           }
         }, 1000);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setSavePhase('failed');
-      const isTimeout = err?.message === 'SAVE_TIMEOUT';
+      const normalized = ErrorManager.handleError(err, { module: 'SALES', action: 'SAVE_SALE', showToast: false });
+      const isTimeout = err instanceof Error && err.message === 'SAVE_TIMEOUT';
       showNotification(
         isTimeout 
           ? '⚠️ تأخر حفظ الفاتورة؛ تم فك تجميد الواجهة حرصاً على استمرار العمل.' 
-          : '❌ فشل في حفظ مبيعات الكاشير', 
+          : '❌ تعذر حفظ فاتورة المبيعات', 
         'error'
       );
       addToast(
         isTimeout
           ? 'تأخر حفظ الفاتورة سحابياً؛ تم فك تجميد الواجهة حرصاً على العمل المستمر. راجع مركز المزامنة.'
-          : (err?.message || "فشل الحفظ"),
+          : normalized.arabicMessage,
         'error'
       );
     } finally {

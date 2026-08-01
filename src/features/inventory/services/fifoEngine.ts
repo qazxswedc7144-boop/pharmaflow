@@ -1,7 +1,8 @@
 
 import { db } from '@/core/db';
-import { InventoryLayer } from '@/types';
+import { InventoryLayer, FIFOConsumptionLog, Sale, Purchase, UnifiedInvoice } from '@/types';
 import { WorkerClient } from '@features/workers/worker.client';
+import { InsufficientStockError, InventoryError, ErrorManager } from '@/core/errors';
 
 export class FIFOEngine {
 
@@ -21,9 +22,10 @@ export class FIFOEngine {
     };
     
     try {
-      await db.inventory_layers.add(layer);
-    } catch (error: any) {
-      throw new Error(`FIFO Error (Add Layer): ${error.message}`);
+      await db.inventory_layers.add(layer as InventoryLayer);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`FIFO Error (Add Layer): ${errMsg}`);
     }
   }
 
@@ -44,11 +46,11 @@ export class FIFOEngine {
       const layers = await db.inventory_layers
         .where('item_id')
         .equals(item_id)
-        .filter((l: any) => l.quantity_remaining > 0)
+        .filter((l: InventoryLayer) => l.quantity_remaining > 0)
         .sortBy('created_at');
 
-      const updatedLayers: any[] = [];
-      const consumptionLogs: any[] = [];
+      const updatedLayers: InventoryLayer[] = [];
+      const consumptionLogs: FIFOConsumptionLog[] = [];
 
       // 2. Loop layers
       for (const layer of (layers || [])) {
@@ -101,7 +103,7 @@ export class FIFOEngine {
             type: 'purchase',
             tenant_id: 'TEN-DEV-001'
           };
-          await db.inventory_layers.add(syntheticLayer);
+          await db.inventory_layers.add(syntheticLayer as InventoryLayer);
           
           totalCost += remainingToConsume * costPrice;
           consumptionLogs.push({
@@ -117,9 +119,14 @@ export class FIFOEngine {
           });
           
           remainingToConsume = 0;
-        } catch (err: any) {
-          console.error("Auto FIFO layer seeding failed:", err);
-          throw new Error(`Insufficient stock for item ${item_id}. Missing ${remainingToConsume} units.`);
+        } catch (err: unknown) {
+          ErrorManager.handleError(err, { module: 'INVENTORY', action: 'AUTO_SEED_FIFO', showToast: false });
+          throw new InsufficientStockError({
+            message: `Insufficient stock for item ${item_id}. Missing ${remainingToConsume} units.`,
+            arabicMessage: `الكمية المطلوبة غير متوفرة في المخزون (ينقص ${remainingToConsume} وحدة).`,
+            module: 'INVENTORY',
+            metadata: { item_id, remainingToConsume },
+          });
         }
       }
 
@@ -139,9 +146,17 @@ export class FIFOEngine {
         totalCost,
         unitCost: quantity > 0 ? totalCost / quantity : 0
       };
-    } catch (error: any) {
-      if (error.message.includes('Insufficient stock')) throw error;
-      throw new Error(`FIFO Error (Consumption): ${error.message}`);
+    } catch (error: unknown) {
+      if (error instanceof InsufficientStockError || error instanceof InventoryError) {
+        throw error;
+      }
+      const norm = ErrorManager.normalizeError(error, 'INVENTORY', 'حدث خطأ في تقييم المخزون (FIFO)');
+      throw new InventoryError({
+        message: norm.message,
+        arabicMessage: norm.arabicMessage,
+        module: 'INVENTORY',
+        originalError: error,
+      });
     }
   }
 
@@ -172,8 +187,9 @@ export class FIFOEngine {
         // 3. Delete log
         await db.fifo_consumption_log.delete(log.id);
       }
-    } catch (error: any) {
-      throw new Error(`FIFO Error (Reverse): ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`FIFO Error (Reverse): ${errMsg}`);
     }
   }
 
@@ -192,22 +208,24 @@ export class FIFOEngine {
       for (const layer of layers) {
         await db.inventory_layers.delete(layer.id);
       }
-    } catch (error: any) {
-      throw new Error(`FIFO Error (Remove Purchase Layer): ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`FIFO Error (Remove Purchase Layer): ${errMsg}`);
     }
   }
 
   /**
    * APPLY FIFO COSTING
    */
-  static async apply(invoice: any): Promise<{ totalCost: number, itemCosts: Record<string, number> }> {
-    const type = invoice.type || (invoice.customerId ? 'SALE' : 'PURCHASE');
-    const isReturn = invoice.isReturn || invoice.invoiceType === 'مرتجع';
+  static async apply(invoice: Sale | Purchase | UnifiedInvoice | { type?: string; customerId?: string; isReturn?: boolean; invoiceType?: string; items?: Array<{ product_id: string; qty: number; cost?: number; price: number }>; invoiceId?: string; id?: string }): Promise<{ totalCost: number, itemCosts: Record<string, number> }> {
+    const invAny = invoice as Record<string, unknown>;
+    const type = (invAny.type as string) || (invAny.customerId ? 'SALE' : 'PURCHASE');
+    const isReturn = Boolean(invAny.isReturn) || invAny.invoiceType === 'مرتجع';
     const isConsumption = (type === 'SALE' && !isReturn) || (type === 'PURCHASE' && isReturn);
 
     if (isConsumption) {
-      const items = invoice.items || [];
-      const productIds = items.map((itm: any) => itm.product_id).filter(Boolean);
+      const items = (invAny.items as Array<{ product_id: string; qty: number; cost?: number; price: number }>) || [];
+      const productIds = items.map(itm => itm.product_id).filter(Boolean);
       
       const layers = await db.inventory_layers
         .where('item_id')
@@ -236,8 +254,8 @@ export class FIFOEngine {
     } else {
       let totalCost = 0;
       const itemCosts: Record<string, number> = {};
-      const items = invoice.items || [];
-      const invoiceId = invoice.invoiceId || invoice.id;
+      const items = (invAny.items as Array<{ product_id: string; qty: number; cost?: number; price: number }>) || [];
+      const invoiceId = (invAny.invoiceId as string) || (invAny.id as string) || '';
 
       for (const item of items) {
         const returnCost = type === 'SALE' ? (item.cost || item.price) : item.price;

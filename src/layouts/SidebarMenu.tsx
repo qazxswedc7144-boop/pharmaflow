@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useUI } from '@/contexts/AppContext';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -47,6 +48,7 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => {
   const { resolvedTheme, setThemeMode } = useTheme();
   const { currency, setCurrency } = useUI();
+  const { signOut } = useAuth();
   const isDarkMode = resolvedTheme === 'dark';
 
   return (
@@ -56,17 +58,17 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm z-[200]"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[200]"
           />
           <motion.div 
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-y-0 right-0 h-full w-[340px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-[201] flex flex-col font-cairo"
+            className="fixed inset-y-0 right-0 h-full h-dvh w-[340px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-[201] flex flex-col font-cairo overflow-hidden"
             dir="rtl"
           >
-            <div className="p-4 border-b dark:border-gray-800 flex items-center justify-between bg-[#1E4D4D] text-white">
+            <div className="p-4 border-b dark:border-gray-800 flex items-center justify-between bg-[#1E4D4D] text-white shrink-0">
               <h2 className="font-bold text-lg">قائمة النظام</h2>
-              <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors focus:outline-none"><X size={20} /></button>
+              <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors focus:outline-none cursor-pointer"><X size={20} /></button>
             </div>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -237,8 +239,14 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
               </AccordionSection>
             </div>
 
-            <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 mt-auto">
-              <button className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm font-bold w-full py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors focus:outline-none">
+            <div className="p-4 border-t border-gray-100 dark:border-gray-800 bg-gray-50 dark:bg-gray-900 mt-auto shrink-0">
+              <button 
+                onClick={() => {
+                  onClose();
+                  signOut();
+                }} 
+                className="flex items-center justify-center gap-2 text-red-600 dark:text-red-400 text-sm font-bold w-full py-2.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors focus:outline-none cursor-pointer"
+              >
                 <LogOut size={18} /> تسجيل الخروج
               </button>
             </div>

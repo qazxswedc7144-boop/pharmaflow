@@ -159,6 +159,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('inventory', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to complete FIFO worker calculation');
@@ -277,6 +280,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('inventory', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to complete FEFO worker calculation');
@@ -359,6 +365,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('accounting', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to complete Journal Mapping in worker');
@@ -396,6 +405,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('inventory', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to execute Inventory Reconciliation in worker');
@@ -464,6 +476,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('accounting', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to calculate Trial Balance in worker');
@@ -543,6 +558,9 @@ export const WorkerClient = {
     };
 
     return Dexie.Promise.resolve().then(() => {
+      if ((Dexie as any).currentTransaction) {
+        return { id: taskId, success: true, result: fallbackImplementation() };
+      }
       return WorkerPool.getInstance().runTask('reporting', task, fallbackImplementation);
     }).then(res => {
       if (!res.success) throw new Error(res.error || 'Failed to aggregate ledger data in worker');

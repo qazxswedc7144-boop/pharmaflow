@@ -16,7 +16,7 @@ export const PurchaseRepository = {
       ...purchase,
       type: 'PURCHASE',
       updatedAt: new Date().toISOString()
-    } as any);
+    });
     return String(key);
   },
 

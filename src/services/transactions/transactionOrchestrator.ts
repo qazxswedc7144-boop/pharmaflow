@@ -29,10 +29,30 @@ export interface InvoiceRequest {
   options?: SaleOptions | { isCash: boolean; isReturn: boolean; invoiceStatus?: InvoiceStatus; date?: string; originalInvoiceId?: string };
 }
 
+export interface TransactionPayload {
+  supplierId?: string;
+  customerId?: string;
+  items: InvoiceItem[];
+  total: number;
+  date?: string;
+  notes?: string;
+  invoiceId?: string;
+  amount?: number;
+  type?: string;
+}
+
+export interface VoucherPayload {
+  supplierId?: string;
+  customerId?: string;
+  amount: number;
+  notes?: string;
+  date?: string;
+}
+
 // We'll modify the existing transactionOrchestrator to use SystemOrchestrator
 export const transactionOrchestrator = {
   async processInvoiceTransaction(invoice: InvoiceRequest): Promise<{ success: boolean; refId?: string }> {
-    const result = await SystemOrchestrator.processInvoice(invoice as any);
+    const result = await SystemOrchestrator.processInvoice(invoice);
     return result;
   },
 
@@ -49,26 +69,29 @@ export const transactionOrchestrator = {
   /**
    * Central execution layer for ERP transactions.
    */
-  async processTransaction(type: 'purchase' | 'purchase_return' | 'sale' | 'sale_return' | 'supplier_payment' | 'customer_payment', data: any): Promise<{ success: boolean; refId?: string }> {
+  async processTransaction(
+    type: 'purchase' | 'purchase_return' | 'sale' | 'sale_return' | 'supplier_payment' | 'customer_payment', 
+    data: TransactionPayload | VoucherPayload
+  ): Promise<{ success: boolean; refId?: string }> {
     let result: { success: boolean; refId?: string };
     switch(type) {
       case 'purchase':
-        result = await this.handlePurchase(data);
+        result = await this.handlePurchase(data as TransactionPayload);
         break;
       case 'purchase_return':
-        result = await this.handlePurchaseReturn(data);
+        result = await this.handlePurchaseReturn(data as TransactionPayload);
         break;
       case 'sale':
-        result = await this.handleSale(data);
+        result = await this.handleSale(data as TransactionPayload);
         break;
       case 'sale_return':
-        result = await this.handleSalesReturn(data);
+        result = await this.handleSalesReturn(data as TransactionPayload);
         break;
       case 'supplier_payment':
-        result = await this.settleSupplier(data);
+        result = await this.settleSupplier(data as VoucherPayload);
         break;
       case 'customer_payment':
-        result = await this.settleCustomer(data);
+        result = await this.settleCustomer(data as VoucherPayload);
         break;
       default:
         throw new Error(`Unknown transaction type: ${type}`);
@@ -78,7 +101,7 @@ export const transactionOrchestrator = {
     return result;
   },
 
-  async handlePurchase(data: any) {
+  async handlePurchase(data: TransactionPayload) {
     return await SystemOrchestrator.processInvoice({
       type: 'PURCHASE',
       payload: {
@@ -96,7 +119,7 @@ export const transactionOrchestrator = {
     });
   },
 
-  async handlePurchaseReturn(data: any) {
+  async handlePurchaseReturn(data: TransactionPayload) {
     return await SystemOrchestrator.processInvoice({
       type: 'PURCHASE',
       payload: {
@@ -115,7 +138,7 @@ export const transactionOrchestrator = {
     });
   },
 
-  async handleSale(data: any) {
+  async handleSale(data: TransactionPayload) {
     return await SystemOrchestrator.processInvoice({
       type: 'SALE',
       payload: {
@@ -133,7 +156,7 @@ export const transactionOrchestrator = {
     });
   },
 
-  async handleSalesReturn(data: any) {
+  async handleSalesReturn(data: TransactionPayload) {
     return await SystemOrchestrator.processInvoice({
       type: 'SALE',
       payload: {
@@ -152,9 +175,9 @@ export const transactionOrchestrator = {
     });
   },
 
-  async settleSupplier(data: any) {
+  async settleSupplier(data: VoucherPayload) {
     const result = await voucherService.createPayment({
-      supplier_id: data.supplierId,
+      supplier_id: data.supplierId || '',
       amount: data.amount,
       notes: data.notes,
       date: data.date || new Date().toISOString()
@@ -162,9 +185,9 @@ export const transactionOrchestrator = {
     return { success: true, refId: result.id };
   },
 
-  async settleCustomer(data: any) {
+  async settleCustomer(data: VoucherPayload) {
     const result = await voucherService.createReceipt({
-      customer_id: data.customerId,
+      customer_id: data.customerId || '',
       amount: data.amount,
       notes: data.notes,
       date: data.date || new Date().toISOString()

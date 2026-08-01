@@ -19,6 +19,7 @@ import { DraftRecoveryDialog } from '@/components/shared/DraftRecoveryDialog';
 import { useUI } from '@/contexts/AppContext';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
 import { InvoiceItemEditModal } from '@/components/shared/InvoiceItemEditModal';
+import { Customer, InvoiceItem } from '@/types';
 
 const formatDateDisplay = (dateStr: string) => {
   if (!dateStr) return '';
@@ -35,7 +36,7 @@ const formatDateDisplay = (dateStr: string) => {
   return dateStr;
 };
 
-const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> = ({ onNavigate }) => {
+const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string, unknown>) => void }> = ({ onNavigate }) => {
   const { refreshGlobal } = useUI();
   const {
     items, setItems,
@@ -90,15 +91,15 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
     discardDraft
   } = useSales(onNavigate);
 
-  const selectedCustomerObj = customers?.find((c: any) => c.id === header.customer_id || c.Supplier_ID === header.customer_id);
+  const selectedCustomerObj = customers?.find((c: Customer) => c.id === header.customer_id || (c as any).Supplier_ID === header.customer_id);
 
-  const [editingItem, setEditingItem] = React.useState<any | null>(null);
+  const [editingItem, setEditingItem] = React.useState<InvoiceItem | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
 
-  const handleAddItem = React.useCallback((item: any) => {
-    const newItem = {
+  const handleAddItem = React.useCallback((item: InvoiceItem & { productId?: string }) => {
+    const newItem: InvoiceItem = {
       ...item,
-      product_id: item.productId,
+      product_id: item.productId || item.product_id || '',
       parent_id: header.invoice_number,
       row_order: items.length + 1
     };
@@ -113,7 +114,7 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
           ...existingRow,
           ...newItem,
           row_order: existingRow.row_order
-        } as any;
+        };
         return updated;
       }
 
@@ -130,10 +131,10 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
           ...existingItem,
           qty: (existingItem.qty || 0) + newItem.qty,
           sum: ((existingItem.qty || 0) + newItem.qty) * (existingItem.price || 0)
-        } as any;
+        };
         return updated;
       } else {
-        return [...prev, newItem as any];
+        return [...prev, newItem];
       }
     });
   }, [header.invoice_number, items.length, setItems]);
@@ -142,7 +143,7 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
     setItems(prev => prev.filter((_, i) => i !== idx));
   }, [setItems]);
 
-  const handleRowClick = React.useCallback((item: any) => {
+  const handleRowClick = React.useCallback((item: InvoiceItem) => {
     setEditingItem({
       id: item.id,
       name: item.name,
@@ -150,13 +151,13 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
       price: item.price,
       expiryDate: item.expiryDate || '',
       category: item.category || '',
-      notes: item.note || item.notes || ''
+      notes: item.notes || ''
     });
     setIsEditModalOpen(true);
   }, []);
 
-  const handleSaveModalData = React.useCallback((updatedItem: any) => {
-    setItems((prev: any[]) => prev.map(i => {
+  const handleSaveModalData = React.useCallback((updatedItem: InvoiceItem) => {
+    setItems((prev: InvoiceItem[]) => prev.map(i => {
       if (i.id === updatedItem.id) {
         return {
           ...i,
@@ -164,7 +165,6 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
           qty: updatedItem.qty,
           price: updatedItem.price,
           expiryDate: updatedItem.expiryDate,
-          note: updatedItem.notes,
           notes: updatedItem.notes,
           sum: updatedItem.qty * updatedItem.price
         };
@@ -592,9 +592,9 @@ const SalesModule: React.FC<{ onNavigate?: (view: any, params?: any) => void }> 
           <DraftRecoveryDialog
             isOpen={isRecoveryModalOpen}
             moduleName="فاتورة مبيعات الكاشير"
-            updatedAt={recoveryDraftData.updatedAt}
-            itemCount={(recoveryDraftData.payload?.items || recoveryDraftData.items)?.length || 0}
-            totalAmount={recoveryDraftData.payload?.totals?.subtotal || recoveryDraftData.totals?.subtotal}
+            updatedAt={(recoveryDraftData as any).updatedAt || (recoveryDraftData as any).timestamp || new Date().toISOString()}
+            itemCount={((recoveryDraftData as any).payload?.items || (recoveryDraftData as any).items)?.length || 0}
+            totalAmount={Number((recoveryDraftData as any).payload?.totals?.subtotal || (recoveryDraftData as any).totals?.subtotal || 0)}
             onRestore={restoreDraft}
             onDiscard={discardDraft}
           />

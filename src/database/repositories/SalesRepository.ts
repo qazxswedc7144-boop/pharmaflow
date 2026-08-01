@@ -17,7 +17,7 @@ export const SalesRepository = {
       ...sale,
       type: 'SALE',
       updatedAt: new Date().toISOString()
-    } as any);
+    });
     return String(key);
   },
 

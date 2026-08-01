@@ -1,6 +1,16 @@
 import { db } from '@/core/db';
 import { WorkerClient } from '@features/workers/worker.client';
 import { reportCache } from '@features/reports/services/reportCacheService';
+import { Sale, Purchase, Product, Customer, Supplier, JournalEntry, JournalLine } from '@/types';
+
+export interface TrialBalanceRow {
+  id: string;
+  code: string;
+  name: string;
+  type: 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
+  endingDebit: number;
+  endingCredit: number;
+}
 
 export class ReportEngine {
   
@@ -26,12 +36,12 @@ export class ReportEngine {
     const sales = await db.invoices
       .where('type')
       .equals('SALE')
-      .filter((s: any) => s.date >= start && s.date <= end)
-      .toArray();
+      .filter((s: Sale) => (s.date || s.Date || '') >= start && (s.date || s.Date || '') <= end)
+      .toArray() as Sale[];
     
     return {
       count: sales.length,
-      total: sales.reduce((acc: number, s: any) => acc + (s.finalTotal || 0), 0)
+      total: sales.reduce((acc: number, s: Sale) => acc + (s.finalTotal || 0), 0)
     };
   }
 
@@ -39,9 +49,9 @@ export class ReportEngine {
    * Generates a GAAP-compliant Trial Balance (ميزان المراجعة).
    * Aggregates debits, credits, and calculates ending balances per account within date filters.
    */
-  static async getTrialBalance(start?: string, end?: string) {
+  static async getTrialBalance(start?: string, end?: string): Promise<TrialBalanceRow[]> {
     const cacheKey = `trial-balance-${start || 'all'}-${end || 'all'}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<TrialBalanceRow[]>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Trial Balance for key ${cacheKey}`);
       return cached;
@@ -52,7 +62,7 @@ export class ReportEngine {
 
     const result = await WorkerClient.runTrialBalance(accounts, entries, start, end);
     reportCache.set(cacheKey, result);
-    return result;
+    return result as TrialBalanceRow[];
   }
 
   /**
@@ -60,7 +70,7 @@ export class ReportEngine {
    */
   static async getProfitLoss(start?: string, end?: string) {
     const cacheKey = `profit-loss-${start || 'all'}-${end || 'all'}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<Record<string, unknown>>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Profit & Loss for key ${cacheKey}`);
       return cached;
@@ -69,16 +79,16 @@ export class ReportEngine {
     const trialBalance = await this.getTrialBalance(start, end);
     
     // Revenue Accounts (Standard ACC-401 for SALES_REVENUE)
-    const revenues = trialBalance.filter((item: any) => item.type === 'REVENUE');
-    const totalRevenue = revenues.reduce((acc: number, r: any) => acc + (r.endingCredit - r.endingDebit), 0);
+    const revenues = trialBalance.filter((item: TrialBalanceRow) => item.type === 'REVENUE');
+    const totalRevenue = revenues.reduce((acc: number, r: TrialBalanceRow) => acc + (r.endingCredit - r.endingDebit), 0);
     
     // COGS Accounts (Standard ACC-501 for COGS)
-    const cogsItems = trialBalance.filter((item: any) => item.code === 'ACC-501' || item.id === 'ACC-501' || item.name.includes('تكلفة المبيعات') || item.type === 'EXPENSE' && (item.code === 'ACC-501'));
-    const totalCogs = cogsItems.reduce((acc: number, c: any) => acc + (c.endingDebit - c.endingCredit), 0);
+    const cogsItems = trialBalance.filter((item: TrialBalanceRow) => item.code === 'ACC-501' || item.id === 'ACC-501' || item.name.includes('تكلفة المبيعات') || (item.type === 'EXPENSE' && item.code === 'ACC-501'));
+    const totalCogs = cogsItems.reduce((acc: number, c: TrialBalanceRow) => acc + (c.endingDebit - c.endingCredit), 0);
 
     // General Expense Accounts (EXPENSE excluding COGS)
-    const operatingExpenses = trialBalance.filter((item: any) => item.type === 'EXPENSE' && item.code !== 'ACC-501' && item.id !== 'ACC-501' && !item.name.includes('تكلفة المبيعات'));
-    const totalExpenses = operatingExpenses.reduce((acc: number, e: any) => acc + (e.endingDebit - e.endingCredit), 0);
+    const operatingExpenses = trialBalance.filter((item: TrialBalanceRow) => item.type === 'EXPENSE' && item.code !== 'ACC-501' && item.id !== 'ACC-501' && !item.name.includes('تكلفة المبيعات'));
+    const totalExpenses = operatingExpenses.reduce((acc: number, e: TrialBalanceRow) => acc + (e.endingDebit - e.endingCredit), 0);
 
     const grossProfit = totalRevenue - totalCogs;
     const netProfit = grossProfit - totalExpenses;
@@ -91,8 +101,8 @@ export class ReportEngine {
       expenses: totalExpenses,
       netProfit,
       margin,
-      revenueDetails: revenues.map((r: any) => ({ id: r.id, name: r.name, code: r.code, amount: r.endingCredit - r.endingDebit })),
-      expenseDetails: operatingExpenses.map((e: any) => ({ id: e.id, name: e.name, code: e.code, amount: e.endingDebit - e.endingCredit }))
+      revenueDetails: revenues.map((r: TrialBalanceRow) => ({ id: r.id, name: r.name, code: r.code, amount: r.endingCredit - r.endingDebit })),
+      expenseDetails: operatingExpenses.map((e: TrialBalanceRow) => ({ id: e.id, name: e.name, code: e.code, amount: e.endingDebit - e.endingCredit }))
     };
     reportCache.set(cacheKey, result);
     return result;
@@ -104,7 +114,7 @@ export class ReportEngine {
    */
   static async getBalanceSheet(asOfDate?: string) {
     const cacheKey = `balance-sheet-${asOfDate || 'all'}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<Record<string, unknown>>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Balance Sheet for key ${cacheKey}`);
       return cached;
@@ -113,25 +123,25 @@ export class ReportEngine {
     // Balance Sheet accounts compile cumulatively from inception up to the selected date.
     const trialBalance = await this.getTrialBalance(undefined, asOfDate);
     
-    const assetsList = trialBalance.filter((item: any) => item.type === 'ASSET');
-    const liabilitiesList = trialBalance.filter((item: any) => item.type === 'LIABILITY');
-    const equityList = trialBalance.filter((item: any) => item.type === 'EQUITY');
+    const assetsList = trialBalance.filter((item: TrialBalanceRow) => item.type === 'ASSET');
+    const liabilitiesList = trialBalance.filter((item: TrialBalanceRow) => item.type === 'LIABILITY');
+    const equityList = trialBalance.filter((item: TrialBalanceRow) => item.type === 'EQUITY');
 
     // Retained Earnings (Net Profit accumulated from inception up to the asOfDate)
     const plStatement = await this.getProfitLoss(undefined, asOfDate);
-    const retainedEarnings = plStatement.netProfit;
+    const retainedEarnings = Number(plStatement.netProfit || 0);
 
-    const totalAssets = assetsList.reduce((acc: number, r: any) => acc + (r.endingDebit - r.endingCredit), 0);
-    const totalLiabilities = liabilitiesList.reduce((acc: number, r: any) => acc + (r.endingCredit - r.endingDebit), 0);
-    const totalEquityRaw = equityList.reduce((acc: number, r: any) => acc + (r.endingCredit - r.endingDebit), 0);
+    const totalAssets = assetsList.reduce((acc: number, r: TrialBalanceRow) => acc + (r.endingDebit - r.endingCredit), 0);
+    const totalLiabilities = liabilitiesList.reduce((acc: number, r: TrialBalanceRow) => acc + (r.endingCredit - r.endingDebit), 0);
+    const totalEquityRaw = equityList.reduce((acc: number, r: TrialBalanceRow) => acc + (r.endingCredit - r.endingDebit), 0);
     const totalEquity = totalEquityRaw + retainedEarnings;
 
     const result = {
       asOfDate: asOfDate || new Date().toISOString().split('T')[0],
-      assets: assetsList.map((a: any) => ({ id: a.id, name: a.name, code: a.code, amount: a.endingDebit - a.endingCredit })),
-      liabilities: liabilitiesList.map((l: any) => ({ id: l.id, name: l.name, code: l.code, amount: l.endingCredit - l.endingDebit })),
+      assets: assetsList.map((a: TrialBalanceRow) => ({ id: a.id, name: a.name, code: a.code, amount: a.endingDebit - a.endingCredit })),
+      liabilities: liabilitiesList.map((l: TrialBalanceRow) => ({ id: l.id, name: l.name, code: l.code, amount: l.endingCredit - l.endingDebit })),
       equity: [
-        ...equityList.map((e: any) => ({ id: e.id, name: e.name, code: e.code, amount: e.endingCredit - e.endingDebit })),
+        ...equityList.map((e: TrialBalanceRow) => ({ id: e.id, name: e.name, code: e.code, amount: e.endingCredit - e.endingDebit })),
         { id: 'RETAINED_EARNINGS', name: 'الأرباح المحتجزة للفترة', code: 'ACC-399', amount: retainedEarnings }
       ],
       totalAssets,
@@ -148,7 +158,7 @@ export class ReportEngine {
    */
   static async getInventoryValue() {
     const cacheKey = 'inventory-valuation-summary';
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<Record<string, unknown>>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Inventory Valuation for key ${cacheKey}`);
       return cached;
@@ -159,8 +169,8 @@ export class ReportEngine {
     let totalCostValue = 0;
     let totalSalesValue = 0;
 
-    const items = products.map((p: any) => {
-      const qty = Number(p.stock ?? (p as any).StockQuantity ?? 0);
+    const items = (products as Product[]).map((p: Product) => {
+      const qty = Number(p.stock ?? p.StockQuantity ?? 0);
       const cost = Number(p.CostPrice ?? p.LastPurchasePrice ?? 0);
       const sellPrice = Number(p.price ?? 0);
       const costValue = qty * cost;
@@ -202,7 +212,7 @@ export class ReportEngine {
    */
   static async getCashFlow(start?: string, end?: string) {
     const cacheKey = `cash-flow-${start || 'all'}-${end || 'all'}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<Record<string, unknown>>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Cash Flow for key ${cacheKey}`);
       return cached;
@@ -215,7 +225,7 @@ export class ReportEngine {
     // Starting Cash Balance (Closing balances before start date)
     let startingBalance = 0;
     if (start) {
-      const priorEntries = entries.filter((e: any) => e.status === 'Posted' && e.date < start);
+      const priorEntries = entries.filter((e: JournalEntry) => e.status === 'Posted' && (e.date || '') < start);
       for (const e of priorEntries) {
         if (!e.lines) continue;
         for (const l of e.lines) {
@@ -227,10 +237,11 @@ export class ReportEngine {
     }
 
     // Filter range for movements
-    const rangeEntries = entries.filter((e: any) => {
+    const rangeEntries = entries.filter((e: JournalEntry) => {
       if (e.status !== 'Posted') return false;
-      if (start && e.date < start) return false;
-      if (end && e.date > end) return false;
+      const entryDate = e.date || '';
+      if (start && entryDate < start) return false;
+      if (end && entryDate > end) return false;
       return true;
     });
 
@@ -245,10 +256,10 @@ export class ReportEngine {
     for (const e of rangeEntries) {
       if (!e.lines) continue;
       // Check if entry has cash flow effect
-      const cashLines = e.lines.filter((l: any) => cashBankAccounts.includes(l.accountId));
+      const cashLines = e.lines.filter((l: JournalLine) => cashBankAccounts.includes(l.accountId));
       if (cashLines.length === 0) continue;
 
-      const netDelta = cashLines.reduce((sum: number, cl: any) => sum + (Number(cl.debit || 0) - Number(cl.credit || 0)), 0);
+      const netDelta = cashLines.reduce((sum: number, cl: JournalLine) => sum + (Number(cl.debit || 0) - Number(cl.credit || 0)), 0);
       if (netDelta === 0) continue;
 
       const category = e.sourceType || 'GENERAL';
@@ -256,7 +267,7 @@ export class ReportEngine {
 
       if (netDelta > 0) {
         flows.push({
-          date: e.date,
+          date: e.date || '',
           description: e.description || 'حركة نقدية واردة',
           type: 'INFLOW',
           amount: absAmount,
@@ -270,7 +281,7 @@ export class ReportEngine {
         }
       } else {
         flows.push({
-          date: e.date,
+          date: e.date || '',
           description: e.description || 'حركة نقدية صادرة',
           type: 'OUTFLOW',
           amount: absAmount,
@@ -310,30 +321,30 @@ export class ReportEngine {
    */
   static async getCustomerBalances() {
     const cacheKey = 'customer-balances-summary';
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<unknown[]>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Customer Balances for key ${cacheKey}`);
       return cached;
     }
 
     const customers = await db.getCustomers();
-    const invoices = await db.invoices.where('type').equals('SALE').toArray();
+    const invoices = await db.invoices.where('type').equals('SALE').toArray() as Sale[];
     
     // receipts are stored in vouchers or cash movements
     const receipts = await db.db.receipts.toArray();
-    const vouchers = await db.vouchers.filter((v: any) => (v as any).type === 'RECEIPT').toArray();
+    const vouchers = await db.vouchers.filter((v: { type?: string }) => v.type === 'RECEIPT').toArray();
 
-    const customerDetails = customers.map((cust: any) => {
-      const custId = cust.id || cust.Customer_ID || cust.Partner_ID;
+    const customerDetails = (customers as Customer[]).map((cust: Customer) => {
+      const custId = cust.id || cust.Customer_ID || cust.Partner_ID || '';
       const custName = cust.name || cust.Supplier_Name || cust.Customer_Name || 'عميل مجهول';
 
       // Total sales
-      const custInvoices = invoices.filter((inv: any) => inv.customerId === custId);
-      const totalSales = custInvoices.reduce((sum: number, inv: any) => sum + Number(inv.finalTotal || 0), 0);
+      const custInvoices = invoices.filter((inv: Sale) => (inv.customerId || inv.customer_id) === custId);
+      const totalSales = custInvoices.reduce((sum: number, inv: Sale) => sum + Number(inv.finalTotal || 0), 0);
 
       // Total receipts
-      const directReceipts = receipts.filter((r: any) => r.customerId === custId || r.customer_id === custId).reduce((sum: number, r: any) => sum + Number(r.amount || r.Paid_Amount || 0), 0);
-      const voucherReceipts = vouchers.filter((v: any) => (v as any).customer_id === custId || (v as any).customerId === custId).reduce((sum: number, v: any) => sum + Number(v.amount || 0), 0);
+      const directReceipts = receipts.filter((r: { customerId?: string; customer_id?: string; amount?: number; Paid_Amount?: number }) => r.customerId === custId || r.customer_id === custId).reduce((sum: number, r: { amount?: number; Paid_Amount?: number }) => sum + Number(r.amount || r.Paid_Amount || 0), 0);
+      const voucherReceipts = vouchers.filter((v: { customer_id?: string; customerId?: string; amount?: number }) => v.customer_id === custId || v.customerId === custId).reduce((sum: number, v: { amount?: number }) => sum + Number(v.amount || 0), 0);
       const totalPaid = directReceipts + voucherReceipts;
 
       const outstandingBalance = totalSales - totalPaid;
@@ -358,28 +369,28 @@ export class ReportEngine {
    */
   static async getSupplierBalances() {
     const cacheKey = 'supplier-balances-summary';
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<unknown[]>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Supplier Balances for key ${cacheKey}`);
       return cached;
     }
 
     const suppliers = await db.getSuppliers();
-    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray() as Purchase[];
     
     // payments tables
     const payments = await db.db.payments.toArray();
-    const vouchers = await db.vouchers.filter((v: any) => (v as any).type === 'PAYMENT').toArray();
+    const vouchers = await db.vouchers.filter((v: { type?: string }) => v.type === 'PAYMENT').toArray();
 
-    const result = suppliers.map((sup: any) => {
-      const supId = sup.id || sup.Supplier_ID || sup.Partner_ID;
+    const result = (suppliers as Supplier[]).map((sup: Supplier) => {
+      const supId = sup.id || sup.Supplier_ID || sup.Partner_ID || '';
       const supName = sup.name || sup.Supplier_Name || 'مورد مجهول';
 
-      const supPurchases = purchases.filter(p => p.supplierId === supId || p.supplier_id === supId);
-      const totalPurchases = supPurchases.reduce((sum: number, p: any) => sum + Number(p.totalAmount || p.finalTotal || 0), 0);
+      const supPurchases = purchases.filter(p => (p.supplierId || p.supplier_id) === supId);
+      const totalPurchases = supPurchases.reduce((sum: number, p: Purchase) => sum + Number(p.totalAmount || p.finalTotal || 0), 0);
 
-      const directPayments = payments.filter(p => p.supplierId === supId || p.supplier_id === supId).reduce((sum: number, p: any) => sum + Number(p.amount || p.Paid_Amount || 0), 0);
-      const voucherPayments = vouchers.filter(v => (v as any).supplier_id === supId || (v as any).supplierId === supId).reduce((sum: number, v: any) => sum + Number(v.amount || 0), 0);
+      const directPayments = payments.filter((p: { supplierId?: string; supplier_id?: string; amount?: number; Paid_Amount?: number }) => p.supplierId === supId || p.supplier_id === supId).reduce((sum: number, p: { amount?: number; Paid_Amount?: number }) => sum + Number(p.amount || p.Paid_Amount || 0), 0);
+      const voucherPayments = vouchers.filter((v: { supplier_id?: string; supplierId?: string; amount?: number }) => v.supplier_id === supId || v.supplierId === supId).reduce((sum: number, v: { amount?: number }) => sum + Number(v.amount || 0), 0);
       const totalPaid = directPayments + voucherPayments;
 
       const outstandingBalance = totalPurchases - totalPaid;
@@ -403,7 +414,7 @@ export class ReportEngine {
    */
   static async getAgingReport(type: 'CUSTOMER' | 'SUPPLIER' = 'CUSTOMER') {
     const cacheKey = `aging-report-${type}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<unknown[]>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Aging Report for key ${cacheKey}`);
       return cached;
@@ -412,7 +423,7 @@ export class ReportEngine {
     const today = new Date();
     
     if (type === 'CUSTOMER') {
-      const invoices = await db.invoices.where('type').equals('SALE').toArray();
+      const invoices = await db.invoices.where('type').equals('SALE').toArray() as Sale[];
       const customers = await db.getCustomers();
 
       const result = invoices
@@ -423,17 +434,17 @@ export class ReportEngine {
         })
         .map(inv => {
           const unpaid = Number(inv.finalTotal || 0) - Number(inv.paidAmount || 0);
-          const invDate = new Date(inv.date);
+          const invDate = new Date(inv.date || inv.Date || '');
           const diffMs = today.getTime() - invDate.getTime();
           const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          const customer = customers.find(c => c.id === inv.customerId) || { name: 'عميل غير معرف' };
+          const customer = (customers as Customer[]).find(c => c.id === inv.customerId || c.id === inv.customer_id) || { name: 'عميل غير معرف' };
 
           return {
             id: inv.id,
-            partnerId: inv.customerId,
-            partnerName: customer.name || customer.Supplier_Name || 'عميل غير معرف',
-            docId: (inv as any).SaleID || inv.id,
-            date: inv.date,
+            partnerId: inv.customerId || inv.customer_id,
+            partnerName: customer.name || (customer as Customer).Customer_Name || 'عميل غير معرف',
+            docId: inv.SaleID || inv.id,
+            date: inv.date || inv.Date || '',
             days: diffDays,
             amount: unpaid,
             bucket1: diffDays <= 30 ? unpaid : 0,    // 0-30 days
@@ -446,7 +457,7 @@ export class ReportEngine {
       reportCache.set(cacheKey, result);
       return result;
     } else {
-      const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+      const purchases = await db.invoices.where('type').equals('PURCHASE').toArray() as Purchase[];
       const suppliers = await db.getSuppliers();
 
       const result = purchases
@@ -457,16 +468,16 @@ export class ReportEngine {
         })
         .map(inv => {
           const unpaid = Number(inv.totalAmount || inv.finalTotal || 0) - Number(inv.paidAmount || 0);
-          const invDate = new Date(inv.date);
+          const invDate = new Date(inv.date || new Date().toISOString());
           const diffMs = today.getTime() - invDate.getTime();
           const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-          const supplier = suppliers.find(s => s.id === inv.supplierId) || { name: 'مورد غير معرف' };
+          const supplier = (suppliers as Supplier[]).find(s => s.id === inv.supplierId || s.id === inv.supplier_id) || { name: 'مورد غير معرف' };
 
           return {
             id: inv.id,
-            partnerId: inv.supplierId,
-            partnerName: supplier.name || supplier.Supplier_Name || 'مورد غير معرف',
-            docId: (inv as any).invoiceId || inv.id,
+            partnerId: inv.supplierId || inv.supplier_id,
+            partnerName: supplier.name || (supplier as Supplier).Supplier_Name || 'مورد غير معرف',
+            docId: inv.invoiceId || inv.id,
             date: inv.date,
             days: diffDays,
             amount: unpaid,
@@ -487,32 +498,34 @@ export class ReportEngine {
    */
   static async getTaxReport(start?: string, end?: string) {
     const cacheKey = `tax-report-${start || 'all'}-${end || 'all'}`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<Record<string, unknown>>(cacheKey);
     if (cached) {
       console.log(`[ReportEngine] Returning cached Tax Report for key ${cacheKey}`);
       return cached;
     }
 
-    const sales = await db.invoices.where('type').equals('SALE').toArray();
-    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+    const sales = await db.invoices.where('type').equals('SALE').toArray() as Sale[];
+    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray() as Purchase[];
 
     const rangeSales = sales.filter(s => {
-      if (start && s.date < start) return false;
-      if (end && s.date > end) return false;
+      const d = s.date || s.Date || '';
+      if (start && d < start) return false;
+      if (end && d > end) return false;
       return true;
     });
 
     const rangePurchases = purchases.filter(p => {
-      if (start && p.date < start) return false;
-      if (end && p.date > end) return false;
+      const d = p.date || '';
+      if (start && d < start) return false;
+      if (end && d > end) return false;
       return true;
     });
 
-    const outputVat = rangeSales.reduce((sum: number, s: any) => sum + Number((s as any).tax ?? 0), 0);
-    const inputVat = rangePurchases.reduce((sum: number, p: any) => sum + Number((p as any).tax ?? 0), 0);
+    const outputVat = rangeSales.reduce((sum: number, s: Sale) => sum + Number(s.tax ?? 0), 0);
+    const inputVat = rangePurchases.reduce((sum: number, p: Purchase) => sum + Number(p.tax ?? 0), 0);
 
-    const totalSalesTaxable = rangeSales.reduce((sum: number, s: any) => sum + Number(s.subtotal || 0), 0);
-    const totalPurchasesTaxable = rangePurchases.reduce((sum: number, p: any) => sum + Number(p.subtotal || 0), 0);
+    const totalSalesTaxable = rangeSales.reduce((sum: number, s: Sale) => sum + Number(s.subtotal || 0), 0);
+    const totalPurchasesTaxable = rangePurchases.reduce((sum: number, p: Purchase) => sum + Number(p.subtotal || 0), 0);
 
     const netTaxPayable = outputVat - inputVat;
 
@@ -522,8 +535,8 @@ export class ReportEngine {
       totalPurchasesTaxable,
       inputVat, // TAX paid on purchases
       netTaxPayable, // Net tax due to Authority
-      salesTaxDetails: rangeSales.map(s => ({ id: s.id, docId: (s as any).SaleID || s.id, date: s.date, taxable: s.subtotal || 0, vat: (s as any).tax || 0 })),
-      purchaseTaxDetails: rangePurchases.map(p => ({ id: p.id, docId: (p as any).invoiceId || p.id, date: p.date, taxable: p.subtotal || 0, vat: (p as any).tax || 0 }))
+      salesTaxDetails: rangeSales.map(s => ({ id: s.id, docId: s.SaleID || s.id, date: s.date || s.Date || '', taxable: s.subtotal || 0, vat: s.tax || 0 })),
+      purchaseTaxDetails: rangePurchases.map(p => ({ id: p.id, docId: p.invoiceId || p.id, date: p.date, taxable: p.subtotal || 0, vat: p.tax || 0 }))
     };
 
     reportCache.set(cacheKey, result);
@@ -545,13 +558,13 @@ export class ReportEngine {
 
   static async getAnalyticsSummary() {
     try {
-      const sales = await db.invoices.where('type').equals('SALE').toArray();
-      const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+      const sales = await db.invoices.where('type').equals('SALE').toArray() as Sale[];
+      const purchases = await db.invoices.where('type').equals('PURCHASE').toArray() as Purchase[];
       const products = await db.getProducts();
 
-      const totalSales = sales.reduce((sum: number, s: any) => sum + Number(s.finalTotal || 0), 0);
-      const totalCost = sales.reduce((sum: number, s: any) => sum + Number((s as any).totalCost || 0), 0);
-      const totalPurchases = purchases.reduce((sum: number, p: any) => sum + Number(p.totalAmount || p.finalTotal || 0), 0);
+      const totalSales = sales.reduce((sum: number, s: Sale) => sum + Number(s.finalTotal || 0), 0);
+      const totalCost = sales.reduce((sum: number, s: Sale) => sum + Number(s.totalCost || 0), 0);
+      const totalPurchases = purchases.reduce((sum: number, p: Purchase) => sum + Number(p.totalAmount || p.finalTotal || 0), 0);
 
       return {
         totalSales,

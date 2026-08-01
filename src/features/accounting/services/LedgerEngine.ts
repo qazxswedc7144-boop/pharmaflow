@@ -1,6 +1,6 @@
 
 import { db } from '@/core/db';
-import { Account } from '@/types';
+import { Account, AccountingEntry, JournalLine } from '@/types';
 import { safeWhereEqual } from '@/utils/dexieSafe';
 
 const detectAccountType = (name: string): 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE' => {
@@ -41,13 +41,37 @@ export const updateLedger = async (accountName: string, debit: number, credit: n
 };
 
 export const createJournalEntry = async (lines: { account: string, debit: number, credit: number }[]) => {
-  const entry = {
-    id: crypto.randomUUID(),
-    lines,
-    createdAt: Date.now()
+  const entryId = crypto.randomUUID();
+  const journalLines: JournalLine[] = lines.map(l => {
+    const lineId = crypto.randomUUID();
+    return {
+      id: lineId,
+      lineId,
+      entryId,
+      accountId: l.account,
+      accountName: l.account,
+      debit: l.debit || 0,
+      credit: l.credit || 0,
+      type: (l.debit || 0) > 0 ? 'DEBIT' : 'CREDIT',
+      amount: (l.debit || 0) > 0 ? (l.debit || 0) : (l.credit || 0)
+    };
+  });
+
+  const totalAmount = lines.reduce((acc, l) => acc + (l.debit || 0), 0);
+
+  const entry: AccountingEntry = {
+    id: entryId,
+    date: new Date().toISOString(),
+    description: 'Manual Journal Entry',
+    TotalAmount: totalAmount,
+    status: 'Posted',
+    sourceId: entryId,
+    sourceType: 'MANUAL',
+    lines: journalLines,
+    created_at: new Date().toISOString()
   };
 
-  await db.db.journalEntries.add(entry as any);
+  await db.db.journalEntries.add(entry);
 
   for (const l of lines) {
     await updateLedger(l.account, l.debit || 0, l.credit || 0);

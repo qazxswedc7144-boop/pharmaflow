@@ -9,8 +9,8 @@ interface AccountingState {
   journalEntries: AccountingEntry[];
   accounts: Account[];
   loadAccounting: () => Promise<void>;
-  addInvoice: (invoice: any, type?: 'SALE' | 'PURCHASE') => Promise<any>;
-  addPartner: (partner: any, type: 'C' | 'S') => Promise<any>;
+  addInvoice: (invoice: { type?: 'SALE' | 'PURCHASE'; payload?: unknown; [key: string]: unknown }, type?: 'SALE' | 'PURCHASE') => Promise<unknown>;
+  addPartner: (partner: unknown, type: 'C' | 'S') => Promise<unknown>;
 }
 
 export const useAccountingStore = create<AccountingState>((set) => ({

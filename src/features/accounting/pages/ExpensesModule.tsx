@@ -6,7 +6,7 @@ import { NotificationService } from '@/context/NotificationContext';
 
 interface ExpensesModuleProps {
   lang: 'en' | 'ar';
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const ExpensesModule: React.FC<ExpensesModuleProps> = ({ lang, onNavigate }) => {

@@ -9,9 +9,30 @@ import { Button, Badge, Modal } from '@/components/shared/SharedUI';
 import { BluetoothPrintEngine } from '@/services/print/BluetoothPrintEngine';
 import { Clock, User, History, Archive, Search, Ban, Bluetooth } from 'lucide-react';
 
+interface CombinedInvoiceItem {
+  id?: string;
+  entityType?: string;
+  SaleID?: string;
+  invoiceId?: string;
+  purchase_id?: string;
+  FinalTotal?: number;
+  totalAmount?: number;
+  customerId?: string;
+  partnerName?: string;
+  date?: string;
+  Date?: string;
+  InvoiceStatus?: string;
+  invoiceStatus?: string;
+  documentStatus?: string;
+  displayId?: string;
+  displayTotal?: number;
+  displayPartner?: string;
+  [key: string]: unknown;
+}
+
 interface InvoiceModuleProps {
   lang: 'en' | 'ar';
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
@@ -23,7 +44,7 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
   
   const [salesList, setSalesList] = useState<Sale[]>([]);
   const [purchaseList, setPurchaseList] = useState<Purchase[]>([]);
-  const [combinedRecent, setCombinedRecent] = useState<any[]>([]);
+  const [combinedRecent, setCombinedRecent] = useState<CombinedInvoiceItem[]>([]);
   
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [currentHistory, setCurrentHistory] = useState<InvoiceHistory[]>([]);
@@ -53,14 +74,14 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
   useEffect(() => { loadData(); }, [loadData, version]);
 
   const combinedList = useMemo(() => {
-    let list: any[] = [];
+    let list: CombinedInvoiceItem[] = [];
     
     if (activeTab === 'recent') {
       list = combinedRecent.map(item => ({
         ...item,
-        displayId: item.SaleID || item.invoiceId || item.purchase_id,
-        displayTotal: item.FinalTotal || item.totalAmount || 0,
-        displayPartner: item.customerId || item.partnerName || 'عميل نقدي'
+        displayId: String(item.SaleID || item.invoiceId || item.purchase_id || ''),
+        displayTotal: Number(item.FinalTotal || item.totalAmount || 0),
+        displayPartner: String(item.customerId || item.partnerName || 'عميل نقدي')
       }));
     } else {
       list = [
@@ -78,19 +99,19 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
     }
 
     return list.sort((a,b) => {
-      const dateA = new Date(a.date || a.Date).getTime();
-      const dateB = new Date(b.date || b.Date).getTime();
+      const dateA = new Date(String(a.date || a.Date || '')).getTime();
+      const dateB = new Date(String(b.date || b.Date || '')).getTime();
       return dateB - dateA;
     });
   }, [salesList, purchaseList, combinedRecent, searchTerm, activeTab]);
 
-  const handleOpenForEdit = (item: any) => {
-    const recordId = item.id || item.SaleID || item.invoiceId || item.purchase_id;
+  const handleOpenForEdit = (item: CombinedInvoiceItem) => {
+    const recordId = String(item.id || item.SaleID || item.invoiceId || item.purchase_id || '');
     setEditingInvoiceId(recordId);
     onNavigate?.(item.entityType === 'SALE' ? 'sales' : 'purchases');
   };
 
-  const handleCancelInvoice = async (e: React.MouseEvent, item: any) => {
+  const handleCancelInvoice = async (e: React.MouseEvent, item: CombinedInvoiceItem) => {
     e.stopPropagation();
     if (item.InvoiceStatus === 'CANCELLED' || item.invoiceStatus === 'CANCELLED' || item.documentStatus === 'CANCELLED') return;
     if (!confirm(isAr ? "هل أنت متأكد من إلغاء هذا المستند؟ سيتم قفله ومنع التعديل عليه." : "Are you sure? This will lock the document.")) return;
@@ -105,13 +126,11 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
     } catch (err) { addToast("Error cancelling", "error"); }
   };
 
-
-
   const viewHistory = (e: React.MouseEvent, id: string) => {
     e.stopPropagation(); 
     setHistoryLoading(true);
     db.getInvoiceHistory(id)
-      .then((history: any[]) => {
+      .then((history: InvoiceHistory[]) => {
         setCurrentHistory(history.sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
         setHistoryModalOpen(true);
         setHistoryLoading(false);

@@ -73,7 +73,7 @@ export class ProfitHealthAnalyzer {
     // 5. Slow Moving Items (No sales in 30 days)
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const recentSales = sales.filter(s => s.date > thirtyDaysAgo);
-    const soldProductIds = new Set(recentSales.flatMap(s => (s.items || []).map((it: any) => it.product_id)));
+    const soldProductIds = new Set(recentSales.flatMap(s => (s.items || []).map(it => it.product_id)));
     const slowMovingItems = products
       .filter(p => (p.stock || p.StockQuantity || 0) > 0 && !soldProductIds.has(p.id))
       .map(p => ({ id: p.id, name: p.name || p.Name || 'غير معروف', daysSinceLastSale: 30 }))
@@ -81,8 +81,8 @@ export class ProfitHealthAnalyzer {
       
     // 6. High Risk Entities
     const highRiskEntities = sales
-      .filter(s => (s as any).riskLevel === 'HIGH')
-      .map(s => ({ id: s.customerId, name: s.customerId, riskScore: (s as any).auditScore || 0 }))
+      .filter(s => (s as { riskLevel?: string }).riskLevel === 'HIGH')
+      .map(s => ({ id: s.customerId || 'UNKNOWN', name: s.customerId || 'غير معروف', riskScore: (s as { auditScore?: number }).auditScore || 0 }))
       .slice(0, 5);
       
     // 7. Health Status

@@ -69,7 +69,7 @@ export const dataValidator = {
       }
 
       for (const item of items) {
-        const originalItem = original.items.find((i: any) => i.product_id === item.product_id);
+        const originalItem = original.items?.find((i: any) => i.product_id === item.product_id);
         if (!originalItem) throw new ValidationError(`الصنف [${item.name}] غير موجود في الفاتورة الأصلية.`);
         if (item.qty > originalItem.qty) {
           throw new ValidationError(`تجاوز الكمية: لا يمكن إرجاع ${item.qty} وحدة من [${item.name}]، الكمية الأصلية كانت ${originalItem.qty}.`);
@@ -85,7 +85,7 @@ export const dataValidator = {
       }
 
       for (const item of items) {
-        const originalItem = original.items.find((i: any) => i.product_id === item.product_id);
+        const originalItem = original.items?.find((i: any) => i.product_id === item.product_id);
         if (!originalItem) throw new ValidationError(`الصنف [${item.name}] غير موجود في فاتورة المشتريات الأصلية.`);
         if (item.qty > originalItem.qty) {
           throw new ValidationError(`تجاوز الكمية: لا يمكن إرجاع ${item.qty} من [${item.name}] للمورد، الكمية الأصلية ${originalItem.qty}.`);

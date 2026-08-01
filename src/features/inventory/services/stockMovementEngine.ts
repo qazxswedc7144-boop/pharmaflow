@@ -1,6 +1,6 @@
 
 import { db } from '@/core/db';
-import { StockMovement } from '@/types';
+import { StockMovement, Sale, Purchase, UnifiedInvoice } from '@/types';
 import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
 import { InventoryEngine } from './inventoryEngine';
 
@@ -9,9 +9,9 @@ export class StockMovementEngine {
   /**
    * CREATE STOCK MOVEMENT
    */
-  static async createStockMovement(data: Omit<StockMovement, 'id' | 'created_at' | 'lastModified'>): Promise<void> {
+  static async createStockMovement(data: Omit<StockMovement, 'id' | 'created_at' | 'lastModified'> & { date?: string }): Promise<void> {
     // 8. PROTECT DATA: Block stock changes if period is locked
-    const date = (data as any).date || new Date().toISOString();
+    const date = data.date || new Date().toISOString();
     await PeriodLockEngine.validateOperation(date, 'تعديل المخزون');
 
     // Check if item exists in Dexie
@@ -21,7 +21,7 @@ export class StockMovementEngine {
       throw new Error(`Item ${data.item_id} not found.`);
     }
 
-    const movement: any = {
+    const movement: StockMovement = {
       ...data,
       id: `MOV-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       created_at: new Date().toISOString(),
@@ -36,8 +36,9 @@ export class StockMovementEngine {
 
     try {
       await db.stock_movements.add(movement);
-    } catch (error: any) {
-      throw new Error(`Stock Movement Error: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Stock Movement Error: ${errMsg}`);
     }
 
     // Update Product StockQuantity (Sync) in Dexie
@@ -47,14 +48,16 @@ export class StockMovementEngine {
 
     try {
       await db.products.update(product.id, { stock: updatedProduct.stock || updatedProduct.StockQuantity });
-    } catch (error: any) {
-      throw new Error(`Product Update Error: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Product Update Error: ${errMsg}`);
     }
 
     try {
       await db.inventory_logs.add({ ...log, id: `LOG-${Date.now()}` });
-    } catch (error: any) {
-      throw new Error(`Inventory Log Error: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Inventory Log Error: ${errMsg}`);
     }
   }
 
@@ -70,7 +73,7 @@ export class StockMovementEngine {
         .equals(item_id)
         .toArray();
       
-      return (movements || []).reduce((sum: number, m: any) => sum + m.quantity_change, 0);
+      return (movements || []).reduce((sum: number, m: StockMovement) => sum + m.quantity_change, 0);
     } catch (error) {
       return 0;
     }
@@ -127,7 +130,7 @@ export class StockMovementEngine {
 
       if (movements && movements.length > 0) {
         // 8. PROTECT DATA: Block stock changes if period is locked
-        const date = (movements[0] as any).date || movements[0].created_at || new Date().toISOString();
+        const date = (movements[0] as StockMovement & { date?: string }).date || movements[0].created_at || new Date().toISOString();
         await PeriodLockEngine.validateOperation(date, 'إلغاء حركات المخزون');
       }
 
@@ -142,19 +145,21 @@ export class StockMovementEngine {
         
         await db.stock_movements.delete(movement.id);
       }
-    } catch (error: any) {
-      throw new Error(`Reverse Movements Error: ${error.message}`);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      throw new Error(`Reverse Movements Error: ${errMsg}`);
     }
   }
 
   /**
    * APPLY STOCK MOVEMENT
    */
-  static async apply(invoice: any): Promise<void> {
-    const type = invoice.type || (invoice.customerId ? 'SALE' : 'PURCHASE');
-    const items = invoice.items || [];
-    const invoiceId = invoice.invoiceId || invoice.id;
-    const isReturn = invoice.isReturn || invoice.invoiceType === 'مرتجع';
+  static async apply(invoice: Sale | Purchase | UnifiedInvoice | { type?: string; customerId?: string; items?: Array<{ product_id: string; qty: number; price: number }>; invoiceId?: string; id?: string; isReturn?: boolean; invoiceType?: string }): Promise<void> {
+    const invAny = invoice as Record<string, unknown>;
+    const type = (invAny.type as string) || (invAny.customerId ? 'SALE' : 'PURCHASE');
+    const items = (invAny.items as Array<{ product_id: string; qty: number; price: number }>) || [];
+    const invoiceId = (invAny.invoiceId as string) || (invAny.id as string) || '';
+    const isReturn = Boolean(invAny.isReturn) || invAny.invoiceType === 'مرتجع';
 
     if (type === 'SALE') {
       for (const item of items) {

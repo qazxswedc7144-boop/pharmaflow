@@ -1,6 +1,6 @@
 
 import { SalesRepository } from '@/database/repositories/SalesRepository';
-import { Sale } from '@/types';
+import { Sale, InvoiceItem, TransactionOptions } from '@/types';
 import { transactionOrchestrator } from '@/services/transactions/transactionOrchestrator';
 
 /**
@@ -15,7 +15,7 @@ export const salesService = {
   /**
    * معالجة مبيعة جديدة: التوجيه الإلزامي للمنسق الذري
    */
-  processNewSale: async (customerId: string, cart: any[], total: number, options: any) => {
+  processNewSale: async (customerId: string, cart: InvoiceItem[], total: number, options: TransactionOptions) => {
     return transactionOrchestrator.processInvoiceTransaction({
       type: 'SALE',
       payload: { customerId, items: cart, total },

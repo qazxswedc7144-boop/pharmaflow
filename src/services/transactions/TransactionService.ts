@@ -79,11 +79,19 @@ export class TransactionService {
 
   /**
    * Safe execution wrapper for critical operations.
+   * Runs the operation within a single atomic Dexie transaction.
    */
   static async runSafe<T>(resourceId: string, operation: () => Promise<T>): Promise<T> {
+    // If we are already inside an active Dexie transaction or if this resource is active in nested execution, reuse context
+    if ((db.db as any)?.currentTransaction || this.activeTransactions.has(resourceId)) {
+      return await db.runTransaction(async () => {
+        return await operation();
+      });
+    }
+
     const started = await this.begin(resourceId);
     if (!started) {
-      throw new Error("العملية قيد المعالجة حالياً من قِبل نظام الأمان، يرجى الانتظار... ⏳");
+      throw new Error("⚠️ العملية قيد المعالجة حالياً من قِبل نظام الأمان، يرجى الانتظار... ⏳");
     }
 
     try {

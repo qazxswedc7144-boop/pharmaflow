@@ -84,6 +84,15 @@ export const BackupService = {
    * Encrypts and GZIP-compresses a detailed snapshot of the database tables
    */
   async createBackup(name: string, type: SystemBackup['backupType'], isIncremental = false, password?: string): Promise<string> {
+    // If an active Dexie transaction is running, defer the backup so Web Crypto operations do not break the transaction context
+    if ((db.db as any)?.currentTransaction) {
+      console.warn(`[BackupService] Active transaction detected. Scheduling background backup for "${name}" to preserve IndexedDB atomic transaction context.`);
+      setTimeout(() => {
+        this.createBackup(name, type, isIncremental, password).catch(e => console.error("[BackupService] Background deferred backup failed:", e));
+      }, 50);
+      return 'BK-DEFERRED';
+    }
+
     const user = authService.getCurrentUser();
     const now = new Date().toISOString();
     const backupId = db.generateId('BK');

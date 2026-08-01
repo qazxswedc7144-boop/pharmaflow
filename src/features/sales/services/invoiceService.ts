@@ -45,10 +45,11 @@ export const invoiceService = {
         new Date().toISOString() // date
       );
 
-      return { success: true, localId: (salePayload as any).id, synced: false };
-    } catch (error: any) {
-      console.error("Database Error:", error.message);
-      return { success: false, error: error.message };
+      return { success: true, localId: salePayload?.id || '', synced: false };
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      console.error("Database Error:", errMsg);
+      return { success: false, error: errMsg };
     }
   }
 };

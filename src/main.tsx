@@ -33,9 +33,10 @@ if (typeof window !== "undefined") {
 }
 
 window.addEventListener("error", (e) => {
-  console.error("GLOBAL ERROR:", e.error);
-  console.error("🔥 ERROR LOCATION:", { msg: e.message, src: e.filename, line: e.lineno, col: e.colno });
-  if (e.message.includes("ممنوع")) {
+  const errMsg = e.error instanceof Error ? e.error.message : (typeof e.error === "string" ? e.error : e.message || "Unknown error");
+  console.error("GLOBAL ERROR:", errMsg);
+  console.error("🔥 ERROR LOCATION:", { msg: e.message || "No message", src: e.filename || "unknown", line: e.lineno || 0, col: e.colno || 0 });
+  if (typeof e.message === "string" && e.message.includes("ممنوع")) {
     console.error("🚨 DIRECT DB VIOLATION");
   }
 });

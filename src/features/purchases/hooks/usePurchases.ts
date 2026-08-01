@@ -12,13 +12,34 @@ import { InvoiceWorkflowEngine } from '@features/sales/services/InvoiceWorkflowE
 import { predictionService } from '@features/ai/services/predictionService';
 import { saveLearning } from '@features/ai/services/learningService';
 import { useAppNotification } from '@/context/NotificationContext';
+import { ErrorManager } from '@/core/errors';
 import { DraftService } from '@/services/system/DraftService';
 import { reportCache } from '@features/reports/services/reportCacheService';
 import { ReportEngine } from '@/services/reports/reportEngine';
 
 const DRAFT_KEY = 'pharmaflow_purchase_draft';
 
-export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
+export interface AIParsedInvoiceData {
+  invoice_number?: string;
+  supplier?: string;
+  type?: string;
+  notes?: string;
+  items?: Array<{
+    name?: string;
+    quantity?: number;
+    price?: number;
+    discountPercent?: number;
+    barcode?: string;
+    bonusQty?: number;
+    batchNumber?: string;
+    notes?: string;
+    product_id?: string;
+    expiryDate?: string;
+    categoryId?: string;
+  }>;
+}
+
+export function usePurchases(onNavigate?: (view: string, params?: Record<string, unknown>) => void) {
   const { addToast, currency, refreshGlobal } = useUI();
   const { showNotification } = useAppNotification();
   const { addInvoice, suppliers } = useAccounting();
@@ -77,7 +98,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
   const [isProcessingAI, setIsProcessingAI] = useState(false);
   const [hasUnsavedAI, setHasUnsavedAI] = useState(false);
   const [showAIConfirmModal, setShowAIConfirmModal] = useState(false);
-  const [aiParsedData, setAIParsedData] = useState<any>(null);
+  const [aiParsedData, setAIParsedData] = useState<AIParsedInvoiceData | null>(null);
   const [saveSuccessData, setSaveSuccessData] = useState<{
     invoiceNumber: string;
     totalAmount: number;
@@ -90,7 +111,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
   } | null>(null);
 
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
-  const [recoveryDraftData, setRecoveryDraftData] = useState<any>(null);
+  const [recoveryDraftData, setRecoveryDraftData] = useState<Record<string, unknown> | null>(null);
 
   const [isConfirmSaveOpen, setIsConfirmSaveOpen] = useState(false);
   const [adjData, setAdjData] = useState({
@@ -204,13 +225,13 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
               payment_status: inv.payment_status || 'Unpaid',
               date: inv.date,
               notes: inv.notes || '',
-              attachment: (inv as any).attachment || '',
+              attachment: inv.attachment || '',
               isReturn: inv.invoiceType === 'مرتجع'
             });
             setItems(inv.items);
             setAdjData({
-              discountPercent: (inv as any).discountPercent || 0,
-              otherFees: (inv as any).otherFees || 0,
+              discountPercent: inv.discountPercent || 0,
+              otherFees: inv.otherFees || 0,
               tax: inv.tax || 0
             });
             
@@ -351,9 +372,9 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
     }
   }, [filteredSuppliers, selectedSupplierIndex]);
 
-  const selectSupplier = useCallback((s: any) => {
+  const selectSupplier = useCallback((s: Supplier) => {
     setHeader(prev => ({ ...prev, supplier_id: s.id }));
-    setSupplierSearchTerm(s.Supplier_Name);
+    setSupplierSearchTerm(s.Supplier_Name || s.name || '');
     setShowSupplierDropdown(false);
     showNotification(`رصيد المورد الحالي للفاتورة: ${(s.balance || 0).toLocaleString()} ${currency}`, 'info');
   }, [showNotification, currency]);
@@ -363,7 +384,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
       setShowSupplierDropdown(false);
       if (supplierSearchTerm) {
         try {
-           const allDBSuppliers = await db.suppliers.toArray() as any[];
+           const allDBSuppliers = await db.suppliers.toArray();
            const activeSuppliers = allDBSuppliers.filter(s => s.Is_Active === true || s.Is_Active === 1 || String(s.Is_Active) === "true" || s.Is_Active === undefined);
            const exactMatch = activeSuppliers.find(s => s.Supplier_Name === supplierSearchTerm || s.name === supplierSearchTerm);
            
@@ -429,7 +450,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
 
   const safeNavigate = useCallback((path: string) => {
     try {
-      onNavigate?.(path as any);
+      onNavigate?.(path);
     } catch (error) {
       console.error("Navigation failed, falling back to window.location", error);
       window.location.hash = path; // Simple fallback for hash routing if applicable
@@ -440,7 +461,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
     console.log("IMPORT FLOW RUNNING");
     console.log("STEP 1: FILE SELECTED");
     setIsProcessingAI(true);
-    let parsed: any = null;
+    let parsed: AIParsedInvoiceData | null = null;
     let fallbackTriggered = false;
 
     try {
@@ -448,14 +469,14 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
       const { processInvoice } = await import('@features/ai/services/smartImportEngine');
       parsed = await processInvoice(file);
       console.log("STEP 3: AI DONE", parsed);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.warn("[AI IMPORT] Main AI Engine failed. Engaging local backup OCR engine...", error);
       fallbackTriggered = true;
       try {
         const { parseInvoiceLocally } = await import('@features/ai/services/localBackupOcrEngine');
         parsed = await parseInvoiceLocally(file);
         console.log("STEP 3 (FALLBACK): LOCAL OCR DONE", parsed);
-      } catch (fallbackError: any) {
+      } catch (fallbackError: unknown) {
         console.error("Local Backup OCR Engine failed too:", fallbackError);
         addToast("فشلت قراءة الفاتورة بكلا المحركين الذكي والمحلي 📴", "error");
         setIsProcessingAI(false);
@@ -508,7 +529,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
     }
 
     // CLEAN DATA
-    const cleanedItems = (aiParsedData.items || []).filter((i: any) =>
+    const cleanedItems = (aiParsedData.items || []).filter(i =>
       i.name && i.quantity && i.price
     );
 
@@ -520,14 +541,14 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
 
     // MAP TO INTERMEDIATE REVIEW SCREEN (No automatic save, no automatic redirect!)
     // Discover if we have matching supplier in DB
-    const matchedSupplier = suppliers?.find((s: any) => 
-      s.Supplier_Name?.toLowerCase().includes(aiParsedData.supplier?.toLowerCase()) ||
-      aiParsedData.supplier?.toLowerCase().includes(s.Supplier_Name?.toLowerCase())
+    const matchedSupplier = suppliers?.find(s => 
+      s.Supplier_Name?.toLowerCase().includes((aiParsedData.supplier || '').toLowerCase()) ||
+      (aiParsedData.supplier || '').toLowerCase().includes((s.Supplier_Name || '').toLowerCase())
     );
     const matchedSupplierId = matchedSupplier ? (matchedSupplier.id || matchedSupplier.Supplier_ID) : (suppliers?.[0]?.id || '');
 
     // Transform extracted raw items into standard local InvoiceItem array
-    const mappedItems: InvoiceItem[] = cleanedItems.map((item: any, idx: number) => {
+    const mappedItems: InvoiceItem[] = cleanedItems.map((item, idx) => {
       const q = Number(item.quantity || 1);
       const p = Number(item.price || 0);
       const disc = Number(item.discountPercent || 0);
@@ -545,7 +566,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
         id: `PUR-DET-${Date.now()}-${idx}`,
         parent_id: aiParsedData.invoice_number || `INV-${Math.floor(Math.random() * 100000)}`,
         product_id: item.product_id || `manual-${Date.now()}-${idx}`,
-        name: item.name,
+        name: item.name || '',
         qty: q,
         price: p,
         sum: finalSum,
@@ -554,7 +575,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
         expiryDate: item.expiryDate || '',
         notes: notesParts.join(' | '),
         categoryId: item.categoryId || ''
-      } as any;
+      };
     });
 
     // Update screen reactive states (Intermediate Review Space)
@@ -608,10 +629,10 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
   }, [items, header, adjData, vTotalSum, editingInvoiceId, suppliers]);
 
   // Immediate save on specific changes: Add Item, Remove Item, Change Qty/Price, Change Supplier, Change Notes
-  const prevItemsRef = useRef<any[]>(items);
+  const prevItemsRef = useRef<InvoiceItem[]>(items);
   const prevSupplierIdRef = useRef<string>(header.supplier_id);
   const prevNotesRef = useRef<string>(header.notes);
-  const prevAdjDataRef = useRef<any>(adjData);
+  const prevAdjDataRef = useRef<{ discountPercent: number; otherFees: number; tax: number }>(adjData);
 
   useEffect(() => {
     if (editingInvoiceId) return;
@@ -667,7 +688,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
     qtyInputRef.current?.focus();
   }, [addToast, currency]);
 
-  const handleSearchKeyDown = useCallback((e: any) => {
+  const handleSearchKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
       e.preventDefault();
       setSelectedIndex(prev => Math.min(prev + 1, filteredProducts.length - 1));
@@ -709,7 +730,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
       expiryDate: tempExpiry,
       notes: tempNote,
       categoryId: selectedCategoryId || selectedProduct?.categoryId
-    } as any;
+    };
 
     setItems(prev => [...prev, newItem]);
     
@@ -752,9 +773,9 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
           saveLearning(originalSupplier, finalSupplier);
         }
 
-        aiParsedData.items.forEach((aiItem: any) => {
+        (aiParsedData.items || []).forEach(aiItem => {
           const finalItem = items.find(i => i.qty === aiItem.quantity && i.price === aiItem.price);
-          if (finalItem && aiItem.name !== finalItem.name) {
+          if (finalItem && aiItem.name !== finalItem.name && aiItem.name) {
             saveLearning(aiItem.name, finalItem.name);
           }
         });
@@ -777,7 +798,7 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
             },
             options: {
               isCash: header.payment_method === 'Cash',
-              paymentStatus: header.payment_method as any,
+              paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
               invoiceStatus: 'POSTED',
               isReturn: !!header.isReturn,
               currency,
@@ -849,20 +870,20 @@ export function usePurchases(onNavigate?: (view: any, params?: any) => void) {
           }
         }, 1000);
       }
-    } catch (error: any) {
-      console.error("Save error", error);
+    } catch (error: unknown) {
       setSavePhase('failed');
-      const isTimeout = error?.message === 'SAVE_TIMEOUT';
+      const normalized = ErrorManager.handleError(error, { module: 'PURCHASES', action: 'SAVE_PURCHASE', showToast: false });
+      const isTimeout = error instanceof Error && error.message === 'SAVE_TIMEOUT';
       showNotification(
         isTimeout 
           ? '⚠️ تأخر حفظ الفاتورة؛ تم فك تجميد الواجهة حرصاً على استمرار العمل.' 
-          : '❌ فشل في حفظ الفاتورة وتحديث المستودع', 
+          : '❌ تعذر حفظ فاتورة المشتريات', 
         'error'
       );
       addToast(
         isTimeout
           ? 'تأخر حفظ الفاتورة سحابياً؛ تم فك تجميد الواجهة حرصاً على العمل المستمر. راجع مركز المزامنة.'
-          : (error?.message || "فشل في حفظ الفاتورة"),
+          : normalized.arabicMessage,
         'error'
       );
     } finally {

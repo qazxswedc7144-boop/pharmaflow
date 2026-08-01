@@ -80,7 +80,7 @@ export class InventoryConsistencyEngine {
       for (const prod of products) {
         const prodId = prod.id;
         const prodName = prod.name || prod.Name || 'Unlabeled';
-        const prodCat = (prod as any).category || prod.categoryName || 'General';
+        const prodCat = (prod as { category?: string }).category || prod.categoryName || 'General';
 
         // Filter stock movements of this product
         const prodMovs = movements.filter(m => m.item_id === prodId);
@@ -208,7 +208,7 @@ export class InventoryConsistencyEngine {
         const prodInvoices = invoices.filter(inv => 
           inv.documentStatus === 'POSTED' && 
           inv.items && 
-          inv.items.some((it: any) => it.product_id === prodId || it.productId === prodId)
+          inv.items.some((it: { product_id?: string; productId?: string }) => it.product_id === prodId || it.productId === prodId)
         );
 
         for (const inv of prodInvoices) {
@@ -262,7 +262,8 @@ export class InventoryConsistencyEngine {
         mismatches: mismatches,
       };
 
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
       console.error("[InventoryConsistencyEngine] Failed running consistency audit:", err);
       return {
         success: false,
@@ -279,7 +280,7 @@ export class InventoryConsistencyEngine {
           id: 'CRITICAL-ERR',
           type: 'MISMATCH',
           severity: 'HIGH',
-          description: `فشل تشغيل عملية فحص ومطابقة المخزون: ${err.message}`,
+          description: `فشل تشغيل عملية فحص ومطابقة المخزون: ${errMsg}`,
           recommendation: 'تفحص سجل الأخطاء للتأكد من سلامة كائنات Dexie وجداول المعاملات.',
         }],
       };
@@ -363,7 +364,7 @@ export class InventoryConsistencyEngine {
             const inv = await db.invoices.get(invoiceId);
             const prod = await db.products.get(missing.productId);
             if (inv && prod) {
-              const matchedItem = inv.items?.find((it: any) => it.product_id === missing.productId || it.productId === missing.productId);
+              const matchedItem = inv.items?.find((it: { product_id?: string; productId?: string }) => it.product_id === missing.productId || it.productId === missing.productId);
               const qty = Number(matchedItem?.qty || 0);
               const price = Number(matchedItem?.price || 0);
 
@@ -371,7 +372,7 @@ export class InventoryConsistencyEngine {
                 .where('item_id')
                 .equals(missing.productId)
                 .toArray()
-                .then(movs => (movs || []).reduce((sum, m: any) => sum + m.quantity_change, 0));
+                .then(movs => (movs || []).reduce((sum, m: { quantity_change: number }) => sum + m.quantity_change, 0));
 
               const isPurchase = inv.type === 'PURCHASE';
               const change = isPurchase ? qty : -qty;
@@ -436,13 +437,13 @@ export class InventoryConsistencyEngine {
           details: `تم تشغيل محرك معالجة انحرافات المخزون بنجاح. تم إصلاح عدد ${repairedCount} فوارق وسجلات مع تفعيل الذرية الفولاذية.`,
           userId: 'SYSTEM',
           timestamp: new Date().toISOString()
-        } as any);
+        });
 
         logger.info("InventoryReconciliation", "Repair", `تم إصلاح ${repairedCount} معاملات وتطابق فوارق جرد المخازن.`);
       });
 
       return { success: true, repairedCount };
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("[InventoryConsistencyEngine] Repair failed:", err);
       return { success: false, repairedCount: 0 };
     }

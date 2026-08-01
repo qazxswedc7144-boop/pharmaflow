@@ -6,6 +6,7 @@ import { InventoryService } from '@features/inventory/services/InventoryService'
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { integrityVerifier } from '@/services/integrity/integrityVerifier';
 import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
+import { AppLogger, AccountingError } from '@/core/errors';
 
 export class PostingEngine {
   private static isMaintenanceMode = false;
@@ -248,8 +249,8 @@ export class PostingEngine {
     }
   }
 
-  static async postInvoice(invoice: any): Promise<void> {
-    const type = 'SaleID' in invoice ? 'SALE' : 'PURCHASE';
+  static async postInvoice(invoice: Sale | Purchase | UnifiedInvoice): Promise<void> {
+    const type = ('SaleID' in invoice || ('documentType' in invoice && (invoice as UnifiedInvoice).documentType === 'SALE')) ? 'SALE' : 'PURCHASE';
     if (type === 'SALE') await this.postSale(invoice.id);
     else await this.postPurchase(invoice.id);
   }
@@ -303,8 +304,15 @@ export class PostingEngine {
       totalBalance += (acc.balance || 0);
     }
     if (Math.abs(totalBalance) > 0.01) {
-      console.error("ACCOUNTING IMBALANCE DETECTED: Trial Balance is not zero!", totalBalance);
-      // In a strict system, we might throw here, but for now we log.
+      AppLogger.critical(
+        new AccountingError({
+          message: `ACCOUNTING IMBALANCE DETECTED: Trial Balance total is ${totalBalance}`,
+          arabicMessage: `تنبيه حرِج: ميزان المراجعة غير متوازن (الفارق: ${totalBalance}).`,
+          module: 'ACCOUNTING',
+          severity: 'CRITICAL',
+          metadata: { totalBalance },
+        })
+      );
     }
   }
 }

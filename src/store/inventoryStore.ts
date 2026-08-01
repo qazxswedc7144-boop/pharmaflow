@@ -1,10 +1,11 @@
 
 import { create } from 'zustand';
+import { Product } from '@/types';
 
 interface InventoryState {
-  items: any[];
+  items: Product[];
   isLoading: boolean;
-  setItems: (items: any[]) => void;
+  setItems: (items: Product[]) => void;
   updateStock: (productId: string, quantity: number) => void;
 }
 

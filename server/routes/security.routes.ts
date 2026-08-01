@@ -1,7 +1,11 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import rateLimit from 'express-rate-limit';
+import path from 'path';
+import fs from 'fs/promises';
 import { EncryptionService } from '../security/encryption.service';
 import { prisma } from '../database/prisma';
+import { authenticateToken, requireRoles, AuthenticatedRequest } from '../middleware/auth.middleware';
+import { Role } from '@prisma/client';
 
 const router = Router();
 
@@ -419,8 +423,9 @@ router.post('/license/verify', async (req: Request, res: Response) => {
 
 /**
  * Route 10: Auto Backup Center Cloud Storage Service (Simulated GCS)
+ * Hardened with JWT auth, role authorization, tenant isolation, path confinement & audit logging.
  */
-router.post('/backup/upload', async (req: Request, res: Response) => {
+router.post('/backup/upload', authenticateToken, requireRoles([Role.PLATFORM_OWNER, Role.TENANT_ADMIN, Role.ADMIN]), async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { tenantId, filename, payload } = req.body;
     if (!tenantId || !filename || !payload) {
@@ -431,32 +436,80 @@ router.post('/backup/upload', async (req: Request, res: Response) => {
       });
     }
 
-    const fs = await import('fs/promises');
-    const path = await import('path');
+    // Tenant isolation check
+    if (req.user?.tenantId && req.user.tenantId !== tenantId && req.user.role !== Role.PLATFORM_OWNER) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'TENANT_MISMATCH',
+        message: 'Unauthorized access to target tenant backup vault.'
+      });
+    }
 
-    const folderPath = path.join(process.cwd(), 'backups_cloud_simulated', tenantId);
+    // Path confinement & sanitization against Directory Traversal attacks
+    const safeTenantId = path.basename(String(tenantId).trim());
+    const safeFilename = path.basename(String(filename).trim());
+
+    if (!safeFilename.endsWith('.json') && !safeFilename.endsWith('.bak')) {
+      return res.status(400).json({
+        status: 'error',
+        code: 'INVALID_FILE_EXTENSION',
+        message: 'Only .json and .bak file extensions are allowed for backup upload.'
+      });
+    }
+
+    if (typeof payload === 'string' && payload.length > 10 * 1024 * 1024) {
+      return res.status(400).json({
+        status: 'error',
+        code: 'FILE_SIZE_LIMIT_EXCEEDED',
+        message: 'Backup payload exceeds maximum limit of 10MB.'
+      });
+    }
+
+    const baseDir = path.resolve(process.cwd(), 'backups_cloud_simulated');
+    const folderPath = path.resolve(baseDir, safeTenantId);
+    const filePath = path.resolve(folderPath, safeFilename);
+
+    if (!filePath.startsWith(baseDir)) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'PATH_TRAVERSAL_BLOCKED',
+        message: 'Directory traversal detected.'
+      });
+    }
+
     await fs.mkdir(folderPath, { recursive: true });
-
-    const filePath = path.join(folderPath, filename);
     await fs.writeFile(filePath, payload, 'utf8');
+
+    // Audit log persistence
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user?.userId || null,
+        action: 'BACKUP_UPLOAD',
+        entity: 'Backup',
+        entityId: safeFilename,
+        before: null,
+        after: JSON.stringify({ tenantId: safeTenantId, filename: safeFilename, sizeInBytes: payload.length }),
+        ipAddress: req.ip
+      }
+    }).catch(() => {});
 
     return res.json({
       status: 'success',
-      filename,
+      filename: safeFilename,
       message: 'Backup uploaded successfully to production cloud storage (Simulated GCS).'
     });
   } catch (error: any) {
     return res.status(500).json({
       status: 'error',
       code: 'BACKUP_UPLOAD_FAILURE',
-      message: error.message || 'Failed to upload backup record.'
+      message: 'Failed to upload backup record.'
     });
   }
 });
 
-router.get('/backup/list', async (req: Request, res: Response) => {
+router.get('/backup/list', authenticateToken, requireRoles([Role.PLATFORM_OWNER, Role.TENANT_ADMIN, Role.ADMIN]), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const tenantId = req.query.tenantId as string;
+    const tenantId = (req.query.tenantId as string) || req.user?.tenantId;
     if (!tenantId) {
       return res.status(400).json({
         status: 'error',
@@ -465,10 +518,25 @@ router.get('/backup/list', async (req: Request, res: Response) => {
       });
     }
 
-    const fs = await import('fs/promises');
-    const path = await import('path');
+    if (req.user?.tenantId && req.user.tenantId !== tenantId && req.user.role !== Role.PLATFORM_OWNER) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'TENANT_MISMATCH',
+        message: 'Unauthorized access to target tenant backup vault.'
+      });
+    }
 
-    const folderPath = path.join(process.cwd(), 'backups_cloud_simulated', tenantId);
+    const safeTenantId = path.basename(String(tenantId).trim());
+    const baseDir = path.resolve(process.cwd(), 'backups_cloud_simulated');
+    const folderPath = path.resolve(baseDir, safeTenantId);
+
+    if (!folderPath.startsWith(baseDir)) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'PATH_TRAVERSAL_BLOCKED',
+        message: 'Directory traversal detected.'
+      });
+    }
     
     try {
       const files = await fs.readdir(folderPath);
@@ -490,7 +558,6 @@ router.get('/backup/list', async (req: Request, res: Response) => {
         backups: listBackups
       });
     } catch (e) {
-      // folder does not exist yet (meaning no backups uploaded/configured)
       return res.json({
         status: 'success',
         backups: []
@@ -505,9 +572,9 @@ router.get('/backup/list', async (req: Request, res: Response) => {
   }
 });
 
-router.get('/backup/download', async (req: Request, res: Response) => {
+router.get('/backup/download', authenticateToken, requireRoles([Role.PLATFORM_OWNER, Role.TENANT_ADMIN, Role.ADMIN]), async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const tenantId = req.query.tenantId as string;
+    const tenantId = (req.query.tenantId as string) || req.user?.tenantId;
     const filename = req.query.filename as string;
 
     if (!tenantId || !filename) {
@@ -518,11 +585,42 @@ router.get('/backup/download', async (req: Request, res: Response) => {
       });
     }
 
-    const fs = await import('fs/promises');
-    const path = await import('path');
+    if (req.user?.tenantId && req.user.tenantId !== tenantId && req.user.role !== Role.PLATFORM_OWNER) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'TENANT_MISMATCH',
+        message: 'Unauthorized access to target tenant backup vault.'
+      });
+    }
 
-    const filePath = path.join(process.cwd(), 'backups_cloud_simulated', tenantId, filename);
+    const safeTenantId = path.basename(String(tenantId).trim());
+    const safeFilename = path.basename(String(filename).trim());
+    const baseDir = path.resolve(process.cwd(), 'backups_cloud_simulated');
+    const folderPath = path.resolve(baseDir, safeTenantId);
+    const filePath = path.resolve(folderPath, safeFilename);
+
+    if (!filePath.startsWith(baseDir)) {
+      return res.status(403).json({
+        status: 'error',
+        code: 'PATH_TRAVERSAL_BLOCKED',
+        message: 'Directory traversal detected.'
+      });
+    }
+
     const content = await fs.readFile(filePath, 'utf8');
+
+    // Audit log persistence
+    await prisma.auditLog.create({
+      data: {
+        userId: req.user?.userId || null,
+        action: 'BACKUP_DOWNLOAD',
+        entity: 'Backup',
+        entityId: safeFilename,
+        before: null,
+        after: JSON.stringify({ tenantId: safeTenantId, filename: safeFilename }),
+        ipAddress: req.ip
+      }
+    }).catch(() => {});
 
     return res.json({
       status: 'success',

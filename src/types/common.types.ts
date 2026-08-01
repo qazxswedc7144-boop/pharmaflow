@@ -10,37 +10,32 @@ export type SyncableEntity = BaseSyncableEntity;
 export type SubscriptionPlan = 'Free' | 'Basic' | 'Pro';
 export type TenantStatus = 'Active' | 'Suspended' | 'Expired';
 
-export class AppError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AppError';
-  }
-}
+import {
+  BaseAppError as AppError,
+  ValidationError,
+  AccountingError,
+  InventoryError,
+  SecurityError,
+  InsufficientStockError,
+  PeriodLockedError,
+  DuplicateDocumentError,
+  AuthorizationError,
+  TransactionError,
+  DatabaseError,
+  NetworkError,
+} from '@/core/errors';
 
-export class ValidationError extends AppError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ValidationError';
-  }
-}
-
-export class AccountingError extends AppError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'AccountingError';
-  }
-}
-
-export class InventoryError extends AppError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'InventoryError';
-  }
-}
-
-export class SecurityError extends AppError {
-  constructor(message: string) {
-    super(message);
-    this.name = 'SecurityError';
-  }
-}
+export {
+  AppError,
+  ValidationError,
+  AccountingError,
+  InventoryError,
+  SecurityError,
+  InsufficientStockError,
+  PeriodLockedError,
+  DuplicateDocumentError,
+  AuthorizationError,
+  TransactionError,
+  DatabaseError,
+  NetworkError,
+};

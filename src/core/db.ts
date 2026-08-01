@@ -403,15 +403,15 @@ export class PharmaFlowDB extends Dexie {
   async finalizeAudit(taskId: string, results: any) { return await this.dailyAuditTasks.update(taskId, { ...results, status: 'COMPLETED' }); }
   async clearOldAlerts() { return await this.systemAlerts.clear(); }
   
-  async saveCustomer(customer: any) { return await this.customers.put(customer); }
-  async saveSupplier(supplier: any) { return await this.suppliers.put(supplier); }
-  async saveProduct(product: any) { return await this.products.put(product); }
+  async saveCustomer(customer: Customer) { return await this.customers.put(customer); }
+  async saveSupplier(supplier: Supplier) { return await this.suppliers.put(supplier); }
+  async saveProduct(product: Product) { return await this.products.put(product); }
   async softDeleteProduct(id: string) { return await this.products.update(id, { is_active: false }); }
-  async saveAccount(account: any) { return await this.accounts.put(account); }
+  async saveAccount(account: Account) { return await this.accounts.put(account); }
   async deleteAccount(id: string) { return await this.accounts.delete(id); }
-  async addJournalEntry(entry: any) { return await this.journalEntries.add(entry); }
-  async addJournalEntryLegacy(entry: any) { return await this.journalEntries.add(entry); }
-  async saveSettlement(settlement: any) { return await this.settlements.put(settlement); }
+  async addJournalEntry(entry: JournalEntry) { return await this.journalEntries.add(entry); }
+  async addJournalEntryLegacy(entry: JournalEntry) { return await this.journalEntries.add(entry); }
+  async saveSettlement(settlement: Record<string, unknown>) { return await this.settlements.put(settlement); }
   async getCurrentBranchId() { return 'MAIN'; }
   async updatePurchaseNotes(id: string, notes: string) { return await this.invoices.update(id, { notes }); }
   async updatePurchaseAttachment(id: string, attachment: string) { return await this.invoices.update(id, { attachment }); }
@@ -419,13 +419,13 @@ export class PharmaFlowDB extends Dexie {
   async updateSaleAttachment(id: string, attachment: string) { return await this.invoices.update(id, { attachment }); }
   async getInvoiceHistory(invoiceId: string) {
     const logs = await this.Audit_Log.where('target_id').equals(invoiceId).toArray();
-    return logs.map((l: any) => ({
+    return logs.map((l: AuditLog) => ({
       id: l.id,
       invoiceId: l.target_id || '',
       userId: l.user_id || '',
       userName: l.userName || 'مستخدم النظام',
       timestamp: l.timestamp || new Date().toISOString(),
-      action: (l.action === 'CREATE' ? 'CREATED' : l.action === 'POST' ? 'POSTED' : l.action) as any,
+      action: (l.action === 'CREATE' ? 'CREATED' : l.action === 'POST' ? 'POSTED' : l.action) as 'CREATED' | 'POSTED' | string,
       details: l.details || `تمت عملية ${l.action} على المستند`
     }));
   }
@@ -434,14 +434,14 @@ export class PharmaFlowDB extends Dexie {
       id: 'AUD-' + Date.now() + Math.random().toString(36).substring(3, 8),
       user_id: log.userId,
       userName: log.userName,
-      action: (log.action === 'CREATED' ? 'CREATE' : log.action === 'POSTED' ? 'POST' : log.action) as any,
+      action: (log.action === 'CREATED' ? 'CREATE' : log.action === 'POSTED' ? 'POST' : log.action) as 'CREATE' | 'POST' | string,
       target_type: 'SALE',
       target_id: log.invoiceId,
       timestamp: log.timestamp,
       details: log.details
     });
   }
-  async saveMedicineAlert(alert: any) { return await this.systemAlerts.add(alert); }
+  async saveMedicineAlert(alert: Record<string, unknown>) { return await this.systemAlerts.add(alert); }
   async persist() { return true; }
   
   async updateCustomerBalance(id: string, delta: number) {
@@ -454,7 +454,7 @@ export class PharmaFlowDB extends Dexie {
     if (supp) await this.suppliers.update(id, { balance: (supp.balance || 0) + delta });
   }
 
-  async recordCashFlow(data: any) {
+  async recordCashFlow(data: Record<string, unknown>) {
     return await this.cashFlow.add({ ...data, id: this.generateId('CF') });
   }
 
@@ -462,18 +462,18 @@ export class PharmaFlowDB extends Dexie {
     return await this.cashFlow.toArray();
   }
 
-  async saveAccountingEntry(entry: any) {
+  async saveAccountingEntry(entry: JournalEntry) {
     return await this.journalEntries.put(entry);
   }
 
-  async saveAccountingPeriod(period: any) {
+  async saveAccountingPeriod(period: AccountingPeriod) {
     return await this.accountingPeriods.put(period);
   }
 
   // --- LEGACY ORCHESTRATION HELPERS ---
   async processSale(
-    customerId: string, items: any[], total: number, isReturn: boolean, id: string,
-    _currency: string, paymentStatus: string, docStatus: any, _auditScore: number,
+    customerId: string, items: InvoiceItem[], total: number, isReturn: boolean, id: string,
+    _currency: string, paymentStatus: string, docStatus: InvoiceStatus, _auditScore: number,
     _riskLevel: string, _totalCost: number, refId: string, _attachment: string, date: string,
     transactionUuid?: string
   ) {
@@ -488,7 +488,7 @@ export class PharmaFlowDB extends Dexie {
       tax: 0,
       finalTotal: total,
       paidAmount: paymentStatus === 'Cash' ? total : 0,
-      paymentStatus: paymentStatus as any,
+      paymentStatus: paymentStatus as 'Cash' | 'Credit',
       financialStatus: paymentStatus === 'Cash' ? 'Paid' : 'Unpaid',
       documentStatus: docStatus,
       items: items,
@@ -505,8 +505,8 @@ export class PharmaFlowDB extends Dexie {
   }
 
   async processPurchase(
-    supplierId: string, items: any[], total: number, id: string,
-    isCash: boolean, _currency: string, docStatus: any, _auditScore: number,
+    supplierId: string, items: InvoiceItem[], total: number, id: string,
+    isCash: boolean, _currency: string, docStatus: InvoiceStatus, _auditScore: number,
     _riskLevel: string, refId: string, _attachment: string, isReturn: boolean, date: string,
     transactionUuid?: string
   ) {
@@ -686,12 +686,108 @@ export class PharmaFlowDB extends Dexie {
       
       const count = await this.accounts.count();
       if (count === 0) {
-        await this.accounts.bulkAdd([
+        await this.accounts.bulkPut([
           { id: 'acc-cash', code: '101', name: 'الصندوق الرئيسي', type: 'ASSET', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
           { id: 'acc-sales', code: '401', name: 'إيرادات المبيعات', type: 'REVENUE', balance: 0, isSystem: true, isActive: true, balance_type: 'CREDIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
           { id: 'acc-cogs', code: '501', name: 'تكلفة البضاعة المباعة', type: 'EXPENSE', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() }
-        ]);
+        ]).catch((err) => console.warn('[DB] Accounts seed warning:', err));
       }
+
+      // Seed initial products for offline browsing if products table is empty
+      const prodCount = await this.products.count();
+      if (prodCount === 0) {
+        await this.products.bulkPut([
+          { id: 'PRD-101', name: 'بانادول إكسترا 500 ملجم', Name: 'Panadol Extra 500mg', barcode: '628100011001', categoryId: 'CAT-1', supplierId: 'SUP-1', stock: 150, is_active: true, Is_Active: true, price: 18.5, cost: 12.0, updatedAt: new Date().toISOString() },
+          { id: 'PRD-102', name: 'أومول 500 ملجم أقراص', Name: 'Omol 500mg', barcode: '628100011002', categoryId: 'CAT-1', supplierId: 'SUP-1', stock: 200, is_active: true, Is_Active: true, price: 12.0, cost: 7.5, updatedAt: new Date().toISOString() },
+          { id: 'PRD-103', name: 'فيتامين سي 1000 ملجم فوار', Name: 'Vitamin C 1000mg', barcode: '628100011003', categoryId: 'CAT-2', supplierId: 'SUP-2', stock: 85, is_active: true, Is_Active: true, price: 25.0, cost: 16.0, updatedAt: new Date().toISOString() },
+          { id: 'PRD-104', name: 'أوجمنتين 1 جرام أقراص', Name: 'Augmentin 1g', barcode: '628100011004', categoryId: 'CAT-3', supplierId: 'SUP-2', stock: 60, is_active: true, Is_Active: true, price: 64.5, cost: 45.0, updatedAt: new Date().toISOString() },
+          { id: 'PRD-105', name: 'بخاخ أنف أوتروفين', Name: 'Otrivin Nasal Spray', barcode: '628100011005', categoryId: 'CAT-4', supplierId: 'SUP-3', stock: 110, is_active: true, Is_Active: true, price: 16.0, cost: 10.5, updatedAt: new Date().toISOString() },
+          { id: 'PRD-106', name: 'مرطب كيو في 500 جرام', Name: 'QV Cream 500g', barcode: '628100011006', categoryId: 'CAT-5', supplierId: 'SUP-3', stock: 40, is_active: true, Is_Active: true, price: 115.0, cost: 82.0, updatedAt: new Date().toISOString() }
+        ] as any[]).catch((err) => console.warn('[DB] Products seed warning:', err));
+      }
+
+      // Seed initial invoices (sales & purchases history) for offline browsing if empty
+      const invCount = await this.invoices.count();
+      if (invCount === 0) {
+        await this.invoices.bulkPut([
+          {
+            id: 'INV-1001',
+            invoiceNumber: 'INV-1001',
+            invoice_number: 'INV-1001',
+            date: new Date(Date.now() - 86400000 * 2).toISOString(),
+            partnerId: 'CUST-01',
+            partnerName: 'صيدلية الأمل المركزية',
+            type: 'SALE',
+            subtotal: 185.0,
+            tax: 0,
+            finalTotal: 185.0,
+            totalAmount: 185.0,
+            paidAmount: 185.0,
+            paymentStatus: 'Cash',
+            financialStatus: 'Paid',
+            documentStatus: 'POSTED',
+            items: [{ id: 'ITEM-1', parent_id: 'INV-1001', product_id: 'PRD-101', quantity: 10, unitPrice: 18.5, totalPrice: 185.0 }],
+            isReturn: false,
+            notes: 'افتتاحي',
+            is_synced: 1,
+            isSynced: true,
+            syncStatus: 'SYNCED',
+            createdAt: new Date(Date.now() - 86400000 * 2).toISOString(),
+            updatedAt: new Date(Date.now() - 86400000 * 2).toISOString()
+          },
+          {
+            id: 'INV-1002',
+            invoiceNumber: 'INV-1002',
+            invoice_number: 'INV-1002',
+            date: new Date(Date.now() - 86400000 * 1).toISOString(),
+            partnerId: 'CUST-02',
+            partnerName: 'مستشفى الحياة التخصصي',
+            type: 'SALE',
+            subtotal: 645.0,
+            tax: 0,
+            finalTotal: 645.0,
+            totalAmount: 645.0,
+            paidAmount: 0,
+            paymentStatus: 'Credit',
+            financialStatus: 'Unpaid',
+            documentStatus: 'POSTED',
+            items: [{ id: 'ITEM-2', parent_id: 'INV-1002', product_id: 'PRD-104', quantity: 10, unitPrice: 64.5, totalPrice: 645.0 }],
+            isReturn: false,
+            notes: 'توريد مستشفى',
+            is_synced: 1,
+            isSynced: true,
+            syncStatus: 'SYNCED',
+            createdAt: new Date(Date.now() - 86400000 * 1).toISOString(),
+            updatedAt: new Date(Date.now() - 86400000 * 1).toISOString()
+          },
+          {
+            id: 'PUR-2001',
+            invoiceNumber: 'PUR-2001',
+            invoice_number: 'PUR-2001',
+            date: new Date(Date.now() - 86400000 * 5).toISOString(),
+            partnerId: 'SUP-01',
+            partnerName: 'شركة السقاف للخدمات الطبية',
+            type: 'PURCHASE',
+            subtotal: 2500.0,
+            tax: 0,
+            finalTotal: 2500.0,
+            totalAmount: 2500.0,
+            paidAmount: 2500.0,
+            paymentStatus: 'Cash',
+            financialStatus: 'Paid',
+            documentStatus: 'POSTED',
+            items: [{ id: 'ITEM-3', parent_id: 'PUR-2001', product_id: 'PRD-106', quantity: 20, unitPrice: 82.0, totalPrice: 1640.0 }],
+            isReturn: false,
+            notes: 'شحنة توريد عاجلة',
+            is_synced: 1,
+            isSynced: true,
+            syncStatus: 'SYNCED',
+            createdAt: new Date(Date.now() - 86400000 * 5).toISOString(),
+            updatedAt: new Date(Date.now() - 86400000 * 5).toISOString()
+          }
+        ] as any[]).catch((err) => console.warn('[DB] Invoices seed warning:', err));
+      }
+
       return true;
     } catch (e) {
       console.error("[DB] Init failed:", e);

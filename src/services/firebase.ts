@@ -16,7 +16,9 @@ const firebaseConfig = {
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0]!;
 const rtdb = getDatabase(app);
-const db = getFirestore(app);
+const db = firebaseAppletConfig.firestoreDatabaseId && firebaseAppletConfig.firestoreDatabaseId !== "(default)"
+  ? getFirestore(app, firebaseAppletConfig.firestoreDatabaseId)
+  : getFirestore(app);
 const auth = getAuth(app);
 
 export enum OperationType {

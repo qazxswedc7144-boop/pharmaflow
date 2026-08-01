@@ -155,7 +155,9 @@ function MainLayout() {
 
   useEffect(() => {
     window.onerror = (message, source, lineno, colno, error) => {
-      console.error("Global Error (onerror):", { message, source, lineno, colno, error });
+      const safeMsg = typeof message === "string" ? message : "Window error event";
+      const safeErr = error instanceof Error ? error.message : (typeof error === "string" ? error : (error ? String(error) : "N/A"));
+      console.error("Global Error (onerror):", { message: safeMsg, source: source || 'unknown', lineno: lineno || 0, colno: colno || 0, error: safeErr });
       return false;
     };
 
@@ -674,8 +676,6 @@ function MainLayout() {
 
   const visibleModules = MODULES.filter(m => !m.permission || can(profile?.role, m.permission as Permission));
 
-  const hideHeader = currentView !== 'dashboard';
-
   if (!isReady) {
     return <div className="min-h-screen bg-[#F8FAFA] flex items-center justify-center font-black text-[#1E4D4D] animate-pulse">جاري التحميل...</div>;
   }
@@ -902,22 +902,22 @@ function MainLayout() {
           </motion.div>
         )}
 
-        {!hideHeader && !isOperationalView && (
-          <Header 
-            pageTitle={getLabel()} 
-            showBackButton={currentView !== 'dashboard'} 
-            onBackClick={() => {
-              const view = currentView as any;
-              if (view.startsWith?.('reports/') || view === 'aging-report') {
-                handleNav('reports');
-              } else {
-                handleNav('dashboard');
-              }
-            }} 
-          />
-        )}
+        <Header 
+          pageTitle={getLabel()} 
+          showBackButton={currentView !== 'dashboard'} 
+          onBackClick={() => {
+            const view = currentView as any;
+            if (view.startsWith?.('reports/') || view === 'aging-report') {
+              handleNav('reports');
+            } else {
+              handleNav('dashboard');
+            }
+          }} 
+          onMenuClick={() => setIsSidebarOpen(true)}
+          currentView={currentView}
+        />
 
-        <main className={`flex-1 overflow-y-auto bg-[#F8FAFA] custom-scrollbar h-screen ${isOperationalView ? 'p-1 sm:p-2 pt-0' : currentView === 'dashboard' ? 'p-0' : 'p-2 sm:p-4'}`}>
+        <main className={`flex-1 overflow-y-auto bg-[#F8FAFA] custom-scrollbar min-h-0 ${isOperationalView ? 'p-1 sm:p-2 pt-0' : currentView === 'dashboard' ? 'p-0' : 'p-2 sm:p-4'}`}>
           <div className={currentView === 'dashboard' ? 'max-w-full px-0 mx-auto min-h-full' : 'max-w-full px-4 mx-auto min-h-full'}>
             <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[400px]"><div className="w-10 h-10 border-4 border-[#10B981] border-t-transparent rounded-full animate-spin"></div></div>}>
               {(() => {

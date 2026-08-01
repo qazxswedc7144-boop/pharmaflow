@@ -36,6 +36,25 @@ function mapInvoiceToPurchase(inv: UnifiedInvoice): Purchase {
   } as unknown as Purchase;
 }
 
+export interface HealthKPIs {
+  cashBalance: number;
+  accountsReceivable: number;
+  accountsPayable: number;
+  inventoryValue: number;
+  grossProfit: number;
+  netProfit: number;
+  collectionRate: number;
+  supplierPaymentRatio: number;
+  stockTurnoverRatio: number;
+}
+
+export interface HealthBreakdown {
+  liquidity: number;
+  profitability: number;
+  stockEfficiency: number;
+  debtManagement: number;
+}
+
 export class FinancialHealthService {
   
   /**
@@ -87,7 +106,7 @@ export class FinancialHealthService {
     return snapshot;
   }
 
-  private static async calculateKPIs(sales: Sale[], purchases: Purchase[], products: Product[], cashFlow: CashFlow[]) {
+  private static async calculateKPIs(sales: Sale[], purchases: Purchase[], products: Product[], cashFlow: CashFlow[]): Promise<HealthKPIs> {
     // Cash Balance
     const cashBalance = cashFlow.reduce((acc, curr) => {
       return curr.type === 'دخل' ? acc + curr.amount : acc - curr.amount;
@@ -147,7 +166,7 @@ export class FinancialHealthService {
     };
   }
 
-  private static async detectRisks(kpis: any, sales: Sale[], purchases: Purchase[], products: Product[]) {
+  private static async detectRisks(kpis: HealthKPIs, sales: Sale[], purchases: Purchase[], products: Product[]) {
     const alerts: SystemAlert[] = [];
     const now = new Date().toISOString();
 
@@ -269,7 +288,7 @@ export class FinancialHealthService {
     }
   }
 
-  private static calculateBreakdown(kpis: any) {
+  private static calculateBreakdown(kpis: HealthKPIs): HealthBreakdown {
     // Liquidity (Cash vs AP)
     let liquidity = 100;
     if (kpis.cashBalance < 0) liquidity = 0;
@@ -296,7 +315,7 @@ export class FinancialHealthService {
     };
   }
 
-  private static generateInsights(kpis: any, breakdown: any): string[] {
+  private static generateInsights(kpis: HealthKPIs, breakdown: HealthBreakdown): string[] {
     const insights: string[] = [];
 
     if (breakdown.debtManagement < 70) {

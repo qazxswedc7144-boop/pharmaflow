@@ -170,10 +170,10 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
       // 3. Persistent Dexie operations
       await db.journalEntries.add({
         id: finalId,
-        type: dbType as any,
+        type: dbType as 'DEPOSIT' | 'WITHDRAWAL' | 'ADJUSTMENT' | 'TRANSFER',
         amount: Number(formData.amount),
         description: autoDesc,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         date: formData.date,
         status: 'Posted',
         sourceId: `SRC-${Date.now()}`,
@@ -188,9 +188,9 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
             credit: dbType === 'PV' || dbType === 'PAY' ? Number(formData.amount) : 0,
             type: dbType === 'PV' || dbType === 'PAY' ? 'CREDIT' : 'DEBIT',
             amount: Number(formData.amount),
-          } as any
+          }
         ]
-      } as any);
+      });
 
       // Audit Log logging
       await db.addAuditLog(
@@ -210,13 +210,14 @@ export const useFinancialModal = create<FinancialModalStore>((set, get) => ({
       addToast(`تم حفظ وتأكيد ${modeLabel} بنجاح ✅`, 'success');
       set({ isSaving: false });
       return true;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('[UnifiedModal] Async Save failed:', err);
       
       // Rollback optimistic state in case of failure!
       useAccountingStore.setState({ journalEntries: originalJournalEntries });
       
-      addToast(`خطأ في معالجة الحفظ: ${err.message || 'خطأ غير معروف'} ❌`, 'error');
+      const errMsg = err instanceof Error ? err.message : 'خطأ غير معروف';
+      addToast(`خطأ في معالجة الحفظ: ${errMsg} ❌`, 'error');
       set({ isSaving: false });
       // Keep form fields populated so the user does not lose data!
       return false;

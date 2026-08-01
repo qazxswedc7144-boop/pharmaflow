@@ -1,9 +1,9 @@
 
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { db } from '@/core/db';
+import { Sale, Purchase } from '@/types';
 
 export const InvoiceRepository = {
-  getUnifiedInvoice: async (id: string): Promise<any> => {
+  getUnifiedInvoice: async (id: string): Promise<(Sale | Purchase | Record<string, unknown>) | null> => {
     // Try to find in sales then purchases
     const sale = await db.sales.get(id);
     if (sale) return { ...sale, finalTotal: sale.finalTotal || 0, paidAmount: sale.paidAmount || 0 };
@@ -14,21 +14,21 @@ export const InvoiceRepository = {
     return null;
   },
 
-  getSaleById: async (id: string): Promise<any> => {
+  getSaleById: async (id: string): Promise<Sale | undefined> => {
     return await db.sales.get(id);
   },
 
-  getPurchaseById: async (id: string): Promise<any> => {
+  getPurchaseById: async (id: string): Promise<Purchase | undefined> => {
     return await db.purchases.get(id);
   },
 
-  saveSale: async (...args: any[]): Promise<any> => {
-    const sale = await (db as any).processSale(...args);
+  saveSale: async (...args: unknown[]): Promise<unknown> => {
+    const sale = await db.processSale(args[0] as Parameters<typeof db.processSale>[0]);
     return sale;
   },
 
-  savePurchase: async (...args: any[]): Promise<any> => {
-    const purchase = await (db as any).processPurchase(...args);
+  savePurchase: async (...args: unknown[]): Promise<unknown> => {
+    const purchase = await db.processPurchase(args[0] as Parameters<typeof db.processPurchase>[0]);
     return purchase;
   },
 
@@ -57,19 +57,19 @@ export const InvoiceRepository = {
     return matches.length > 0;
   },
 
-  getArchiveSales: async (): Promise<any[]> => {
+  getArchiveSales: async (): Promise<Sale[]> => {
     return await db.sales.where('InvoiceStatus').equals('POSTED').toArray();
   },
 
-  getArchivePurchases: async (): Promise<any[]> => {
+  getArchivePurchases: async (): Promise<Purchase[]> => {
     return await db.purchases.where('invoiceStatus').equals('POSTED').toArray();
   },
 
-  getSavedInvoices: async (): Promise<any[]> => {
+  getSavedInvoices: async (): Promise<Sale[]> => {
     return await db.sales.where('InvoiceStatus').equals('DRAFT').toArray();
   },
 
-  getRecentInvoices: async (): Promise<any[]> => {
+  getRecentInvoices: async (): Promise<Array<(Sale | Purchase) & { entityType: 'SALE' | 'PURCHASE' }>> => {
     const ninetyDaysAgo = new Date();
     ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
     
@@ -84,17 +84,17 @@ export const InvoiceRepository = {
       .toArray();
       
     return [
-      ...sales.map(s => ({ ...s, entityType: 'SALE' })),
-      ...purchases.map(p => ({ ...p, entityType: 'PURCHASE' }))
-    ].sort((a,b) => new Date(b.Date || b.date).getTime() - new Date(a.Date || a.date).getTime());
+      ...sales.map(s => ({ ...s, entityType: 'SALE' as const })),
+      ...purchases.map(p => ({ ...p, entityType: 'PURCHASE' as const }))
+    ].sort((a,b) => new Date((a as Sale).Date || (a as Purchase).date).getTime() - new Date((b as Sale).Date || (b as Purchase).date).getTime());
   },
 
-  getInvoicesArchive: async (): Promise<any[]> => {
-    const sales = await db.sales.toArray();
-    const purchases = await db.purchases.toArray();
+  getInvoicesArchive: async (): Promise<Array<(Sale | Purchase) & { entityType: 'SALE' | 'PURCHASE' }>> => {
+    const sales = await db.getSales();
+    const purchases = await db.getPurchases();
     return [
-      ...sales.map(s => ({ ...s, entityType: 'SALE' })),
-      ...purchases.map(p => ({ ...p, entityType: 'PURCHASE' }))
+      ...sales.map(s => ({ ...s, entityType: 'SALE' as const })),
+      ...purchases.map(p => ({ ...p, entityType: 'PURCHASE' as const }))
     ];
   },
 

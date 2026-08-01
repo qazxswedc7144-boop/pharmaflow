@@ -12,7 +12,7 @@ import {
   Banknote, User, CheckSquare, Square, ArrowDownCircle, Calendar
 } from 'lucide-react';
 
-const CustomerReceiptModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavigate }) => {
+const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { customers } = useAccounting();
   const { currency, addToast, refreshGlobal } = useUI();
   
@@ -147,8 +147,9 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: any) => void }> = ({
       addToast("تمت التسوية بنجاح ✅", "success");
       refreshGlobal();
       onNavigate?.('dashboard');
-    } catch (e: any) {
-      addToast(`خطأ مالي: ${e.message}`, "error");
+    } catch (e: unknown) {
+      const errMsg = e instanceof Error ? e.message : String(e);
+      addToast(`خطأ مالي: ${errMsg}`, "error");
     } finally {
       setIsProcessing(false);
     }

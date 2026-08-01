@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { SettingsCard, Accordion, SettingInput, SettingToggle, SettingSelect } from '../shared/SettingsUI';
-import { Building2, Printer } from 'lucide-react';
+import { Building2, Printer, Download, Image as ImageIcon } from 'lucide-react';
 import { settingsService, type SettingValue } from '../../data/SettingsService';
+import logoImg from '@/assets/brand/logo.png';
 
 export default function PharmacyTab() {
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});
@@ -21,6 +22,46 @@ export default function PharmacyTab() {
 
   return (
     <div className="space-y-6">
+      <SettingsCard title="شعار وأيقونة الهوية الموحدة" description="معاينة وتحميل الشعار والأيقونة الرسمية مباشرة للطباعة والوثائق والتطبيقات" icon={ImageIcon}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#1E4D4D]/20 shadow-sm bg-white shrink-0 p-1">
+              <img src="/pharmaflow_logo.jpg" alt="PharmaFlow Logo" className="w-full h-full object-cover rounded-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate">شعار PharmaFlow (Logo)</h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">pharmaflow_logo.jpg</p>
+            </div>
+            <a
+              href="/pharmaflow_logo.jpg"
+              download="pharmaflow_logo.jpg"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#1E4D4D] text-white hover:bg-[#153737] rounded-xl text-xs font-bold transition-all shadow-sm shrink-0"
+            >
+              <Download size={14} />
+              <span>تحميل</span>
+            </a>
+          </div>
+
+          <div className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200 dark:border-slate-700">
+            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-[#1E4D4D]/20 shadow-sm bg-white shrink-0 p-1">
+              <img src="/pharmaflow_icon.jpg" alt="PharmaFlow Icon" className="w-full h-full object-cover rounded-xl" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h4 className="font-bold text-slate-800 dark:text-slate-100 text-xs sm:text-sm truncate">أيقونة PharmaFlow (Icon)</h4>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">pharmaflow_icon.jpg</p>
+            </div>
+            <a
+              href="/pharmaflow_icon.jpg"
+              download="pharmaflow_icon.jpg"
+              className="flex items-center gap-1.5 px-3 py-2 bg-[#1E4D4D] text-white hover:bg-[#153737] rounded-xl text-xs font-bold transition-all shadow-sm shrink-0"
+            >
+              <Download size={14} />
+              <span>تحميل</span>
+            </a>
+          </div>
+        </div>
+      </SettingsCard>
+
       <SettingsCard title="بيانات الصيدلية" description="تظهر هذه البيانات في الفواتير والتقارير" icon={Building2}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SettingInput label="اسم الصيدلية" value={settings.pharmacy_name} onChange={(v: string) => handleChange('pharmacy_name', v)} />

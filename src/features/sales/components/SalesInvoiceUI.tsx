@@ -2,6 +2,7 @@
 import React from 'react';
 import { motion } from 'motion/react';
 import { Trash2 } from 'lucide-react';
+import { InvoiceItem } from '@/types';
 
 // Memoized Item Row Component for Sales
 export const SaleItemRow = React.memo(({ 
@@ -12,7 +13,7 @@ export const SaleItemRow = React.memo(({
   isLocked,
   isRecovery
 }: { 
-  item: any; 
+  item: InvoiceItem; 
   onDelete: (idx: number) => void; 
   onClick: () => void;
   idx: number;

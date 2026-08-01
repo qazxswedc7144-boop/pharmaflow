@@ -47,12 +47,33 @@ function mapInvoiceToPurchase(inv: UnifiedInvoice): Purchase {
   } as unknown as Purchase;
 }
 
-export interface AgingBucket {
-  current: number;    
-  overdue30: number;  
-  overdue60: number;  
-  overdue90: number;  
-  total: number;
+export interface FinancialMetrics {
+  income: number;
+  outcome: number;
+  net: number;
+  margin: number;
+  grossProfit: number;
+  cogs: number;
+}
+
+export interface ChartAnalytics {
+  labels: string[];
+  revenue: number[];
+  expense: number[];
+}
+
+export interface ItemProfitDetail {
+  productId: string;
+  productName: string;
+  profitPotential: number;
+  [key: string]: unknown;
+}
+
+export interface TrialBalanceItem {
+  accountId: string;
+  account_name?: string;
+  debit: number;
+  credit: number;
 }
 
 export interface PartnerAging {
@@ -64,14 +85,14 @@ export interface PartnerAging {
 
 export const accountingService = {
   
-  getFinancialMetricsAsync: async () => {
+  getFinancialMetricsAsync: async (): Promise<FinancialMetrics> => {
     const cacheKey = 'financial_metrics_v4_async';
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<FinancialMetrics>(cacheKey);
     if (cached) return cached;
 
     try {
       const incomeStatement = await ReportEngine.getIncomeStatement();
-      const metrics = { 
+      const metrics: FinancialMetrics = { 
         income: incomeStatement.revenue, 
         outcome: incomeStatement.cogs + incomeStatement.expenses, 
         net: incomeStatement.netProfit, 
@@ -86,9 +107,9 @@ export const accountingService = {
     }
   },
 
-  getChartAnalyticsAsync: async (days: number = 30) => {
+  getChartAnalyticsAsync: async (days: number = 30): Promise<ChartAnalytics> => {
     const cacheKey = `chart_analytics_${days}_v1`;
-    const cached = reportCache.get<any>(cacheKey);
+    const cached = reportCache.get<ChartAnalytics>(cacheKey);
     if (cached) return cached;
 
     const today = new Date();
@@ -128,15 +149,15 @@ export const accountingService = {
       expense.push(dayExp);
     }
 
-    const result = { labels, revenue, expense };
+    const result: ChartAnalytics = { labels, revenue, expense };
     reportCache.set(cacheKey, result, 15 * 60 * 1000);
     return result;
   },
 
-  getTopProfitableItems: async (limit: number = 100) => {
-    const profits = await ReportEngine.getItemProfit();
+  getTopProfitableItems: async (limit: number = 100): Promise<ItemProfitDetail[]> => {
+    const profits = await ReportEngine.getItemProfit() as ItemProfitDetail[];
     return profits
-      .sort((a: any, b: any) => b.profitPotential - a.profitPotential)
+      .sort((a, b) => (b.profitPotential || 0) - (a.profitPotential || 0))
       .slice(0, limit);
   },
 
@@ -153,7 +174,7 @@ export const accountingService = {
 
     if (type === 'CUSTOMER') {
       const customers = await db.getCustomers();
-      const unpaidSales = (await db.getSales()).map(mapInvoiceToSale).filter(s => s.paymentStatus === 'Credit' && s.InvoiceStatus !== 'DRAFT' && s.InvoiceStatus !== 'CANCELLED' && (s.paidAmount || 0) < s.finalTotal);
+      const unpaidSales = (await db.getSales()).map(mapInvoiceToSale).filter(s => s.paymentStatus === 'Credit' && s.InvoiceStatus !== 'DRAFT' && s.InvoiceStatus !== 'CANCELLED' && (s.paidAmount || 0) < (s.finalTotal || 0));
 
       customers.forEach(c => {
         const buckets: AgingBucket = { current: 0, overdue30: 0, overdue60: 0, overdue90: 0, total: 0 };
@@ -161,7 +182,7 @@ export const accountingService = {
         let oldestDate: Date | null = null;
         
         partnerInvoices.forEach(inv => {
-          const unpaid = inv.finalTotal - (inv.paidAmount || 0);
+          const unpaid = (inv.finalTotal || 0) - (inv.paidAmount || 0);
           const invDate = new Date(inv.date);
           if (!oldestDate || invDate < oldestDate) oldestDate = invDate;
           const diffDays = Math.floor((today.getTime() - invDate.getTime()) / (1000 * 3600 * 24));
@@ -225,10 +246,10 @@ export const accountingService = {
   },
 
   getTrialBalance: async () => {
-    const tb = await ReportEngine.getTrialBalance() as any[];
+    const tb = await ReportEngine.getTrialBalance() as TrialBalanceItem[];
     return tb.map(acc => ({
       accountId: acc.accountId,
-      name: acc.account_name,
+      name: acc.account_name || acc.accountId,
       debit: acc.debit,
       credit: acc.credit
     }));
@@ -295,17 +316,18 @@ export const accountingService = {
 
       // Record Cash Flow with transaction_id for easier reversal
       const cfId = db.generateId('CSH');
-      await db.db.cashFlow.put({
+      const cfRecord: CashFlow = {
         id: cfId,
         transaction_id: voucherId,
-        date: today.split('T')[0],
+        date: today.split('T')[0] || '',
         type: type,
         category: category,
         amount: amount,
         notes: `سند #${voucherId} لـ: ${name} | ${notes}`,
         isSynced: false,
         updatedAt: today
-      } as any);
+      };
+      await db.db.cashFlow.put(cfRecord);
       
       const ftId = db.generateId('FT');
       await FinancialTransactionRepository.record({
@@ -430,7 +452,7 @@ export const accountingService = {
   },
 
   deleteVoucher: async (voucherId: string) => {
-    authService.assertPermission('DELETE_VOUCHER' as any, 'حذف سند مالي');
+    authService.assertPermission('DELETE_VOUCHER', 'حذف سند مالي');
     
     // PHASE 3 — AUTO BACKUP RULES
     await BackupService.createBackup(`Auto Backup before Delete Voucher #${voucherId}`, 'PRE_VOUCHER_DELETE', true);
@@ -476,7 +498,7 @@ export const accountingService = {
       }
 
       // 4. Delete CashFlow record
-      const cashflows = await db.db.cashFlow.filter(cf => cf.transaction_id === voucherId || (cf.notes && cf.notes.includes(`#${voucherId}`))).toArray();
+      const cashflows = await db.db.cashFlow.filter(cf => cf.transaction_id === voucherId || (cf.notes ? cf.notes.includes(`#${voucherId}`) : false)).toArray();
       for (const cf of cashflows) {
         await db.db.cashFlow.delete(cf.id);
       }

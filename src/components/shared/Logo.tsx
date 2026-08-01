@@ -1,7 +1,29 @@
 
-import React from 'react';
+import React, { useState } from 'react';
+import pharmaLogo from '@/assets/brand/logo.png';
 
-export const Logo: React.FC<{ className?: string; size?: number }> = ({ className = "", size = 40 }) => {
+export const Logo: React.FC<{ className?: string; size?: number; useImage?: boolean }> = ({ className = "", size = 40, useImage = true }) => {
+  const [hasImageError, setHasImageError] = useState(false);
+
+  if (useImage && !hasImageError) {
+    return (
+      <div 
+        className={`relative flex items-center justify-center shrink-0 overflow-hidden rounded-xl ${className}`}
+        style={{ width: size, height: size }}
+      >
+        <img 
+          src={pharmaLogo} 
+          alt="PharmaFlow" 
+          className="w-full h-full object-cover rounded-xl"
+          onError={() => {
+            console.warn('[PharmaFlow Logo] Image asset failed to render, switching to text/emblem fallback');
+            setHasImageError(true);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div 
       className={`relative flex items-center justify-center shrink-0 ${className}`} 

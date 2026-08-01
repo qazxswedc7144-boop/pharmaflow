@@ -2,7 +2,7 @@
 
 /**
  * Enterprise-grade sanitization utility to prevent SQL Injections,
- * XSS attacks, and corrupted control/unicode codes.
+ * XSS attacks, prototype pollution, and corrupted control/unicode codes.
  */
 export function sanitizeString(val: string): string {
   if (!val) return "";
@@ -16,15 +16,21 @@ export function sanitizeString(val: string): string {
   // 3. Trim outer whitespaces
   result = result.trim();
 
-  // 4. Escape or strip potentially dangerous characters (prevent basic SQL injection symbols)
-  // Replacing single quote with double singular quotes for SQL safety and stripping NULL termination injection
+  // 4. Strip NULL characters to prevent null byte injection
   result = result.replace(/\0/g, "");
+
+  // 5. Strip dangerous HTML script tags and inline execution patterns for XSS hardening
+  result = result
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/javascript\s*:/gi, "no-js-scheme:")
+    .replace(/\bon\w+\s*=/gi, "data-blocked=");
 
   return result;
 }
 
 /**
- * Deeply sanities all string values inside a given object recursively
+ * Deeply sanitizes all string values inside a given object recursively
+ * with strict prototype pollution protection.
  */
 export function sanitizeObject<T>(obj: T): T {
   if (obj === null || obj === undefined) {
@@ -43,6 +49,10 @@ export function sanitizeObject<T>(obj: T): T {
     const rawObj = obj as any;
     const sanitizedObj: any = {};
     for (const key of Object.keys(rawObj)) {
+      // Prototype Pollution Prevention: Block reserved property names
+      if (key === "__proto__" || key === "constructor" || key === "prototype") {
+        continue;
+      }
       sanitizedObj[key] = sanitizeObject(rawObj[key]);
     }
     return sanitizedObj as T;

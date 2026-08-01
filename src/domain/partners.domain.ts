@@ -22,6 +22,9 @@ export interface Customer extends DomainEntity {
   // Compatibility fields
   Supplier_ID?: string;
   Supplier_Name?: string;
+  Customer_ID?: string;
+  Customer_Name?: string;
+  Partner_ID?: string;
   Phone?: string;
   Address?: string;
   Is_Active?: boolean;
@@ -42,12 +45,15 @@ export interface Supplier extends DomainEntity {
   taxNumber?: string;
   isActive?: boolean;
   type?: PartnerType.SUPPLIER | 'SUPPLIER' | string;
-  purchaseHistory?: any[];
+  purchaseHistory?: Record<string, unknown>[];
   branchId?: string;
 
   // Compatibility fields
   Supplier_ID?: string;
   Supplier_Name?: string;
+  Customer_ID?: string;
+  Customer_Name?: string;
+  Partner_ID?: string;
   Phone?: string;
   Address?: string;
   Is_Active?: boolean;

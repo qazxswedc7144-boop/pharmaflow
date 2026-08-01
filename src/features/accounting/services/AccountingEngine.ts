@@ -1,15 +1,21 @@
 
 import { db } from '@/core/db';
-import { AccountingEntry, JournalLine, Sale, Purchase, InvoiceItem } from '@/types';
+import { AccountingEntry, JournalLine, Sale, Purchase, InvoiceItem, UnifiedInvoice } from '@/types';
 import { CurrencyService } from '@/services/localization/CurrencyService';
+import { AccountingError, AppLogger } from '@/core/errors';
+
+export interface SaleAdjustment {
+  Type: 'Discount' | 'Tax Adjustment' | string;
+  Value: number;
+}
 
 export class AccountingEngine {
   
   /**
    * Calculates the total amount for a sale, including taxes and discounts.
    */
-  static calculateSaleTotal(sale: Sale, adjustments: any[] = []): number {
-    let total = sale.items.reduce((acc, item) => acc + (item.qty * item.price), 0);
+  static calculateSaleTotal(sale: Sale, adjustments: SaleAdjustment[] = []): number {
+    let total = sale.items.reduce((acc, item) => acc + ((item.qty ?? 0) * (item.price ?? 0)), 0);
     adjustments.forEach(adj => {
       if (adj.Type === 'Discount') total -= adj.Value;
       else if (adj.Type === 'Tax Adjustment') total += adj.Value;
@@ -21,7 +27,7 @@ export class AccountingEngine {
    * Calculates the total amount for a purchase.
    */
   static calculatePurchaseTotal(purchase: Purchase): number {
-    return purchase.items.reduce((acc, item) => acc + (item.qty * item.price), 0);
+    return purchase.items.reduce((acc, item) => acc + ((item.qty ?? 0) * (item.price ?? 0)), 0);
   }
 
   static async getCoreAccount(type: 'CASH' | 'BANK' | 'RECEIVABLE' | 'PAYABLE' | 'INVENTORY' | 'SALES_REVENUE' | 'COGS' | 'EXPENSE'): Promise<string> {
@@ -61,8 +67,8 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
-    const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal, currencyCode, sale.date);
+    const currencyCode = sale.currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal ?? 0, currencyCode, sale.date);
 
     // 1. Revenue Impact
     if (sale.paymentStatus === 'Cash') {
@@ -97,7 +103,7 @@ export class AccountingEngine {
       created_at: new Date().toISOString(),
       lastModified: new Date().toISOString(),
       timestamp: new Date().toISOString()
-    } as any;
+    };
   }
 
   static async generatePurchaseEntry(purchase: Purchase): Promise<AccountingEntry> {
@@ -109,7 +115,7 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const currencyCode = purchase.currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
 
     // Debit Inventory
@@ -151,8 +157,8 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
-    const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal, currencyCode, sale.date);
+    const currencyCode = sale.currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal ?? 0, currencyCode, sale.date);
 
     // Reverse Revenue: Debit Revenue, Credit Cash/AR
     lines.push(await this.createLine(entryId, revenueAcc, baseAmount, 0));
@@ -197,7 +203,7 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const currencyCode = purchase.currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
 
     // Debit Cash or Payable, Credit Inventory
@@ -309,32 +315,42 @@ export class AccountingEngine {
     const totalDebit = lines.reduce((sum, l) => sum + l.debit, 0);
     const totalCredit = lines.reduce((sum, l) => sum + l.credit, 0);
     if (Math.abs(totalDebit - totalCredit) > 0.01) {
-      throw new Error(`قيد غير متزن: إجمالي المدين (${totalDebit}) لا يساوي إجمالي الدائن (${totalCredit})`);
+      throw new AccountingError({
+        message: `Unbalanced journal entry: Total Debit (${totalDebit}) does not equal Total Credit (${totalCredit}).`,
+        arabicMessage: `القيد المحاسبي غير متوازن (إجمالي المدين ${totalDebit} لا يساوي الدائن ${totalCredit}).`,
+        module: 'ACCOUNTING',
+        metadata: { totalDebit, totalCredit },
+      });
     }
   }
 
   /**
    * High-level postInvoice method for SystemOrchestrator
    */
-  static async postInvoice(invoice: any, _costResult?: { totalCost: number }): Promise<void> {
+  static async postInvoice(
+    invoice: Sale | Purchase | UnifiedInvoice,
+    _costResult?: { totalCost: number }
+  ): Promise<void> {
     const { AccountingRepository } = await import('@/database/repositories/AccountingRepository');
     
-    const type = invoice.type || (invoice.customerId ? 'SALE' : 'PURCHASE');
-    const isReturn = invoice.isReturn || invoice.invoiceType === 'مرتجع';
+    const type = ('type' in invoice && invoice.type) ? invoice.type : (('customerId' in invoice && invoice.customerId) ? 'SALE' : 'PURCHASE');
+    const isReturn = ('isReturn' in invoice && invoice.isReturn) || ('invoiceType' in invoice && (invoice as { invoiceType?: string }).invoiceType === 'مرتجع');
 
     let entry: AccountingEntry | AccountingEntry[];
 
     if (type === 'SALE') {
+      const saleObj = invoice as Sale;
       if (isReturn) {
-        entry = await this.generateReturnEntry(invoice, invoice.items);
+        entry = await this.generateReturnEntry(saleObj, saleObj.items || []);
       } else {
-        entry = await this.generateSalesEntry(invoice, invoice.items);
+        entry = await this.generateSalesEntry(saleObj, saleObj.items || []);
       }
     } else {
+      const purchaseObj = invoice as Purchase;
       if (isReturn) {
-        entry = await this.generatePurchaseReturnEntry(invoice);
+        entry = await this.generatePurchaseReturnEntry(purchaseObj);
       } else {
-        entry = await this.generatePurchaseEntry(invoice);
+        entry = await this.generatePurchaseEntry(purchaseObj);
       }
     }
 
@@ -362,6 +378,7 @@ export class AccountingEngine {
       credit,
       type: debit > 0 ? 'DEBIT' : 'CREDIT',
       amount: debit > 0 ? debit : credit
-    } as any;
+    };
   }
 }
+

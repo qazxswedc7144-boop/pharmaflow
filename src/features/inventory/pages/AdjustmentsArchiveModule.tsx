@@ -9,7 +9,7 @@ import { FixedSizeList as List } from 'react-window';
 import { InvoiceAdjustment } from '@/types';
 
 interface AdjustmentsArchiveModuleProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 /**

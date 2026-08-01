@@ -115,6 +115,17 @@ export default function ReportPageLayout({
         </div>
 
         <div className="flex items-center gap-3">
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onPrint ? onPrint() : window.print()}
+            className="flex items-center gap-2 px-3 py-2 bg-[#1E4D4D] text-white rounded-xl text-xs font-bold shadow-sm hover:bg-[#153737] transition-all cursor-pointer"
+            title="طباعة التقرير"
+            id="print-report-header-btn"
+          >
+            <Printer size={16} />
+            <span className="hidden sm:inline">طباعة التقرير</span>
+          </motion.button>
+
           {filterOptions.length > 0 && (
             <motion.button
               whileTap={{ scale: 0.9 }}

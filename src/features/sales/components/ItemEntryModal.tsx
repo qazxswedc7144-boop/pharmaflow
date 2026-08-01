@@ -168,8 +168,18 @@ export const ItemEntryModal: React.FC<ItemEntryModalProps> = ({
     }
 
     if (!existing && mode === 'purchase' && isConfirmedNewProduct) {
-      const newProd = { id: 'PROD-' + Date.now(), Name: manualItemName, categoryName: categoryName || 'عام', UnitPrice: parseFloat(tempPrice as string), Is_Active: 1, created_at: new Date().toISOString() };
-      await db.products.add(newProd as any); 
+      const newProd = {
+        id: 'PROD-' + Date.now(),
+        ProductID: 'PROD-' + Date.now(),
+        Name: manualItemName,
+        name: manualItemName,
+        categoryName: categoryName || 'عام',
+        UnitPrice: parseFloat(tempPrice as string),
+        price: parseFloat(tempPrice as string),
+        Is_Active: 1,
+        created_at: new Date().toISOString()
+      };
+      await db.products.add(newProd); 
       finalProductId = newProd.id;
     }
 
@@ -197,13 +207,16 @@ export const ItemEntryModal: React.FC<ItemEntryModalProps> = ({
     setIsConfirmedNewProduct(true);
     const newProd = { 
       id: 'PROD-' + Date.now(), 
+      ProductID: 'PROD-' + Date.now(),
       Name: manualItemName, 
+      name: manualItemName,
       categoryName: categoryName || 'عام', 
       UnitPrice: parseFloat(tempPrice as string) || 0, 
+      price: parseFloat(tempPrice as string) || 0,
       Is_Active: 1, 
       created_at: new Date().toISOString() 
     };
-    await db.products.add(newProd as any);
+    await db.products.add(newProd);
     
     onAdd({ 
       id: initialData?.id || Date.now().toString(), 

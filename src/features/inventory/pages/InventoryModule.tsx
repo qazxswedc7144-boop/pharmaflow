@@ -13,14 +13,15 @@ import {
   TrendingUp, Layers, ArrowRight, Plus, 
   AlertCircle, History, 
   Warehouse as WarehouseIcon, Settings2, ArrowRightLeft, MinusCircle, PlusCircle,
-  ChevronRight, Box, BarChart3, Save, Users
+  ChevronRight, Box, BarChart3, Save, Users, RotateCcw
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { PullToRefresh } from '@/components/shared/PullToRefresh';
 
 import SupplierManagement from '@features/accounting/components/SupplierManagement';
+import { AutoReorderModal } from '../components/AutoReorderModal';
 
-const InventoryModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavigate }) => {
+const InventoryModule: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { products, categories } = useInventory();
   const { suppliers } = useAccounting();
   const { refreshGlobal, addToast, currency } = useUI();
@@ -51,6 +52,23 @@ const InventoryModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNav
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [filterBy] = useState<'all' | 'low' | 'out' | 'expired'>('all');
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>('ALL');
+  const [isAutoReorderOpen, setIsAutoReorderOpen] = useState(false);
+
+  const lowStockProducts = useMemo(() => {
+    return products.filter(p => {
+      const currentStock = p.stock ?? p.StockQuantity ?? p.stock_qty ?? 0;
+      const minLevel = p.MinLevel ?? p.minStockLevel ?? p.minStock ?? 5;
+      return currentStock <= minLevel;
+    });
+  }, [products]);
+
+  const handleAutoReorderClick = useCallback(() => {
+    if (lowStockProducts.length === 0) {
+      addToast("جميع الأصناف رصيدها أعلى من الحد الأدنى، لا يوجد أصناف بحاجة لإعادة الطلب 👍", "info");
+      return;
+    }
+    setIsAutoReorderOpen(true);
+  }, [lowStockProducts.length, addToast]);
 
   const [activeTab, setActiveTab] = useState<'details' | 'history' | 'warehouses' | 'adjust' | 'suppliers'>('details');
   const [priceHistory, setPriceHistory] = useState<PriceHistory[]>([]);
@@ -58,7 +76,7 @@ const InventoryModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNav
   const [movements, setMovements] = useState<InventoryTransaction[]>([]);
   const [warehouseStocks, setWarehouseStocks] = useState<WarehouseStock[]>([]);
   
-  const [adjustment, setAdjustment] = useState({ qty: 0, reason: '', type: 'ADJUSTMENT' as any });
+  const [adjustment, setAdjustment] = useState<{ qty: number; reason: string; type: 'SALE' | 'PURCHASE' | 'ADJUSTMENT' | 'TRANSFER' | 'RETURN' }>({ qty: 0, reason: '', type: 'ADJUSTMENT' });
 
   useEffect(() => {
     const loadProductData = async () => {
@@ -112,8 +130,9 @@ const InventoryModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNav
       refreshGlobal();
       setEditingProduct(null);
       setAdjustment({ qty: 0, reason: '', type: 'ADJUSTMENT' });
-    } catch (err: any) {
-      addToast(err.message || "فشل تنفيذ التسوية", "error");
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      addToast(errMsg || "فشل تنفيذ التسوية", "error");
     }
   };
 
@@ -197,9 +216,9 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
           <div className="w-14" />
         </div>
 
-        {/* Row 2: Search (60%), Add, Jerd */}
-        <div className="flex items-center gap-4 flex-nowrap">
-          <div className="basis-[60%] relative group">
+        {/* Row 2: Search (45%), Add, Jerd, Reorder */}
+        <div className="flex items-center gap-3 flex-wrap lg:flex-nowrap">
+          <div className="basis-full lg:basis-[45%] relative group">
             <input 
               className="w-full h-16 bg-slate-50 border-2 border-slate-50 rounded-[32px] px-8 text-[11px] font-black focus:bg-white focus:border-[#1E4D4D] outline-none shadow-sm transition-all" 
               placeholder="بحث عن صنف..." 
@@ -208,25 +227,61 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
             />
           </div>
           
-          <button 
-            onClick={() => { 
-              const newId = db.generateId('PROD');
-              setEditingProduct({ id: newId, ProductID: newId, name: '', DefaultUnit: 'حبة', LastPurchasePrice: 0, TaxDefault: 15, price: 0, CostPrice: 0, stock: 0, ExpiryDate: '', MinLevel: 5, category: 'أدوية' } as any); 
-              setActiveTab('details'); 
-            }}
-            className="flex-1 h-16 bg-[#1E4D4D] text-white rounded-[32px] flex items-center justify-center gap-3 text-[11px] font-black shadow-xl shadow-emerald-900/20 hover:scale-105 active:scale-95 transition-all"
-          >
-            <Plus size={20} />
-            <span>إضافة</span>
-          </button>
-          
-          <button 
-            onClick={() => onNavigate?.('inventory-audit')}
-            className="flex-1 h-16 bg-white border-2 border-slate-50 text-[#1E4D4D] rounded-[32px] flex items-center justify-center gap-3 text-[11px] font-black shadow-sm hover:bg-slate-50 active:scale-95 transition-all"
-          >
-            <BarChart3 size={20} />
-            <span>جرد</span>
-          </button>
+          <div className="flex items-center gap-3 flex-1 w-full lg:w-auto">
+            <button 
+              onClick={() => { 
+                const newId = db.generateId('PROD');
+                setEditingProduct({
+                  id: newId,
+                  ProductID: newId,
+                  name: '',
+                  Name: '',
+                  DefaultUnit: 'حبة',
+                  LastPurchasePrice: 0,
+                  TaxDefault: 15,
+                  price: 0,
+                  CostPrice: 0,
+                  stock: 0,
+                  StockQuantity: 0,
+                  ExpiryDate: '',
+                  MinLevel: 5,
+                  category: 'أدوية',
+                  categoryId: 'CAT-MED'
+                }); 
+                setActiveTab('details'); 
+              }}
+              className="flex-1 h-16 bg-[#1E4D4D] text-white rounded-[32px] flex items-center justify-center gap-2 text-[11px] font-black shadow-xl shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap px-4"
+            >
+              <Plus size={20} />
+              <span>إضافة</span>
+            </button>
+            
+            <button 
+              onClick={() => onNavigate?.('inventory-audit')}
+              className="flex-1 h-16 bg-white border-2 border-slate-50 text-[#1E4D4D] rounded-[32px] flex items-center justify-center gap-2 text-[11px] font-black shadow-sm hover:bg-slate-50 active:scale-95 transition-all whitespace-nowrap px-4"
+            >
+              <BarChart3 size={20} />
+              <span>جرد</span>
+            </button>
+
+            <button 
+              onClick={handleAutoReorderClick}
+              className={`flex-1 h-16 border-2 rounded-[32px] flex items-center justify-center gap-2 text-[11px] font-black shadow-sm active:scale-95 transition-all whitespace-nowrap px-4 relative group ${
+                lowStockProducts.length > 0
+                  ? 'bg-emerald-50 text-[#1E4D4D] border-emerald-200 hover:bg-[#1E4D4D] hover:text-white'
+                  : 'bg-white border-slate-50 text-slate-500 hover:bg-slate-50'
+              }`}
+              title="إنشاء مسودة طلب شراء تلقائي بناءً على الحد الأدنى للرصيد"
+            >
+              <RotateCcw size={18} className={lowStockProducts.length > 0 ? 'text-emerald-700 group-hover:text-white transition-colors' : 'text-slate-400'} />
+              <span>إعادة طلب تلقائي</span>
+              {lowStockProducts.length > 0 && (
+                <span className="bg-red-500 text-white text-[10px] font-black px-2 py-0.5 rounded-full shadow-md animate-pulse">
+                  {lowStockProducts.length}
+                </span>
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Categories Scroller */}
@@ -565,6 +620,17 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
           </Modal>
         )}
       </AnimatePresence>
+
+      <AutoReorderModal
+        isOpen={isAutoReorderOpen}
+        onClose={() => setIsAutoReorderOpen(false)}
+        lowStockProducts={lowStockProducts}
+        suppliers={suppliers}
+        onSuccess={() => {
+          refreshGlobal();
+        }}
+        onNavigateToPurchases={() => onNavigate?.('purchases')}
+      />
     </div>
   );
 };

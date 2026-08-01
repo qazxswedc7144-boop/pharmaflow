@@ -17,9 +17,10 @@ export const periodService = {
   validatePeriod: async (date: string): Promise<void> => {
     try {
       await PeriodLockEngine.validateOperation(date, 'عملية محاسبية');
-    } catch (error: any) {
-      if (error.message.includes('SECURITY_BLOCK')) {
-        throw new AccountingError(error.message);
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
+      if (errMsg.includes('SECURITY_BLOCK')) {
+        throw new AccountingError(errMsg);
       }
       throw error;
     }

@@ -177,3 +177,55 @@ html, body {
   }
 }
 
+/* Print Media Styles */
+@media print {
+  @page {
+    size: auto;
+    margin: 12mm;
+  }
+
+  body, html, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print\:hidden,
+  .no-print,
+  header.sticky,
+  aside,
+  nav {
+    display: none !important;
+  }
+
+  .print\:block {
+    display: block !important;
+  }
+
+  main, div {
+    box-shadow: none !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    page-break-inside: auto;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tfoot {
+    display: table-footer-group;
+  }
+}
+

@@ -79,7 +79,7 @@ const AdjustmentForm: React.FC<AdjustmentFormProps> = ({ isOpen, onClose, invoic
                   name="adjType" 
                   className="sr-only peer" 
                   checked={formData.Type === type.id}
-                  onChange={() => setFormData({ ...formData, Type: type.id as any })}
+                  onChange={() => setFormData({ ...formData, Type: type.id as 'Discount' | 'Additional Fee' | 'Tax Adjustment' })}
                 />
                 <div className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 border-transparent transition-all active:scale-90 ${type.color} peer-checked:shadow-lg`}>
                   {type.icon}

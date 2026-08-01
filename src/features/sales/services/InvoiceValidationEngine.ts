@@ -2,14 +2,25 @@
 import { InvoiceItem } from '@/types';
 import { db } from '@/core/db';
 
+export interface ValidationInvoicePayload {
+  id?: string;
+  date?: string;
+  customerId?: string;
+  partnerId?: string;
+  finalTotal?: number;
+  totalAmount?: number;
+  items?: InvoiceItem[];
+  [key: string]: unknown;
+}
+
 export const InvoiceValidationEngine = {
   /**
    * توليد بصمة فريدة للفاتورة لمنع التكرار بصورة ذكية
    */
-  generateHash: (invoice: any): string => {
+  generateHash: (invoice: ValidationInvoicePayload): string => {
     // نستخدم تفاصيل الأصناف (المعرف، الكمية، السعر) لجعل البصمة أكثر دقة ومنع التشابه الخاطئ
-    const itemsSignature = (invoice.items || []).map((i: any) => `${i.product_id || i.name}:${i.qty}:${i.price}`).join('|');
-    const data = `${invoice.date}|${invoice.customerId || invoice.partnerId}|${invoice.finalTotal || invoice.totalAmount}|${itemsSignature}`;
+    const itemsSignature = (invoice.items || []).map((i: InvoiceItem) => `${i.product_id || i.name}:${i.qty}:${i.price}`).join('|');
+    const data = `${invoice.date || ''}|${invoice.customerId || invoice.partnerId || ''}|${invoice.finalTotal ?? invoice.totalAmount ?? 0}|${itemsSignature}`;
     
     let hash = 0;
     for (let i = 0; i < data.length; i++) {
@@ -23,7 +34,7 @@ export const InvoiceValidationEngine = {
   /**
    * التحقق من صحة الفاتورة قبل الحفظ
    */
-  validate: async (invoice: any, type: 'SALE' | 'PURCHASE') => {
+  validate: async (invoice: ValidationInvoicePayload, type: 'SALE' | 'PURCHASE') => {
     // 1. منع الفاتورة الفارغة
     if (!invoice.items || invoice.items.length === 0) {
       throw new Error("يجب أن تحتوي الفاتورة على صنف واحد على الأقل");

@@ -8,7 +8,7 @@ import { Card } from '@/components/shared/SharedUI';
 import { Search, History, User, Clock, ChevronRight } from 'lucide-react';
 
 interface InvoiceHistoryModuleProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const InvoiceHistoryModule: React.FC<InvoiceHistoryModuleProps> = ({ onNavigate }) => {

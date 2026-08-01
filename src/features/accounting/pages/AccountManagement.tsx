@@ -4,7 +4,7 @@ import { db } from '@/core/db';
 import { Account, AccountType } from '@/types';
 
 interface AccountManagementProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
 }
 
 const AccountManagement: React.FC<AccountManagementProps> = ({ onNavigate }) => {

@@ -68,7 +68,7 @@ export const AccountingRepository = {
         await db.journalLines.add({
           ...line,
           entryId
-        } as any);
+        });
       }
     });
   },

@@ -5,7 +5,7 @@ import { StockMovementEngine } from '@features/inventory/services/stockMovementE
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { AccountingEngine } from '@features/accounting/services/AccountingEngine';
 import { AccountingRepository } from '@/database/repositories/AccountingRepository';
-import { AccountingEntry, InvoiceItem } from '@/types';
+import { AccountingEntry, InvoiceItem, Sale, Purchase, InvoiceStatus, PaymentStatus } from '@/types';
 
 /**
  * AutoJournalMapper
@@ -41,10 +41,10 @@ export const AutoJournalMapper = {
   }): Promise<{ success: boolean; refId: string }> => {
     const { type, payload, options } = request;
     const isReturn = !!options?.isReturn;
-    const finalStatus = options?.invoiceStatus || 'POSTED';
+    const finalStatus: InvoiceStatus = (options?.invoiceStatus as InvoiceStatus) || 'POSTED';
     const isPosting = finalStatus === 'POSTED' || finalStatus === 'LOCKED' || finalStatus === 'APPROVED';
     const currency = options?.currency || CurrencyService.getCurrentCurrencyCode();
-    const paymentStatus = options?.paymentStatus || 'Cash';
+    const paymentStatus: PaymentStatus = options?.paymentStatus === 'Credit' ? 'Credit' : 'Cash';
     
     const invoiceId = payload.id || db.generateId(type === 'SALE' ? 'SAL' : 'PUR');
     const enrichedPayload = { ...payload, id: invoiceId };
@@ -71,9 +71,10 @@ export const AutoJournalMapper = {
           } else {
             console.log(`[Structured Logs] [ACID Step 1/3 Bypass] Draft Status detected. Skipping inventory transactional write.`);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errMsg = error instanceof Error ? error.message : String(error);
           console.error(`[Structured Logs] [Step 1 Execution Failed] Failed during stock movement calculation:`, error);
-          throw new Error(`🚫 [الخطوة أ] فشل تسجيل حركة المخازن وتقييم التكلفة (Inventory Movement & FIFO Costing) مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${error.message || error}`);
+          throw new Error(`🚫 [الخطوة أ] فشل تسجيل حركة المخازن وتقييم التكلفة (Inventory Movement & FIFO Costing) مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${errMsg}`);
         }
 
         // --- STEP B: Document Creation & Table Persistence (2/3) ---
@@ -89,7 +90,7 @@ export const AutoJournalMapper = {
               invoiceId,
               currency,
               paymentStatus,
-              finalStatus as any,
+              finalStatus,
               0, // tax
               'LOW', // priority
               costResult.totalCost,
@@ -105,7 +106,7 @@ export const AutoJournalMapper = {
               invoiceId,
               !!options?.isCash,
               currency,
-              finalStatus as any,
+              finalStatus,
               0, // tax
               'LOW', // priority
               invoiceId,
@@ -115,9 +116,10 @@ export const AutoJournalMapper = {
             );
           }
           console.log(`[Structured Logs] [ACID Step 2/3 Success] Document created successfully. Assigned DB Entry ID: ${docResult.id}`);
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errMsg = error instanceof Error ? error.message : String(error);
           console.error(`[Structured Logs] [Step 2 Execution Failed] Transaction interrupted while saving the Invoice document to DB:`, error);
-          throw new Error(`🚫 [الخطوة ب] فشل تسجيل وإنشاء مستند الفاتورة (Invoice Generation) في قاعدة البيانات مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${error.message || error}`);
+          throw new Error(`🚫 [الخطوة ب] فشل تسجيل وإنشاء مستند الفاتورة (Invoice Generation) في قاعدة البيانات مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${errMsg}`);
         }
 
         // --- STEP C: Dual-Entry Mapping, Ledger Recording, & Balance Integrity (3/3) ---
@@ -126,16 +128,39 @@ export const AutoJournalMapper = {
           if (isPosting) {
             let entry: AccountingEntry;
             if (type === 'SALE') {
+              const salePayload: Sale = {
+                id: invoiceId,
+                SaleID: invoiceId,
+                date: payload.date || new Date().toISOString(),
+                customerId: payload.customerId,
+                items: payload.items,
+                finalTotal: payload.total,
+                paymentStatus,
+                created_at: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+              };
               if (isReturn) {
-                entry = await AccountingEngine.generateReturnEntry(enrichedPayload as any, payload.items);
+                entry = await AccountingEngine.generateReturnEntry(salePayload, payload.items);
               } else {
-                entry = await AccountingEngine.generateSalesEntry(enrichedPayload as any, payload.items);
+                entry = await AccountingEngine.generateSalesEntry(salePayload, payload.items);
               }
             } else {
+              const purchasePayload: Purchase = {
+                id: invoiceId,
+                purchase_id: invoiceId,
+                invoiceId: invoiceId,
+                date: payload.date || new Date().toISOString(),
+                supplierId: payload.supplierId,
+                items: payload.items,
+                totalAmount: payload.total,
+                status: options?.isCash ? 'PAID' : 'PENDING',
+                created_at: new Date().toISOString(),
+                lastModified: new Date().toISOString()
+              };
               if (isReturn) {
-                entry = await AccountingEngine.generatePurchaseReturnEntry(enrichedPayload as any);
+                entry = await AccountingEngine.generatePurchaseReturnEntry(purchasePayload);
               } else {
-                entry = await AccountingEngine.generatePurchaseEntry(enrichedPayload as any);
+                entry = await AccountingEngine.generatePurchaseEntry(purchasePayload);
               }
             }
 
@@ -154,9 +179,10 @@ export const AutoJournalMapper = {
           } else {
             console.log(`[Structured Logs] [ACID Step 3/3 Bypass] Draft Status detected. Skipping accounting journal posting.`);
           }
-        } catch (error: any) {
+        } catch (error: unknown) {
+          const errMsg = error instanceof Error ? error.message : String(error);
           console.error(`[Structured Logs] [Step 3 Execution Failed] Balance verification error or ledger entry writing failed:`, error);
-          throw new Error(`🚫 [الخطوة ج] فشل توليد أو تدوين القيد المحاسبي المقابل في دفتر اليومية العامة (Journal Entry) أو القيد غير متزن ماليًا مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${error.message || error}`);
+          throw new Error(`🚫 [الخطوة ج] فشل توليد أو تدوين القيد المحاسبي المقابل في دفتر اليومية العامة (Journal Entry) أو القيد غير متزن ماليًا مما تسبب في التراجع عن المعاملة بالكامل بحالة ACID: ${errMsg}`);
         }
 
         return { success: true, refId: invoiceId };
@@ -165,13 +191,14 @@ export const AutoJournalMapper = {
       console.log(`[Financial Architect] [ACID Transaction Success] All database steps committed safely & successfully.`);
       return result;
 
-    } catch (transactionError: any) {
-      console.error(`❌ [Financial Architect] [ACID ROLLBACK ENGAGED] Integrity failure detected. Database changes safely undone. Reason: ${transactionError.message || transactionError}`);
+    } catch (transactionError: unknown) {
+      const errMsg = transactionError instanceof Error ? transactionError.message : String(transactionError);
+      console.error(`❌ [Financial Architect] [ACID ROLLBACK ENGAGED] Integrity failure detected. Database changes safely undone. Reason: ${errMsg}`);
       throw transactionError; // bubbles up to fail operably and trigger Dexie Rollback
     }
   },
 
-  mapSaleToEntries: async (payload: any) => {
+  mapSaleToEntries: async (payload: Sale): Promise<AccountingEntry | AccountingEntry[]> => {
     try {
       return await AccountingEngine.generateSalesEntry(payload, payload.items || []);
     } catch {
@@ -179,7 +206,7 @@ export const AutoJournalMapper = {
     }
   },
 
-  mapPurchaseToEntries: async (payload: any) => {
+  mapPurchaseToEntries: async (payload: Purchase): Promise<AccountingEntry | AccountingEntry[]> => {
     try {
       return await AccountingEngine.generatePurchaseEntry(payload);
     } catch {
@@ -187,7 +214,7 @@ export const AutoJournalMapper = {
     }
   },
 
-  mapVoucherToEntries: async (vData: any): Promise<any> => {
+  mapVoucherToEntries: async (vData: { id: string; amount: number }): Promise<Partial<AccountingEntry>> => {
     return {
       id: vData.id,
       date: new Date().toISOString(),
@@ -199,3 +226,4 @@ export const AutoJournalMapper = {
     };
   }
 };
+

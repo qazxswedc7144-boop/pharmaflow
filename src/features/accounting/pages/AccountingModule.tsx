@@ -11,7 +11,21 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 
 interface AccountingModuleProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: string) => void;
+}
+
+interface FlattenedJournalLine {
+  id: string;
+  entryId: string;
+  date: string;
+  description: string;
+  accountId: string;
+  accountName: string;
+  debit: number;
+  credit: number;
+  runningBalance: number;
+  sourceType?: string;
+  entry: AccountingEntry;
 }
 
 const AccountingModule: React.FC<AccountingModuleProps> = ({ onNavigate }) => {
@@ -39,7 +53,7 @@ const AccountingModule: React.FC<AccountingModuleProps> = ({ onNavigate }) => {
   }, []);
 
   const flattenedLines = useMemo(() => {
-    const lines: any[] = [];
+    const lines: FlattenedJournalLine[] = [];
     let runningBalance = 0;
     
     // Sort entries by date

@@ -70,8 +70,8 @@ export const useAccounting = () => {
     customers: store.customers,
     accounts: store.accounts,
     addInvoice: store.addInvoice,
-    addCustomer: (c: any) => store.addPartner(c, 'C'),
-    addSupplier: (s: any) => store.addPartner(s, 'S'),
+    addCustomer: (c: Customer) => store.addPartner(c, 'C'),
+    addSupplier: (s: Supplier) => store.addPartner(s, 'S'),
     refreshAccounting: store.refreshData 
   };
 };
@@ -83,7 +83,7 @@ export const useInvoice = () => {
 };
 
 // Fix: Exported useEventBus hook to allow components to easily subscribe to internal events
-export const useEventBus = (event: string, callback: (data: any) => void) => {
+export const useEventBus = (event: string, callback: (data: unknown) => void) => {
   useEffect(() => {
     return eventBus.subscribe(event, callback);
   }, [event, callback]);

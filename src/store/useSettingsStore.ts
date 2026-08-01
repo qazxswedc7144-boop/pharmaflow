@@ -31,7 +31,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         localStorage.setItem('pharmaflow_currency', val);
         localStorage.setItem('pharma_currency', val);
         if (typeof window !== 'undefined') {
-          (window as any).currentSystemCurrency = val;
+          (window as Window & typeof globalThis & { currentSystemCurrency?: string }).currentSystemCurrency = val;
         }
         set({ currency: val });
       } else {
@@ -55,7 +55,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     if (typeof window !== 'undefined') {
       localStorage.setItem('pharmaflow_currency', code);
       localStorage.setItem('pharma_currency', code);
-      (window as any).currentSystemCurrency = code;
+      (window as Window & typeof globalThis & { currentSystemCurrency?: string }).currentSystemCurrency = code;
     }
     set({ currency: code });
     

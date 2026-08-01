@@ -9,14 +9,14 @@ export interface UIState {
   systemStatus: SystemStatus;
   isTrialBlockedModalOpen: boolean;
   version: number;
-  headerAction: any | null;
+  headerAction: React.ReactNode | null;
   addToast: (message: string, type?: ToastMessage['type']) => void;
   removeToast: (id: string) => void;
   setSyncing: (isSyncing: boolean) => void;
   setSyncStatus: (syncStatus: 'SYNCED' | 'PENDING' | 'CONFLICT' | 'ERROR') => void;
   setSystemStatus: (systemStatus: SystemStatus) => void;
   setTrialBlockedModalOpen: (isOpen: boolean) => void;
-  setHeaderAction: (action: any | null) => void;
+  setHeaderAction: (action: React.ReactNode | null) => void;
   incrementVersion: () => void;
 }
 

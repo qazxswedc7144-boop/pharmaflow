@@ -12,6 +12,7 @@ export class DistributedSyncEngine {
   private db: Dexie & PharmaFlowDexieExtension;
   private isProcessing = false;
   private timerId: any = null;
+  private lastSyncTime: number = 0;
 
   constructor(dexieInstance: unknown) {
     this.db = dexieInstance as Dexie & PharmaFlowDexieExtension;
@@ -23,8 +24,14 @@ export class DistributedSyncEngine {
     window.addEventListener('online', this.handleNetworkChange);
     window.addEventListener('offline', this.handleNetworkChange);
     
-    this.timerId = setInterval(() => this.drainQueue(), SYNC_CONFIG.POLLING_INTERVAL_MS);
+    this.timerId = setInterval(() => {
+      this.drainQueue();
+      this.pullSync();
+    }, SYNC_CONFIG.POLLING_INTERVAL_MS);
+
+    // Initial sync run on boot
     this.drainQueue();
+    this.pullSync();
   }
 
   public stop(): void {
@@ -41,10 +48,59 @@ export class DistributedSyncEngine {
     if (navigator.onLine) {
       actions.setNetworkStatus('ONLINE');
       this.drainQueue();
+      this.pullSync();
     } else {
       actions.setNetworkStatus('OFFLINE');
     }
   };
+
+  /**
+   * Pull server updates (sales/invoices & inventory/products) to keep local Dexie DB updated for offline browsing.
+   */
+  public async pullSync(): Promise<void> {
+    if (!navigator.onLine) return;
+
+    try {
+      const response = await fetch('/api/v1/sync/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lastSyncTimestamp: this.lastSyncTime })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.delta) {
+          const { products, invoices } = data.delta;
+          
+          if (Array.isArray(products) && products.length > 0 && (this.db as any).products) {
+            await (this.db as any).products.bulkPut(products.map((p: any) => ({
+              ...p,
+              is_synced: 1,
+              isSynced: true,
+              syncStatus: 'SYNCED',
+              updatedAt: p.updatedAt || new Date().toISOString()
+            }))).catch((err: any) => console.warn('[SyncEngine] Product pull update warning:', err));
+          }
+
+          if (Array.isArray(invoices) && invoices.length > 0 && (this.db as any).invoices) {
+            await (this.db as any).invoices.bulkPut(invoices.map((inv: any) => ({
+              ...inv,
+              is_synced: 1,
+              isSynced: true,
+              syncStatus: 'SYNCED',
+              updatedAt: inv.updatedAt || new Date().toISOString()
+            }))).catch((err: any) => console.warn('[SyncEngine] Invoice pull update warning:', err));
+          }
+
+          if (data.serverTime) {
+            this.lastSyncTime = data.serverTime;
+          }
+        }
+      }
+    } catch (error) {
+      console.warn('[SyncEngine] Downstream pull sync skipped:', (error as Error).message);
+    }
+  }
 
   public async drainQueue(): Promise<void> {
     if (this.isProcessing || !navigator.onLine) return;
@@ -53,26 +109,71 @@ export class DistributedSyncEngine {
     actions.setQueueDraining(true);
 
     try {
-      let hasMore = true;
-      while (hasMore) {
-        const batch = await this.db.syncQueue
-          .where('[syncStatus+createdAt]')
-          .between(['PENDING', Dexie.minKey], ['PENDING', Dexie.maxKey])
-          .limit(SYNC_CONFIG.BATCH_CHUNK_SIZE)
-          .toArray();
+      // 1. Drain syncQueue table
+      if (this.db.syncQueue) {
+        let hasMore = true;
+        while (hasMore) {
+          const batch = await this.db.syncQueue
+            .where('[syncStatus+createdAt]')
+            .between(['PENDING', Dexie.minKey], ['PENDING', Dexie.maxKey])
+            .limit(SYNC_CONFIG.BATCH_CHUNK_SIZE)
+            .toArray()
+            .catch(() => []);
 
-        if (batch.length === 0) {
-          hasMore = false;
-          break;
-        }
+          if (batch.length === 0) {
+            hasMore = false;
+            break;
+          }
 
-        for (const mutation of batch) {
-          await this.processMutationWithRetry(mutation);
+          for (const mutation of batch) {
+            await this.processMutationWithRetry(mutation);
+          }
         }
       }
+
+      // 2. Drain outbox table for compatible events
+      if ((this.db as any).outbox) {
+        const outboxEvents = await (this.db as any).outbox
+          .where('status')
+          .anyOf('PENDING', 'pending', 'RETRYING')
+          .toArray()
+          .catch(() => []);
+
+        for (const event of outboxEvents) {
+          await this.processOutboxEvent(event);
+        }
+      }
+
     } finally {
       this.isProcessing = false;
       actions.setQueueDraining(false);
+    }
+  }
+
+  private async processOutboxEvent(event: any): Promise<void> {
+    try {
+      await (this.db as any).outbox.update(event.id, { status: 'SENDING', updatedAt: new Date().toISOString() });
+      
+      const response = await fetch('/api/v1/sync/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mutations: [{
+            id: event.mutationId || String(event.id),
+            type: event.type || 'MUTATION',
+            payload: event.payload || {},
+            idempotencyKey: event.idempotencyKey || event.mutationId || String(event.id)
+          }]
+        })
+      });
+
+      if (response.ok) {
+        await (this.db as any).outbox.update(event.id, { status: 'CONFIRMED', updatedAt: new Date().toISOString() });
+      } else {
+        await (this.db as any).outbox.update(event.id, { status: 'FAILED', updatedAt: new Date().toISOString() });
+      }
+    } catch (err) {
+      await (this.db as any).outbox.update(event.id, { status: 'RETRYING', updatedAt: new Date().toISOString() });
     }
   }
 
@@ -83,27 +184,50 @@ export class DistributedSyncEngine {
     
     while (mutation.retryCount <= SYNC_CONFIG.MAX_RETRY_ATTEMPTS) {
       try {
-        const response = await fetch('/api/sync/push', {
+        const response = await fetch('/api/v1/sync/push', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'X-Device-ID': mutation.deviceId,
-            'X-Session-ID': mutation.sessionId,
-            'X-Correlation-ID': mutation.correlationId,
+            'X-Device-ID': mutation.deviceId || 'local-device',
+            'X-Session-ID': mutation.sessionId || 'local-session',
+            'X-Correlation-ID': mutation.correlationId || 'local-correlation',
           },
           body: JSON.stringify({
-            mutationId: mutation.mutationId,
-            entityType: mutation.entityType,
-            operationType: mutation.operationType,
-            payload: mutation.payload,
-            idempotencyKey: mutation.idempotencyKey,
-            logicalTimestamp: mutation.logicalTimestamp,
-            actorId: mutation.actorId,
+            mutations: [{
+              id: mutation.mutationId,
+              type: mutation.operationType || mutation.entityType || 'SAVE',
+              payload: mutation.payload,
+              idempotencyKey: mutation.idempotencyKey || mutation.mutationId
+            }]
           }),
         });
 
         if (response.ok) {
           await this.db.syncQueue.delete(mutation.id!);
+
+          // Mark local record as synced
+          if (mutation.payload && (mutation.payload as any).id) {
+            const entityId = (mutation.payload as any).id;
+            if (mutation.entityType === 'SALE' || mutation.entityType === 'INVOICE' || mutation.entityType === 'invoice') {
+              if ((this.db as any).invoices) {
+                await (this.db as any).invoices.update(entityId, {
+                  is_synced: 1,
+                  isSynced: true,
+                  syncStatus: 'SYNCED',
+                  updatedAt: new Date().toISOString()
+                }).catch(() => null);
+              }
+            } else if (mutation.entityType === 'PRODUCT' || mutation.entityType === 'product') {
+              if ((this.db as any).products) {
+                await (this.db as any).products.update(entityId, {
+                  is_synced: 1,
+                  isSynced: true,
+                  syncStatus: 'SYNCED',
+                  updatedAt: new Date().toISOString()
+                }).catch(() => null);
+              }
+            }
+          }
           return;
         }
 
@@ -125,7 +249,6 @@ export class DistributedSyncEngine {
           return;
         }
 
-        // تراجع أسي لحماية الشبكة (Exponential Backoff)
         await new Promise((resolve) => setTimeout(resolve, delay));
         delay = Math.min(delay * 2, SYNC_CONFIG.BACKOFF_MAX_DELAY_MS);
       }
@@ -147,3 +270,4 @@ export class DistributedSyncEngine {
     });
   }
 }
+

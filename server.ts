@@ -102,7 +102,7 @@ async function startServer() {
     }, 100);
   }
 
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
   if (process.env.NODE_ENV !== "production") {
@@ -113,6 +113,19 @@ async function startServer() {
   const app = express();
   console.log("[BOOT] Express initialized.");
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
+
+  // Top-level endpoints to support load balancer and ingress orchestrator health and readiness probes (First priority, unthrottled)
+  app.get("/api/health", (_req, res) => {
+    res.json({ status: "ok", mode: process.env.NODE_ENV });
+  });
+
+  app.get("/health", (_req, res) => {
+    res.json({ status: "ok", mode: process.env.NODE_ENV });
+  });
+
+  app.get("/ready", (_req, res) => {
+    res.json({ status: "ok", db_host: process.env.DATABASE_URL ? "configured" : "fallback" });
+  });
 
   // Production and Preview HTTP Traffic Logger Diagnostics
   app.use((req, res, next) => {
@@ -125,14 +138,16 @@ async function startServer() {
     next();
   });
 
-  // 10. Advanced Security Headers Configuration (Fully optimized for fluid public previews and external device testing)
+  // 10. Advanced Security Headers Configuration
   app.use(helmet({
-    contentSecurityPolicy: false, // Explicitly disabled to allow external mobile inspectors and debug sessions to run correctly
+    contentSecurityPolicy: false, // Disabled for preview container compatibility
     crossOriginEmbedderPolicy: false,
     crossOriginResourcePolicy: { policy: "cross-origin" },
-    hsts: false, // Avoid enforcing hard HTTPS redirect policies that could interfere with proxy channels
-    xFrameOptions: false, // Disabled to ensure seamless rendering within the Google AI Studio container and external preview frames
+    hsts: false,
+    xFrameOptions: false, // Disabled for iframe rendering inside AI Studio
     xssFilter: true,
+    noSniff: true,
+    referrerPolicy: { policy: "strict-origin-when-cross-origin" }
   }));
   
   const limiter = rateLimit({
@@ -145,29 +160,14 @@ async function startServer() {
   });
   app.use("/api/", limiter);
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ extended: true }));
+  app.use(express.json({ limit: "10mb" }));
+  app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
   // Request context trace generator
   app.use(requestContextPlugin);
 
   // Global Idempotence protection layer for high-risk transactional APIs
   app.use(idempotencyMiddleware);
-
-
-  // API routes go here FIRST
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV });
-  });
-
-  // Top-level endpoints to support load balancer and ingress orchestrator health and readiness probes
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV });
-  });
-
-  app.get("/ready", (_req, res) => {
-    res.json({ status: "ok", db_host: process.env.DATABASE_URL ? "configured" : "fallback" });
-  });
 
   // Mount Backend Security Layer
   app.use("/api/security", securityRouter);
@@ -342,20 +342,7 @@ async function startServer() {
     return;
   });
 
-  // Vite middleware for development (explicitly setting hmr to false to avoid WebSocket port 24678 collisions)
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[DEVELOPMENT] Initializing Vite middleware...");
-    const { createServer: createViteServer } = await Function("return import('vite')")();
-    const vite = await createViteServer({
-      server: {
-        middlewareMode: true,
-        host: "0.0.0.0",
-        hmr: false,
-      },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
+  function setupStaticServing(appInstance: express.Express) {
     console.log("[PRODUCTION] Serving static assets...");
     
     let distPath = path.join(process.cwd(), 'dist');
@@ -373,8 +360,8 @@ async function startServer() {
       }
     }
     console.log(`[PRODUCTION] Resolved distPath: ${distPath}`);
-    app.use(express.static(distPath));
-    app.get('*', (_req, res) => {
+    appInstance.use(express.static(distPath));
+    appInstance.get('*', (_req, res) => {
       const indexPath = path.join(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
         res.sendFile(indexPath, (err) => {
@@ -386,6 +373,29 @@ async function startServer() {
         res.status(404).send("Application index.html not found.");
       }
     });
+  }
+
+  const isProduction = process.env.NODE_ENV === "production";
+
+  if (!isProduction) {
+    try {
+      console.log("[DEVELOPMENT] Initializing Vite middleware...");
+      const { createServer: createViteServer } = await Function("return import('vite')")();
+      const vite = await createViteServer({
+        server: {
+          middlewareMode: true,
+          host: "0.0.0.0",
+          hmr: false,
+        },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } catch (viteErr: any) {
+      console.warn("[BOOT] Failed to initialize Vite middleware, falling back to static file serving:", viteErr?.message || viteErr);
+      setupStaticServing(app);
+    }
+  } else {
+    setupStaticServing(app);
   }
 
   const server = app.listen(PORT, "0.0.0.0", () => {

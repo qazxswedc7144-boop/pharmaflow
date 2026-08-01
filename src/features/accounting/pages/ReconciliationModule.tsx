@@ -5,7 +5,7 @@ import { accountingService } from '@features/accounting/services/accountingServi
 import { IntegrityReport, ReconciliationPoint } from '@/types';
 import { Card, Button, Badge } from '@/components/shared/SharedUI';
 
-const ReconciliationModule: React.FC<{ onNavigate?: (v: any) => void }> = ({ onNavigate }) => {
+const ReconciliationModule: React.FC<{ onNavigate?: (v: string) => void }> = ({ onNavigate }) => {
   const { refreshAccounting } = useAccounting();
   const { addToast, currency } = useUI();
   const [report, setReport] = useState<IntegrityReport | null>(null);

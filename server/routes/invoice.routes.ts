@@ -195,14 +195,18 @@ invoiceRouter.post("/post", authenticateToken, requireRoles([Role.PLATFORM_OWNER
 
 /**
  * GET /api/invoices
- * Retrieves a list of invoices with pagination.
+ * Retrieves a list of invoices with pagination and strict tenant isolation.
  */
 invoiceRouter.get("/", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
-    const limit = parseInt(req.query.limit as string) || 50;
+    const limit = Math.min(parseInt(req.query.limit as string) || 50, 200);
     const offset = parseInt(req.query.offset as string) || 0;
+    const tenantId = req.user?.tenantId;
+
+    const whereClause: any = tenantId ? { tenantId } : {};
 
     const invoices = await prisma.invoice.findMany({
+      where: whereClause,
       take: limit,
       skip: offset,
       orderBy: { date: "desc" },
@@ -211,7 +215,7 @@ invoiceRouter.get("/", authenticateToken, async (req: AuthenticatedRequest, res:
       }
     });
 
-    const total = await prisma.invoice.count();
+    const total = await prisma.invoice.count({ where: whereClause });
 
     return res.json({
       success: true,
@@ -228,10 +232,11 @@ invoiceRouter.get("/", authenticateToken, async (req: AuthenticatedRequest, res:
 
 /**
  * GET /api/invoices/:id
- * Retrieve a single invoice structure.
+ * Retrieve a single invoice structure with tenant validation.
  */
 invoiceRouter.get("/:id", authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
+    const tenantId = req.user?.tenantId;
     const invoice = await prisma.invoice.findUnique({
       where: { id: req.params.id },
       include: {
@@ -243,7 +248,7 @@ invoiceRouter.get("/:id", authenticateToken, async (req: AuthenticatedRequest, r
       }
     });
 
-    if (!invoice) {
+    if (!invoice || (tenantId && invoice.tenantId && invoice.tenantId !== tenantId)) {
       return res.status(404).json({ error: "NOT_FOUND", message: "Invoice not found." });
     }
 

@@ -6,7 +6,8 @@ import { FaultService } from '@/services/integrity/FaultService';
 import { FIFOEngine as fifoEngine } from '@features/inventory/services/fifoEngine';
 import { StockMovementEngine as stockEngine } from '@features/inventory/services/stockMovementEngine';
 import { AccountingEngine as accountingEngine } from '@features/accounting/services/AccountingEngine';
-import { InvoiceItem, InvoiceStatus } from '@/types';
+import { CurrencyService } from '@/services/localization/CurrencyService';
+import { InvoiceItem, InvoiceStatus, Sale, Purchase } from '@/types';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { AccountingRepository } from '@/database/repositories/AccountingRepository';
 import { authService } from '@features/auth/services/authService';
@@ -119,11 +120,12 @@ export class SystemOrchestrator {
     }
 
     // Get snapshot of state before (for audit edit tracking)
-    let beforeState: any = null;
+    let beforeState: Sale | Purchase | null = null;
     if (isEdit) {
-      beforeState = type === 'SALE' 
+      const existing = type === 'SALE' 
         ? await InvoiceRepository.getSaleById(resourceId) 
         : await InvoiceRepository.getPurchaseById(resourceId);
+      beforeState = existing || null;
     }
 
     try {
@@ -131,7 +133,8 @@ export class SystemOrchestrator {
         try {
           // 0. Detect and handle unpost-before-edit if already posted
           if (isEdit && beforeState) {
-            if (beforeState.InvoiceStatus === 'POSTED' || beforeState.invoiceStatus === 'POSTED') {
+            const status = (beforeState as { InvoiceStatus?: string; invoiceStatus?: string }).InvoiceStatus || beforeState.invoiceStatus;
+            if (status === 'POSTED') {
               await this.unpostInvoice(resourceId, type);
             }
           }
@@ -151,14 +154,14 @@ export class SystemOrchestrator {
           //--------------------------------
           let costResult = { totalCost: 0, itemCosts: {} };
           if (isPosting) {
-            costResult = await fifoEngine.apply({ ...payload, type });
+            costResult = await fifoEngine.apply({ ...payload, subtotal: payload.total, finalTotal: payload.total, type } as unknown as Sale);
           }
 
           //--------------------------------
           // 3. STOCK MOVEMENT
           //--------------------------------
           if (isPosting) {
-            await stockEngine.apply({ ...payload, type });
+            await stockEngine.apply({ ...payload, subtotal: payload.total, finalTotal: payload.total, type } as unknown as Sale);
           }
 
           // 6. Save Document (Repository Layer) - Needed before accounting
@@ -170,7 +173,7 @@ export class SystemOrchestrator {
               payload.total,
               !!options?.isReturn,
               payload.id || '',
-              options?.currency || 'USD',
+              options?.currency || CurrencyService.getCurrentCurrencyCode(),
               options?.paymentStatus || 'Cash',
               finalStatus,
               0,
@@ -188,7 +191,7 @@ export class SystemOrchestrator {
               payload.total,
               payload.id || '',
               options?.isCash || false,
-              options?.currency || 'USD',
+              options?.currency || CurrencyService.getCurrentCurrencyCode(),
               finalStatus,
               0,
               'LOW',
@@ -201,6 +204,49 @@ export class SystemOrchestrator {
           }
 
           const refId = result.id;
+
+          //--------------------------------
+          // 3.5. PARTNER BALANCE & FINANCIAL TRANSACTION
+          //--------------------------------
+          if (isPosting) {
+            if (type === 'SALE') {
+              const custId = payload.customerId;
+              if (custId && custId !== 'عميل نقدي') {
+                const balanceDelta = options?.isReturn ? -payload.total : payload.total;
+                await db.updateCustomerBalance(custId, balanceDelta);
+              }
+              await FinancialTransactionRepository.record({
+                id: db.generateId('FT'),
+                Transaction_Type: options?.isReturn ? 'Refund' : (options?.paymentStatus === 'Cash' || options?.isCash ? 'Receipt' : 'Invoice'),
+                Reference_ID: refId,
+                Reference_Table: 'Sales_Invoices',
+                Entity_Type: 'Customer',
+                Entity_Name: payload.customerId || 'عميل نقدي',
+                Amount: payload.total,
+                Direction: options?.isReturn ? 'Credit' : 'Debit',
+                Transaction_Date: effectiveDate,
+                Notes: `فاتورة مبيعات #${refId}`
+              });
+            } else {
+              const suppId = payload.supplierId;
+              if (suppId && suppId !== 'مورد نقدي') {
+                const balanceDelta = options?.isReturn ? -payload.total : payload.total;
+                await db.updateSupplierBalance(suppId, balanceDelta);
+              }
+              await FinancialTransactionRepository.record({
+                id: db.generateId('FT'),
+                Transaction_Type: options?.isReturn ? 'Refund' : (options?.isCash ? 'Payment' : 'Invoice'),
+                Reference_ID: refId,
+                Reference_Table: 'Purchase_Invoices',
+                Entity_Type: 'Supplier',
+                Entity_Name: payload.supplierId || 'مورد نقدي',
+                Amount: payload.total,
+                Direction: options?.isReturn ? 'Debit' : 'Credit',
+                Transaction_Date: effectiveDate,
+                Notes: `فاتورة مشتريات #${refId}`
+              });
+            }
+          }
 
           //--------------------------------
           // 4. ACCOUNTING ENTRIES
@@ -327,7 +373,12 @@ export class SystemOrchestrator {
           Notes: `[UNPOST REVERSAL] Invoice #${invoiceId}`
         });
 
-        if (partnerId && partnerId !== 'عميل نقدي') {
+        if (partnerId && partnerId !== 'عميل نقدي' && partnerId !== 'مورد نقدي') {
+          if (type === 'SALE') {
+            await db.updateCustomerBalance(partnerId, -total);
+          } else {
+            await db.updateSupplierBalance(partnerId, -total);
+          }
           await SupplierRepository.postToLedger({
             id: db.generateId('PL'),
             partnerId,

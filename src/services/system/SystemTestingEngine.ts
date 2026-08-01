@@ -3,6 +3,7 @@ import { db } from '@/core/db';
 import { transactionOrchestrator } from '@/services/transactions/transactionOrchestrator';
 import { InventoryService } from '@features/inventory/services/InventoryService';
 import { SystemTestReport, TestResult } from '@/types';
+import { BusinessFlowTester } from '@/services/testing/BusinessFlowTester';
 
 export class SystemTestingEngine {
   
@@ -21,6 +22,27 @@ export class SystemTestingEngine {
     };
 
     const startTime = performance.now();
+
+    // 0. Phase 5 Business Flow Validation Tests
+    await this.runTest(report, "Phase 5 Business Flow Validation Suite", async () => {
+      const bftReport = await BusinessFlowTester.runAllFlowTests();
+      if (bftReport.failedCount > 0) {
+        return {
+          suiteName: "Phase 5 Business Flow Validation Suite",
+          testName: "Phase 5 Business Flow Validation Suite",
+          status: 'FAILED',
+          message: `Business flow tester reported ${bftReport.failedCount} failed checks out of ${bftReport.totalExecuted} tests. Health score: ${bftReport.healthScorePercentage}%`,
+          durationMs: bftReport.durationMs
+        };
+      }
+      return {
+        suiteName: "Phase 5 Business Flow Validation Suite",
+        testName: "Phase 5 Business Flow Validation Suite",
+        status: 'PASSED',
+        message: `All Phase 5 business flow tests passed (${bftReport.passedCount}/${bftReport.totalExecuted}). Health score: ${bftReport.healthScorePercentage}%`,
+        durationMs: bftReport.durationMs
+      };
+    });
 
     // 1. Accounting Validation
     await this.runTest(report, "Accounting Validation", () => this.validateAccounting());
@@ -253,13 +275,29 @@ export class SystemTestingEngine {
   static async testDuplicateProtection(): Promise<TestResult> {
     const testId = db.generateId('DUP_TEST');
     
+    const testItem = { 
+      product_id: 'PROD-1', 
+      productId: 'PROD-1', 
+      qty: 1, 
+      quantity: 1, 
+      price: 10, 
+      unitPrice: 10, 
+      sum: 10, 
+      subtotal: 10, 
+      name: 'Test', 
+      productName: 'Test', 
+      id: '1', 
+      parent_id: testId, 
+      row_order: 1 
+    };
+
     // Simulate double click by calling save twice rapidly
     const p1 = transactionOrchestrator.processInvoiceTransaction({
       type: 'SALE',
       payload: {
         id: testId,
         customerId: 'CUST-TEST',
-        items: [{ product_id: 'PROD-1', qty: 1, price: 10, sum: 10, name: 'Test', id: '1', parent_id: testId, row_order: 1 }],
+        items: [testItem],
         total: 10,
         date: new Date().toISOString()
       },
@@ -271,7 +309,7 @@ export class SystemTestingEngine {
       payload: {
         id: testId,
         customerId: 'CUST-TEST',
-        items: [{ product_id: 'PROD-1', qty: 1, price: 10, sum: 10, name: 'Test', id: '1', parent_id: testId, row_order: 1 }],
+        items: [testItem],
         total: 10,
         date: new Date().toISOString()
       },
@@ -366,7 +404,7 @@ export class SystemTestingEngine {
       payload: {
         id: invId,
         customerId: 'CUST-1',
-        items: [{ product_id: 'PROD-1', qty: 5, price: 10, sum: 50, name: 'Test', id: '1', parent_id: invId, row_order: 1 }],
+        items: [{ product_id: 'PROD-1', productId: 'PROD-1', qty: 5, quantity: 5, price: 10, unitPrice: 10, sum: 50, subtotal: 50, name: 'Test', productName: 'Test', id: '1', parent_id: invId, row_order: 1 }],
         total: 50,
         date: new Date().toISOString()
       },
@@ -381,7 +419,7 @@ export class SystemTestingEngine {
       payload: {
         id: invId,
         customerId: 'CUST-1',
-        items: [{ product_id: 'PROD-1', qty: 10, price: 10, sum: 100, name: 'Test', id: '1', parent_id: invId, row_order: 1 }],
+        items: [{ product_id: 'PROD-1', productId: 'PROD-1', qty: 10, quantity: 10, price: 10, unitPrice: 10, sum: 100, subtotal: 100, name: 'Test', productName: 'Test', id: '1', parent_id: invId, row_order: 1 }],
         total: 100,
         date: new Date().toISOString()
       },
@@ -407,20 +445,21 @@ export class SystemTestingEngine {
     let success = 0;
     let errors = 0;
 
-    const promises: Promise<any>[] = [];
+    const promises: Promise<void>[] = [];
     for (let i = 0; i < count; i++) {
+      const stressId = db.generateId('STRESS');
       promises.push(
         transactionOrchestrator.processInvoiceTransaction({
           type: 'SALE',
           payload: {
-            id: db.generateId('STRESS'),
+            id: stressId,
             customerId: 'CUST-STRESS',
-            items: [{ product_id: 'PROD-1', qty: 1, price: 1, sum: 1, name: 'Stress', id: '1', parent_id: '?', row_order: 1 }],
+            items: [{ product_id: 'PROD-1', productId: 'PROD-1', qty: 1, quantity: 1, price: 1, unitPrice: 1, sum: 1, subtotal: 1, name: 'Stress', productName: 'Stress', id: '1', parent_id: stressId, row_order: 1 }],
             total: 1,
             date: new Date().toISOString()
           },
           options: { invoiceStatus: 'POSTED', currency: 'USD', isCash: true, paymentStatus: 'Cash' }
-        }).then(() => success++).catch(() => errors++)
+        }).then(() => { success++; }).catch(() => { errors++; })
       );
     }
 

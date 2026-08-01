@@ -1,7 +1,7 @@
 
 import { db } from '@/core/db';
 import { AccountingEngine } from './AccountingEngine';
-import { Receipt, Payment } from '@/types';
+import { Receipt, Payment, Voucher } from '@/types';
 import { useUIStore } from '@/store/useUIStore';
 import { SubscriptionService } from '@/services/saas/subscriptionService';
 import { useAuthStore } from '@/store/authStore';
@@ -38,19 +38,20 @@ export const voucherService = {
     const currentUserId = useAuthStore.getState().user?.id || 'unknown';
 
     // Save to Dexie Vouchers table
-    await db.db.vouchers.put({
-       id,
-       idVoucher: id,
-       type: 'RCPT',
-       amount: data.amount,
-       partnerId: data.customer_id,
-       notes: data.notes,
-       date,
-       userId: currentUserId,
-       created_at: new Date().toISOString(),
-       lastModified: new Date().toISOString(),
-       syncStatus: 'NEW'
-    } as any);
+    const voucherRecord: Voucher = {
+      id,
+      idVoucher: id,
+      type: 'RECEIPT',
+      amount: data.amount,
+      partnerId: data.customer_id,
+      notes: data.notes,
+      date,
+      userId: currentUserId,
+      created_at: new Date().toISOString(),
+      lastModified: new Date().toISOString(),
+      syncStatus: 'NEW'
+    };
+    await db.db.vouchers.put(voucherRecord);
 
     // Journal Entry
     const entry = await AccountingEngine.generateVoucherEntry({
@@ -97,19 +98,20 @@ export const voucherService = {
     };
     
     // Save to Dexie Vouchers table
-    await db.db.vouchers.put({
-       id,
-       idVoucher: id,
-       type: 'PAY',
-       amount: data.amount,
-       partnerId: data.supplier_id,
-       notes: data.notes,
-       date,
-       userId: useAuthStore.getState().user?.id || 'unknown',
-       created_at: new Date().toISOString(),
-       lastModified: new Date().toISOString(),
-       syncStatus: 'NEW'
-    } as any);
+    const voucherRecord: Voucher = {
+      id,
+      idVoucher: id,
+      type: 'PAYMENT',
+      amount: data.amount,
+      partnerId: data.supplier_id,
+      notes: data.notes,
+      date,
+      userId: useAuthStore.getState().user?.id || 'unknown',
+      created_at: new Date().toISOString(),
+      lastModified: new Date().toISOString(),
+      syncStatus: 'NEW'
+    };
+    await db.db.vouchers.put(voucherRecord);
 
     // Journal Entry
     const entry = await AccountingEngine.generateVoucherEntry({

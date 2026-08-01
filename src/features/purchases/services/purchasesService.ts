@@ -1,6 +1,6 @@
 
 import { PurchaseRepository } from '@/database/repositories/PurchaseRepository';
-import { Purchase } from '@/types';
+import { Purchase, InvoiceItem } from '@/types';
 import { transactionOrchestrator } from '@/services/transactions/transactionOrchestrator';
 
 export const purchasesService = {
@@ -14,11 +14,18 @@ export const purchasesService = {
     return await PurchaseRepository.getNextInvoiceNumber();
   },
 
-  processNewPurchase: async (supplierId: string, items: any[], total: number, invoiceId?: string, isCash: boolean = false, isReturn: boolean = false) => {
+  processNewPurchase: async (
+    supplierId: string,
+    items: InvoiceItem[],
+    total: number,
+    invoiceId?: string,
+    isCash: boolean = false,
+    isReturn: boolean = false
+  ) => {
     return transactionOrchestrator.processInvoiceTransaction({
       type: 'PURCHASE',
       payload: { supplierId, items, total, invoiceId },
-      options: { isCash, isReturn } as any
+      options: { isCash, isReturn }
     });
   }
 };
