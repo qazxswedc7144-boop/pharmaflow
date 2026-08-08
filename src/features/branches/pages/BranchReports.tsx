@@ -6,14 +6,14 @@ import { Branch } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
   PieChart as PieChartIcon, TrendingUp, Sparkles, AlertTriangle, 
-  Package, DollarSign, Wallet2, RefreshCw, Zap
+  Package, DollarSign, Wallet2, RefreshCw, Zap, ArrowLeft
 } from 'lucide-react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-export const BranchReports: React.FC = () => {
+export const BranchReports: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { addToast, currency } = useUI();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
@@ -115,10 +115,21 @@ export const BranchReports: React.FC = () => {
           <button 
             type="button"
             onClick={calculateReportData}
+            title="تحديث البيانات"
             className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition-all"
           >
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           </button>
+          {onNavigate && (
+            <button 
+              type="button"
+              onClick={() => onNavigate('dashboard')}
+              title="العودة"
+              className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
         </div>
       </div>
 

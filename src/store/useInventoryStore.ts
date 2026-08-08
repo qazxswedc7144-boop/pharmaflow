@@ -30,7 +30,13 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     await get().loadInventory();
   },
   addCategory: async (category: Category) => {
-    await db.db.categories.put(category);
+    const categoryId = category.id || category.categoryId || `CAT-${Date.now()}`;
+    const payload = {
+      ...category,
+      id: categoryId,
+      categoryId: category.categoryId || categoryId
+    };
+    await db.db.categories.put(payload);
     await get().loadInventory();
   },
 }));

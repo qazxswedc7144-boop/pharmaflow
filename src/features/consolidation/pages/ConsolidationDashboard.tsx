@@ -10,7 +10,6 @@ import {
   DollarSign,
   Activity,
   Package,
-  Layers,
   Sparkles,
   RefreshCw,
   AlertTriangle,
@@ -28,6 +27,7 @@ import {
   ConsolidatedTrialBalance,
   ConsolidatedInventoryValuation
 } from "../consolidation.types";
+import { FinancialIntegrationHeader } from "../components/FinancialIntegrationHeader";
 import {
   ResponsiveContainer,
   BarChart,
@@ -69,24 +69,38 @@ export default function ConsolidationDashboard({ onNavigate: _onNavigate }: Prop
       setError(null);
       const suffix = forceRef ? "?refresh=true" : "";
 
-      const [sumRes, balRes, incRes, cashRes, triRes, invRes] = await Promise.all([
-        financialApiClient.get(`/api/consolidation/summary${suffix}`),
-        financialApiClient.get(`/api/consolidation/balance-sheet${suffix}`),
-        financialApiClient.get(`/api/consolidation/income-statement${suffix}`),
-        financialApiClient.get(`/api/consolidation/cash-flow${suffix}`),
-        financialApiClient.get(`/api/consolidation/trial-balance${suffix}`),
-        financialApiClient.get(`/api/consolidation/inventory${suffix}`)
+      const safeFetch = async (endpoint: string) => {
+        try {
+          const res = await financialApiClient.get(endpoint);
+          return res.data;
+        } catch (err) {
+          console.warn(`Consolidation endpoint failed (${endpoint}):`, err);
+          return null;
+        }
+      };
+
+      const [sumData, balData, incData, cashData, triData, invData] = await Promise.all([
+        safeFetch(`/api/consolidation/summary${suffix}`),
+        safeFetch(`/api/consolidation/balance-sheet${suffix}`),
+        safeFetch(`/api/consolidation/income-statement${suffix}`),
+        safeFetch(`/api/consolidation/cash-flow${suffix}`),
+        safeFetch(`/api/consolidation/trial-balance${suffix}`),
+        safeFetch(`/api/consolidation/inventory${suffix}`)
       ]);
 
-      setSummary(sumRes.data);
-      setBalanceSheet(balRes.data);
-      setIncomeStatement(incRes.data);
-      setCashFlow(cashRes.data);
-      setTrialBalance(triRes.data);
-      setInventory(invRes.data);
+      if (sumData) setSummary(sumData);
+      if (balData) setBalanceSheet(balData);
+      if (incData) setIncomeStatement(incData);
+      if (cashData) setCashFlow(cashData);
+      if (triData) setTrialBalance(triData);
+      if (invData) setInventory(invData);
+
+      if (!sumData && !balData && !incData && !cashData && !triData && !invData) {
+        setError("فشلت عملية سحب البيانات الموحدة. يرجى التحقق من الاتصال.");
+      }
     } catch (err: any) {
       console.error("Error loading consolidation data:", err);
-      setError(err?.response?.data?.message || "فشلت عملية سحب البيانات الموحدة. يرجى التحقق من الصلاحيات والاتصال.");
+      setError("فشلت عملية سحب البيانات الموحدة. يرجى التحقق من الصلاحيات والاتصال.");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -161,31 +175,12 @@ export default function ConsolidationDashboard({ onNavigate: _onNavigate }: Prop
   return (
     <div className="space-y-6 pt-2 pb-16 px-1 md:px-0 text-right" dir="rtl">
       {/* Header Panel */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-white rounded-[24px] border border-slate-100 shadow-sm">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="p-2 bg-emerald-50 text-emerald-600 rounded-xl"><Layers size={20} /></span>
-            <span className="text-xs font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-100/60 font-mono">النسخة القياسية 4.3</span>
-          </div>
-          <h1 className="text-2xl font-black text-[#1E4D4D] tracking-tight">بوابة الاندماج المالي والتحليلات الفيدرالية الموحدة</h1>
-          <p className="text-slate-400 text-xs mt-1">تجميع فوري للمركز المالي للأستاذ والذمم والمخزون عبر كافة صيدليات المجموعة مع إلغاء المعاملات البينية.</p>
-        </div>
-
-        <div className="flex items-center gap-3 self-end md:self-center">
-          <div className="text-left md:text-right">
-            <p className="text-[10px] font-bold text-slate-400">آخر تحديث فيدرالي</p>
-            <p className="text-xs font-mono font-bold text-slate-500 mt-0.5">{new Date(summary?.timestamp || "").toLocaleTimeString()}</p>
-          </div>
-          <button
-            onClick={handleManualRefresh}
-            disabled={refreshing}
-            className="p-3.5 bg-slate-50 border border-slate-100 hover:bg-slate-100/80 rounded-2xl text-slate-600 transition-all cursor-pointer relative"
-            title="تحديث البيانات الموحدة"
-          >
-            <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
-          </button>
-        </div>
-      </div>
+      <FinancialIntegrationHeader
+        onRefresh={handleManualRefresh}
+        isRefreshing={refreshing}
+        lastUpdated={summary?.timestamp ? new Date(summary.timestamp).toLocaleTimeString() : undefined}
+        onNavigateBack={() => _onNavigate?.('dashboard')}
+      />
 
       {/* Main Stats Bento Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

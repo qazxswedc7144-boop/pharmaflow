@@ -3,9 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAccounting, useUI } from '@/contexts/AppContext';
 import { Sale } from '@/types';
 import { SalesRepository } from '@/database/repositories/SalesRepository';
-import { SupplierRepository } from '@/database/repositories/SupplierRepository';
-import { accountingService } from '@features/accounting/services/accountingService';
-import { db } from '@/core/db';
+import { UnifiedBusinessWorkflowOrchestrator } from '@/services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 import { Card, Button, Badge } from '@/components/shared/SharedUI';
 import { 
   ArrowRight, History, ListChecks,
@@ -27,16 +25,16 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> =
   const [isProcessing, setIsProcessing] = useState(false);
 
   const filteredCustomers = useMemo(() => {
-    if (!customerSearchTerm) return customers.filter(c => c.balance > 0);
+    if (!customerSearchTerm) return customers.filter(c => (c.balance || 0) > 0);
     return customers.filter(c => 
-      c.balance > 0 && 
-      (c.Supplier_Name.toLowerCase().includes(customerSearchTerm.toLowerCase()) || 
-       c.Supplier_ID.toLowerCase().includes(customerSearchTerm.toLowerCase()))
+      (c.balance || 0) > 0 && 
+      ((c.Supplier_Name || '').toLowerCase().includes(customerSearchTerm.toLowerCase()) || 
+       (c.Supplier_ID || '').toLowerCase().includes(customerSearchTerm.toLowerCase()))
     );
   }, [customers, customerSearchTerm]);
 
   const selectedCustomer = useMemo(() => 
-    customers.find(c => c.Supplier_ID === selectedCustomerId),
+    customers.find(c => (c.Supplier_ID || '') === selectedCustomerId),
     [customers, selectedCustomerId]
   );
 
@@ -115,34 +113,12 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> =
 
     setIsProcessing(true);
     try {
-      await db.runTransaction(async () => {
-        const voucherId = await accountingService.recordVoucher(
-          'دخل',
-          selectedCustomer?.Supplier_Name || 'عميل غير معروف',
-          totalPaidAmount,
-          'تحصيلات مبيعات',
-          `قبض من عميل: ${selectedCustomer?.Supplier_Name} | ${notes}`,
-          selectedCustomerId,
-          allocations
-        );
-
-        for (const saleId in allocations) {
-          const amount = allocations[saleId] ?? 0;
-          if (amount > 0) {
-            await SalesRepository.updatePaidAmount(saleId, amount);
-          }
-        }
-
-        await SupplierRepository.postToLedger({
-          id: db.generateId('PL'),
-          partnerId: selectedCustomerId,
-          date: new Date().toISOString(),
-          description: `سند قبض رقم #${voucherId}`,
-          debit: 0, 
-          credit: totalPaidAmount, 
-          referenceId: voucherId
-        });
-      }, ['vouchers', 'voucherInvoiceLinks', 'journalEntries', 'journalLines', 'accounts', 'suppliers', 'invoices', 'auditLogs', 'settings']);
+      await UnifiedBusinessWorkflowOrchestrator.processCustomerReceipt({
+        partnerId: selectedCustomerId,
+        amount: totalPaidAmount,
+        notes,
+        allocations
+      });
 
       addToast("تمت التسوية بنجاح ✅", "success");
       refreshGlobal();
@@ -190,16 +166,16 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> =
                             {filteredCustomers.length > 0 ? (
                               filteredCustomers.map(c => (
                                 <button 
-                                  key={c.Supplier_ID} 
+                                  key={(c.Supplier_ID || '')} 
                                   onClick={() => {
-                                    setSelectedCustomerId(c.Supplier_ID);
-                                    setCustomerSearchTerm(c.Supplier_Name);
+                                    setSelectedCustomerId((c.Supplier_ID || ''));
+                                    setCustomerSearchTerm((c.Supplier_Name || ''));
                                     setShowCustomerDropdown(false);
                                   }}
                                   className="w-full p-4 text-right hover:bg-emerald-50 border-b border-slate-50 last:border-0 flex justify-between items-center group transition-colors"
                                 >
-                                  <div className="font-black text-[#1E4D4D] group-hover:text-emerald-600">{c.Supplier_Name}</div>
-                                  <Badge variant="info">{c.balance.toLocaleString()} {currency}</Badge>
+                                  <div className="font-black text-[#1E4D4D] group-hover:text-emerald-600">{(c.Supplier_Name || '')}</div>
+                                  <Badge variant="info">{(c.balance || 0).toLocaleString()} {currency}</Badge>
                                 </button>
                               ))
                             ) : (
@@ -212,7 +188,7 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> =
                     {selectedCustomer && (
                       <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100">
                          <p className="text-[10px] font-black text-blue-600 uppercase mb-1">المديونية الكلية</p>
-                         <h3 className="text-xl font-black text-[#1E4D4D] text-center">{selectedCustomer.balance.toLocaleString()} <span className="text-xs opacity-40">{currency}</span></h3>
+                         <h3 className="text-xl font-black text-[#1E4D4D] text-center">{(selectedCustomer?.balance || 0).toLocaleString()} <span className="text-xs opacity-40">{currency}</span></h3>
                       </div>
                     )}
                  </div>

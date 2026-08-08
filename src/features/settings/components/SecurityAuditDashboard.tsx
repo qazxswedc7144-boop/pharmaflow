@@ -6,6 +6,7 @@ import {
   ArrowRight, Layers
 } from 'lucide-react';
 import { useAuth } from '@features/auth/hooks/useAuth';
+import { EncryptedAuditExportModal } from '@/components/shared/EncryptedAuditExportModal';
 
 // Definition of Modules/Operations to audit
 const AUDIT_MODULES = [
@@ -211,6 +212,7 @@ export default function SecurityAuditDashboard({ onNavigate }: { onNavigate?: (v
 
   // Show report modal state
   const [showMatrixReport, setShowMatrixReport] = useState<boolean>(false);
+  const [showEncryptedExportModal, setShowEncryptedExportModal] = useState<boolean>(false);
 
   // Initialize demo logs
   useEffect(() => {
@@ -439,15 +441,24 @@ export default function SecurityAuditDashboard({ onNavigate }: { onNavigate?: (v
           <p className="text-slate-500 text-sm font-medium">
             لوحة الأدلة للأمان والتدقيق الشامل في صلاحيات وقيود تطبيق PharmaFlow ERP.
           </p>
-          {onNavigate && (
+          <div className="flex items-center gap-2 mt-3">
             <button 
-              onClick={() => onNavigate('settings')}
-              className="mt-3 flex items-center gap-1.5 text-xs text-[#1E4D4D] font-black hover:underline cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2"
+              onClick={() => setShowEncryptedExportModal(true)}
+              className="flex items-center gap-2 text-xs text-white bg-[#1E4D4D] font-black rounded-xl px-4 py-2 hover:bg-[#163b3b] transition-all shadow-sm cursor-pointer"
             >
-              <ArrowRight size={14} className="rotate-180" />
-              <span>العودة للإعدادات</span>
+              <Lock size={14} className="text-emerald-400" />
+              <span>تصدير PDF مشفر</span>
             </button>
-          )}
+            {onNavigate && (
+              <button 
+                onClick={() => onNavigate('settings')}
+                className="flex items-center gap-1.5 text-xs text-[#1E4D4D] font-black hover:underline cursor-pointer bg-slate-50 border border-slate-100 rounded-xl px-3.5 py-2"
+              >
+                <ArrowRight size={14} className="rotate-180" />
+                <span>العودة للإعدادات</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Dynamic Assume Role Switcher */}
@@ -892,16 +903,24 @@ service cloud.firestore {
               <h3 className="text-lg font-black text-[#1E4D4D] mb-1">مركز تدقيق ومتابعة السجلات الأمنية (Audit Logs)</h3>
               <p className="text-slate-500 text-xs">أرشفة تدقيق غير قابلة للتعديل أو المسح تسجل المحاولات الناجحة والمحظورة لجميع تحركات النظام.</p>
             </div>
-            <button
-              onClick={() => {
-                // Clear and seed clean fresh audit log
-                handleAssumeRole(activeSimulationRole);
-              }}
-              className="flex items-center gap-2 text-xs font-black text-[#1E4D4D] bg-slate-100 px-3.5 py-2 rounded-xl hover:bg-slate-200 transition-colors"
-            >
-              <RefreshCw size={14} />
-              <span>تحديث السجلات والنبضات</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowEncryptedExportModal(true)}
+                className="flex items-center gap-2 text-xs font-black text-white bg-[#1E4D4D] px-4 py-2.5 rounded-xl hover:bg-[#163b3b] transition-all shadow-sm cursor-pointer"
+              >
+                <Lock size={14} className="text-emerald-400" />
+                <span>تصدير PDF مشفر</span>
+              </button>
+              <button
+                onClick={() => {
+                  handleAssumeRole(activeSimulationRole);
+                }}
+                className="flex items-center gap-2 text-xs font-black text-[#1E4D4D] bg-slate-100 px-3.5 py-2.5 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                <RefreshCw size={14} />
+                <span>تحديث السجلات والنبضات</span>
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -1143,6 +1162,12 @@ FINAL RBAC SOVEREIGN CONFORMANCE SUMMARY:
           </div>
         )}
       </AnimatePresence>
+
+      <EncryptedAuditExportModal 
+        isOpen={showEncryptedExportModal} 
+        onClose={() => setShowEncryptedExportModal(false)} 
+        logs={auditLogs} 
+      />
     </div>
   );
 }

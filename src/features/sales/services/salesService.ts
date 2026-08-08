@@ -19,7 +19,7 @@ export const salesService = {
     return transactionOrchestrator.processInvoiceTransaction({
       type: 'SALE',
       payload: { customerId, items: cart, total },
-      options
+      options: options as any
     });
   }
 };

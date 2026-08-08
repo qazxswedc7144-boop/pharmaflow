@@ -18,12 +18,12 @@
     "prisma:deploy": "prisma migrate deploy"
   },
   "dependencies": {
-    "@google/genai": "^2.13.0",
+    "@google/genai": "^1.50.1",
     "@prisma/adapter-pg": "^6.4.0",
     "@prisma/client": "^6.4.0",
     "@tailwindcss/vite": "^4.2.4",
     "@vitejs/plugin-react": "^5.0.0",
-    "axios": "^1.18.0",
+    "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",
     "chart.js": "4.4.1",
     "cookie-parser": "^1.4.7",
@@ -80,6 +80,8 @@
     "@typescript-eslint/parser": "^8.60.0",
     "eslint": "^8.55.0",
     "eslint-plugin-react": "^7.33.2",
-    "eslint-plugin-react-hooks": "^4.6.0"
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "rollup-plugin-visualizer": "^7.0.1",
+    "vite-plugin-compression": "^0.5.1"
   }
 }

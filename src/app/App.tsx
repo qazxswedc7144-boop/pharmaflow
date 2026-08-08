@@ -25,7 +25,8 @@ import { Permission } from '@/types';
 import RoleGuard from '@/components/shared/RoleGuard';
 import { IS_PREVIEW } from '@/constants';
 import { 
-  X, AlertTriangle, RefreshCw, LogOut, ShieldCheck, Building2, Sparkles, ArrowRightLeft, TrendingUp
+  X, AlertTriangle, RefreshCw, LogOut, ShieldCheck, Building2, Sparkles, ArrowRightLeft, TrendingUp,
+  CreditCard, Package, FileText, BarChart, Users, Settings, Archive
 } from 'lucide-react';
 
 import {
@@ -34,6 +35,7 @@ import {
   SubscriptionBlockadeBackdrop,
   TrialBlockedModal
 } from '@features/saas/components/SubscriptionWidgets';
+import { CopilotWidget } from '@features/ai/copilot';
 
 // Error Boundary Component
 class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { hasError: boolean, error: any }> {
@@ -446,11 +448,12 @@ function MainLayout() {
       'reconciliation', 'system-health', 'invoices-archive', 'invoice-history',
       'adjustments-archive', 'supplier-payment', 'customer-receipt', 'vouchers',
       'aging-report', 'partners', 'privacy', 'terms', 'reports', 'advanced-reports',
-      'login', '403', 'backup',
+      'login', '403', 'backup', 'saas-portal', 'security-audit',
+      'branches', 'branch-transfers', 'branch-reports', 'consolidation',
       'reports/remaining-stock', 'reports/item-profits', 'reports/customer-profit', 
       'reports/supplier-profit', 'reports/account-movement', 'reports/purchases-by-item',
       'reports/sales-by-item', 'reports/item-movement-details', 'reports/expiry-items',
-      'reports/financial-engine', 'consolidation'
+      'reports/financial-engine'
     ];
 
     // Map views to required permissions
@@ -461,6 +464,9 @@ function MainLayout() {
       if (v === 'reports' || v === 'financial-dashboard' || v === 'advanced-reports' || v.startsWith('reports/')) return 'VIEW_REPORTS';
       if (v === 'settings' || v === 'backup' || v === 'system-health' || v === 'audit-history' || v === 'invoice-history') return 'MANAGE_SYSTEM';
       if (v === 'partners') return 'MANAGE_PARTNERS';
+      if (v === 'branches') return 'BRANCH_VIEW';
+      if (v === 'branch-transfers') return 'BRANCH_TRANSFER';
+      if (v === 'branch-reports') return 'BRANCH_REPORT';
       return undefined;
     };
 
@@ -669,12 +675,13 @@ function MainLayout() {
     if (currentView === 'aging-report') return 'تقرير تعمير الذمم';
     if (currentView === 'accounting') return 'دفتر الأستاذ العام';
     if (currentView === 'consolidation') return 'الاندماج المالي الموحد';
+    if (currentView === 'branches') return 'إدارة الفروع والصيدليات';
+    if (currentView === 'branch-transfers') return 'التحويل الدوائي البيني';
+    if (currentView === 'branch-reports') return 'تقرير تحليلات الفروع الذكي';
     return 'العملية';
   };
 
-  const isOperationalView = ['sales', 'purchases', 'invoice-registry', 'sales-archive', 'invoices-archive', 'invoice-history', 'adjustments-registry', 'supplier-payment', 'customer-receipt', 'aging-report', 'partners', 'inventory', 'audit-history', 'accounting'].includes(currentView);
-
-  const visibleModules = MODULES.filter(m => !m.permission || can(profile?.role, m.permission as Permission));
+  const isOperationalView = ['sales', 'purchases', 'invoice-registry', 'sales-archive', 'invoices-archive', 'invoice-history', 'adjustments-registry', 'supplier-payment', 'customer-receipt', 'aging-report', 'partners', 'inventory', 'audit-history', 'accounting', 'branches', 'branch-transfers', 'branch-reports', 'consolidation'].includes(currentView);
 
   if (!isReady) {
     return <div className="min-h-screen bg-[#F8FAFA] flex items-center justify-center font-black text-[#1E4D4D] animate-pulse">جاري التحميل...</div>;
@@ -742,65 +749,105 @@ function MainLayout() {
           </div>
 
           <nav className="flex-1 px-4 py-4 space-y-6 overflow-y-auto custom-scrollbar">
+            {/* 1. قسم المبيعات والمشتريات التشغيلي */}
             <div>
-              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">القائمة الرئيسية</p>
+              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
+                قسم المبيعات والمشتريات التشغيلي
+              </p>
               <div className="space-y-1">
-                {visibleModules.filter(m => m.group === 'core').map(module => (
+                {can(profile?.role, 'POS_ACCESS') && (
                   <button 
-                    key={module.id}
-                    onClick={() => handleNav(module.id)}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === module.id ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('sales')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'sales' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === module.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}>{module.icon}</span>
-                      <span>{module.label}</span>
+                      <span className={`${currentView === 'sales' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><CreditCard size={15} /></span>
+                      <span>كاشير المبيعات (POS)</span>
                     </div>
-                    {currentView === module.id && <motion.div layoutId="active-nav" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                    {currentView === 'sales' && <motion.div layoutId="active-nav-sales" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
-                ))}
+                )}
+
+                {can(profile?.role, 'POS_ACCESS') && (
+                  <button 
+                    onClick={() => handleNav('invoices-archive')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'invoices-archive' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'invoices-archive' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Archive size={15} /></span>
+                      <span>أرشيف وسجل الفواتير</span>
+                    </div>
+                    {currentView === 'invoices-archive' && <motion.div layoutId="active-nav-invoices-archive" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+                )}
+
+                {can(profile?.role, 'MANAGE_PARTNERS') && (
+                  <button 
+                    onClick={() => handleNav('partners')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'partners' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Users size={15} /></span>
+                      <span>الموردون والعملاء</span>
+                    </div>
+                    {currentView === 'partners' && <motion.div layoutId="active-nav-partners" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* 2. قسم الإدارة والتقارير التفصيلية */}
             <div>
-              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">المبيعات والمشتريات</p>
+              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
+                قسم الإدارة والتقارير التفصيلية
+              </p>
               <div className="space-y-1">
-                {visibleModules.filter(m => m.group === 'sales_purchases').map(module => (
+                {can(profile?.role, 'VIEW_REPORTS') && (
                   <button 
-                    key={module.id}
-                    onClick={() => handleNav(module.id)}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === module.id ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('reports')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'reports' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === module.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}>{module.icon}</span>
-                      <span>{module.label}</span>
+                      <span className={`${currentView === 'reports' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><BarChart size={15} /></span>
+                      <span>التقارير المالية والتشغيلية</span>
                     </div>
-                    {currentView === module.id && <motion.div layoutId="active-nav" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                    {currentView === 'reports' && <motion.div layoutId="active-nav-reports-mod" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
-                ))}
+                )}
+
+                {can(profile?.role, 'INVENTORY_VIEW') && (
+                  <button 
+                    onClick={() => handleNav('inventory')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'inventory' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'inventory' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Package size={15} /></span>
+                      <span>المخازن وإدارة الأصناف</span>
+                    </div>
+                    {currentView === 'inventory' && <motion.div layoutId="active-nav-inventory" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+                )}
+
+                {can(profile?.role, 'FINANCIAL_ACCESS') && (
+                  <button 
+                    onClick={() => handleNav('accounting')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'accounting' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'accounting' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><FileText size={15} /></span>
+                      <span>دفتر الأستاذ والمالية</span>
+                    </div>
+                    {currentView === 'accounting' && <motion.div layoutId="active-nav-accounting" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+                )}
               </div>
             </div>
 
+            {/* 3. قسم إدارة الفروع والإمداد */}
             <div>
-              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">الإدارة والتقارير</p>
-              <div className="space-y-1">
-                {visibleModules.filter(m => m.group === 'admin').map(module => (
-                  <button 
-                    key={module.id}
-                    onClick={() => handleNav(module.id)}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === module.id ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === module.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}>{module.icon}</span>
-                      <span>{module.label}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Custom Multi-Branch Suite Sidebar Section (Subject to RBAC guards) */}
-            <div>
-              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">إدارة الفروع والإمداد</p>
+              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
+                قسم إدارة الفروع والإمداد
+              </p>
               <div className="space-y-1">
                 {can(profile?.role, 'BRANCH_VIEW') && (
                   <button 
@@ -856,21 +903,37 @@ function MainLayout() {
               </div>
             </div>
 
+            {/* 4. قسم النظام والإعدادات */}
             <div>
-              <p className="px-4 text-[11px] font-bold text-slate-400 uppercase tracking-[2px] mb-3">النظام</p>
+              <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
+                قسم النظام والإعدادات
+              </p>
               <div className="space-y-1">
-                {visibleModules.filter(m => m.group === 'settings').map(module => (
+                {can(profile?.role, 'MANAGE_SYSTEM') && (
                   <button 
-                    key={module.id}
-                    onClick={() => handleNav(module.id)}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[13px] font-bold transition-all group ${currentView === module.id ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('settings')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === module.id ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}>{module.icon}</span>
-                      <span>{module.label}</span>
+                      <span className={`${currentView === 'settings' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Settings size={15} /></span>
+                      <span>إعدادات النظام</span>
                     </div>
+                    {currentView === 'settings' && <motion.div layoutId="active-nav-settings" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
-                ))}
+                )}
+
+                {can(profile?.role, 'MANAGE_SYSTEM') && (
+                  <button 
+                    onClick={() => handleNav('security-audit')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'security-audit' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'security-audit' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><ShieldCheck size={15} /></span>
+                      <span>سجل الأمان والتدقيق</span>
+                    </div>
+                    {currentView === 'security-audit' && <motion.div layoutId="active-nav-security" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+                )}
               </div>
             </div>
           </nav>
@@ -914,6 +977,7 @@ function MainLayout() {
             }
           }} 
           onMenuClick={() => setIsSidebarOpen(true)}
+          onNavigate={handleNav}
           currentView={currentView}
         />
 
@@ -945,8 +1009,8 @@ function MainLayout() {
                   
                   // Multi-branch module routing definitions
                   case 'branches': return <RoleGuard permission="BRANCH_VIEW"><BranchesList onNavigate={handleNav} /></RoleGuard>;
-                  case 'branch-transfers': return <RoleGuard permission="BRANCH_TRANSFER"><BranchTransfers /></RoleGuard>;
-                  case 'branch-reports': return <RoleGuard permission="BRANCH_REPORT"><BranchReports /></RoleGuard>;
+                  case 'branch-transfers': return <RoleGuard permission="BRANCH_TRANSFER"><BranchTransfers onNavigate={handleNav} /></RoleGuard>;
+                  case 'branch-reports': return <RoleGuard permission="BRANCH_REPORT"><BranchReports onNavigate={handleNav} /></RoleGuard>;
                   case 'consolidation': return <RoleGuard permission="FINANCIAL_ACCESS"><ConsolidationDashboard onNavigate={handleNav} /></RoleGuard>;
                   case 'security-audit': return <SecurityAuditDashboard onNavigate={handleNav} />;
                   
@@ -1012,6 +1076,9 @@ function MainLayout() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Smart Pharmacy Copilot Floating Launcher */}
+      <CopilotWidget />
     </div>
     </MotionConfig>
   );

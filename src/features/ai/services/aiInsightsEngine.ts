@@ -265,7 +265,7 @@ export class AIInsightsEngine {
         cashBalance: cashFlow.inflow - cashFlow.outflow,
         accountsReceivable: 0,
         accountsPayable: 0,
-        inventoryValue: (await ReportEngine.getInventoryValue()).totalCostValue,
+        inventoryValue: Number((await ReportEngine.getInventoryValue()).totalCostValue || 0),
         grossProfit: kpis.current.grossProfit,
         netProfit: kpis.current.netProfit,
         collectionRate: 0,

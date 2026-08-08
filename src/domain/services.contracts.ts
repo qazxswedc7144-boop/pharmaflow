@@ -1,8 +1,8 @@
 // src/domain/services.contracts.ts
-import { Account, JournalEntry, Voucher } from "./accounting.domain";
+import { JournalEntry, Voucher } from "./accounting.domain";
 import { SalesInvoice, SalesReturn } from "./sales.domain";
 import { PurchaseInvoice, PurchaseReturn } from "./purchases.domain";
-import { Product, StockMovement, InventoryAdjustment } from "./inventory.domain";
+import { StockMovement, InventoryAdjustment } from "./inventory.domain";
 
 export interface IAccountingService {
   postJournalEntry(entry: JournalEntry): Promise<void>;

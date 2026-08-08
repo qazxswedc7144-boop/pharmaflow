@@ -23,4 +23,3 @@ export interface Branch extends DomainEntity {
   created_at?: string;
 }
 
-export type BranchTransferStatus = 'PENDING' | 'APPROVED' | 'SHIPPED' | 'RECEIVED' | 'CANCELLED';

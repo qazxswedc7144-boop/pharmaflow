@@ -2,7 +2,8 @@
 import { db } from '@/core/db';
 import { AccountingEntry, JournalLine, Sale, Purchase, InvoiceItem, UnifiedInvoice } from '@/types';
 import { CurrencyService } from '@/services/localization/CurrencyService';
-import { AccountingError, AppLogger } from '@/core/errors';
+import { AccountingError } from '@/core/errors';
+import { AccountingRepository } from '@/database/repositories/AccountingRepository';
 
 export interface SaleAdjustment {
   Type: 'Discount' | 'Tax Adjustment' | string;
@@ -27,7 +28,7 @@ export class AccountingEngine {
    * Calculates the total amount for a purchase.
    */
   static calculatePurchaseTotal(purchase: Purchase): number {
-    return purchase.items.reduce((acc, item) => acc + ((item.qty ?? 0) * (item.price ?? 0)), 0);
+    return (purchase.items || []).reduce((acc, item) => acc + ((item.qty ?? 0) * (item.price ?? 0)), 0);
   }
 
   static async getCoreAccount(type: 'CASH' | 'BANK' | 'RECEIVABLE' | 'PAYABLE' | 'INVENTORY' | 'SALES_REVENUE' | 'COGS' | 'EXPENSE'): Promise<string> {
@@ -67,7 +68,7 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = sale.currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal ?? 0, currencyCode, sale.date);
 
     // 1. Revenue Impact
@@ -93,7 +94,7 @@ export class AccountingEngine {
       id: entryId,
       entry_id: entryId,
       date: sale.date,
-      reference_id: sale.SaleID,
+      referenceId: sale.SaleID,
       description: `فاتورة مبيعات رقم ${sale.SaleID}`,
       TotalAmount: baseAmount,
       status: 'Posted',
@@ -115,8 +116,8 @@ export class AccountingEngine {
     const entryId = `JE-${Date.now()}`;
 
     // Multi-currency conversion
-    const currencyCode = purchase.currencyCode || CurrencyService.getCurrentCurrencyCode();
-    const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
+    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount || purchase.finalTotal || 0, currencyCode, purchase.date || new Date().toISOString());
 
     // Debit Inventory
     lines.push(await this.createLine(entryId, invAcc, baseAmount, 0));
@@ -133,8 +134,8 @@ export class AccountingEngine {
     return {
       id: entryId,
       entry_id: entryId,
-      date: purchase.date,
-      reference_id: purchase.invoiceId,
+      date: purchase.date || new Date().toISOString(),
+      referenceId: purchase.invoiceId,
       description: `فاتورة مشتريات رقم ${purchase.invoiceId}`,
       TotalAmount: baseAmount,
       status: 'Posted',
@@ -157,7 +158,7 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = sale.currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const currencyCode = (sale as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
     const { baseAmount } = await CurrencyService.convertToBase(sale.finalTotal ?? 0, currencyCode, sale.date);
 
     // Reverse Revenue: Debit Revenue, Credit Cash/AR
@@ -183,7 +184,7 @@ export class AccountingEngine {
       id: entryId,
       entry_id: entryId,
       date: sale.date,
-      reference_id: sale.SaleID,
+      referenceId: sale.SaleID,
       description: `مرتجع مبيعات فاتورة رقم ${sale.SaleID}`,
       TotalAmount: baseAmount,
       status: 'Posted',
@@ -203,8 +204,8 @@ export class AccountingEngine {
     const lines: JournalLine[] = [];
     const entryId = `JE-${Date.now()}`;
 
-    const currencyCode = purchase.currencyCode || CurrencyService.getCurrentCurrencyCode();
-    const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount, currencyCode, purchase.date);
+    const currencyCode = (purchase as any).currencyCode || CurrencyService.getCurrentCurrencyCode();
+    const { baseAmount } = await CurrencyService.convertToBase(purchase.totalAmount || purchase.finalTotal || 0, currencyCode, purchase.date || new Date().toISOString());
 
     // Debit Cash or Payable, Credit Inventory
     if (purchase.status === 'PAID') {
@@ -219,8 +220,8 @@ export class AccountingEngine {
     return {
       id: entryId,
       entry_id: entryId,
-      date: purchase.date,
-      reference_id: purchase.invoiceId,
+      date: purchase.date || new Date().toISOString(),
+      referenceId: purchase.invoiceId,
       description: `مرتجع مشتريات فاتورة رقم ${purchase.invoiceId}`,
       TotalAmount: baseAmount,
       status: 'Posted',
@@ -265,7 +266,7 @@ export class AccountingEngine {
       id: entryId,
       entry_id: entryId,
       date: params.date,
-      reference_id: params.refId,
+      referenceId: params.refId,
       description: params.notes || `${params.type === 'RECEIPT' ? 'سند قبض' : 'سند صرف'} - ${params.partnerId}`,
       TotalAmount: params.amount,
       status: 'Posted',
@@ -331,7 +332,6 @@ export class AccountingEngine {
     invoice: Sale | Purchase | UnifiedInvoice,
     _costResult?: { totalCost: number }
   ): Promise<void> {
-    const { AccountingRepository } = await import('@/database/repositories/AccountingRepository');
     
     const type = ('type' in invoice && invoice.type) ? invoice.type : (('customerId' in invoice && invoice.customerId) ? 'SALE' : 'PURCHASE');
     const isReturn = ('isReturn' in invoice && invoice.isReturn) || ('invoiceType' in invoice && (invoice as { invoiceType?: string }).invoiceType === 'مرتجع');

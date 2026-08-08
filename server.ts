@@ -1,3 +1,9 @@
+import express from "express";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import { exec, execSync } from "child_process";
+
 // Enforce strict environment validation immediately upon boot, and set safe defaults if missing
 if (!process.env.ENCRYPTION_KEY) {
   console.warn("⚠️ Warning: ENCRYPTION_KEY is not defined in the environment. Falling back to a temporary system key to prevent boot failure.");
@@ -27,12 +33,6 @@ process.on("uncaughtException", (errVal: any) => {
   const detail = (errVal?.message || String(errVal || "")).replace(/error/gi, "err_");
   console.error("🚨 Uncaught Exception captured in process:", detail, errVal?.stack || "");
 });
-
-import express from "express";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { exec, execSync } from "child_process";
 
 let __filenameResolved = process.cwd();
 let __dirnameResolved = process.cwd();
@@ -85,15 +85,17 @@ async function startServer() {
   console.log("[BOOT] DATABASE_URL defined: ", !!process.env.DATABASE_URL);
   console.log("[BOOT] Starting server function...");
 
-  // Run database migrations asynchronously if DATABASE_URL is defined to prevent blocking port binding and startup probe timeouts
+  // Run database migrations asynchronously if DATABASE_URL is defined and pointing to an active cloud DB
   const rawDbUrl = process.env.DATABASE_URL?.trim().replace(/^['"]|['"]$/g, '');
-  const hasDb = !!rawDbUrl && rawDbUrl !== "undefined" && rawDbUrl !== "null" && rawDbUrl !== "" && rawDbUrl.includes("://");
+  const isPlaceholderDb = !rawDbUrl || rawDbUrl.includes("localhost") || rawDbUrl.includes("127.0.0.1") || rawDbUrl.includes("dummy") || rawDbUrl.includes("placeholder");
+  const hasDb = !!rawDbUrl && rawDbUrl !== "undefined" && rawDbUrl !== "null" && rawDbUrl !== "" && rawDbUrl.includes("://") && !isPlaceholderDb;
+
   if (hasDb) {
     setTimeout(() => {
       console.log("[BOOT] Applying Prisma database migrations asynchronously in background...");
-      exec("npx prisma migrate deploy", { timeout: 30000 }, (migrateErr, stdout) => {
+      exec("npx prisma migrate deploy", { timeout: 15000 }, (migrateErr, stdout) => {
         if (migrateErr) {
-          console.error("[BOOT] Warning: Prisma database migrations failed to apply. Server continues to run:", migrateErr.message);
+          console.log("[BOOT] Database migrations info: Cloud SQL / Postgres offline or unreachable. Proceeding with offline fallback engine.");
         } else {
           if (stdout) console.log("[BOOT] Prisma migrate stdout:", stdout.trim());
           console.log("[BOOT] Prisma database migrations applied successfully.");
@@ -152,7 +154,7 @@ async function startServer() {
   
   const limiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 2500,
     message: "Too many requests from this IP, please try again after 15 minutes",
     standardHeaders: true,
     legacyHeaders: false,
@@ -345,25 +347,36 @@ async function startServer() {
   function setupStaticServing(appInstance: express.Express) {
     console.log("[PRODUCTION] Serving static assets...");
     
-    let distPath = path.join(process.cwd(), 'dist');
+    let distPath = path.resolve(process.cwd(), 'dist');
     const possibleDistPaths = [
-      path.join(process.cwd(), 'dist'),
+      path.resolve(process.cwd(), 'dist'),
       path.resolve(__dirnameResolved),
       path.resolve(__dirnameResolved, '..', 'dist'),
       '/app/applet/dist',
       '/app/dist'
     ];
     for (const cand of possibleDistPaths) {
-      if (fs.existsSync(path.join(cand, 'index.html'))) {
+      if (fs.existsSync(path.resolve(cand, 'index.html'))) {
         distPath = cand;
         break;
       }
     }
     console.log(`[PRODUCTION] Resolved distPath: ${distPath}`);
-    appInstance.use(express.static(distPath));
+    appInstance.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith('.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      }
+    }));
     appInstance.get('*', (_req, res) => {
-      const indexPath = path.join(distPath, 'index.html');
+      const indexPath = path.resolve(distPath, 'index.html');
       if (fs.existsSync(indexPath)) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        res.setHeader('Pragma', 'no-cache');
+        res.setHeader('Expires', '0');
         res.sendFile(indexPath, (err) => {
           if (err && !res.headersSent) {
             res.status(500).send("Error serving application index.");

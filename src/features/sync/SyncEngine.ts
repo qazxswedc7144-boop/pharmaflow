@@ -196,6 +196,10 @@ export class SyncEngine {
         updatedAt: new Date().toISOString() 
       });
 
+      if (!rtdb) {
+        console.warn("[SYNC_ENGINE] RTDB not initialized, skipping outbox network push.");
+        return;
+      }
       const pubRef = ref(rtdb, `replication_events/${this.branchId}/${event.mutationId}`);
       
       const payloadRef = {

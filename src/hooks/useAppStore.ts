@@ -7,6 +7,8 @@ import { useSupplierStore } from '../store/useSupplierStore';
 import { useSettingsStore } from '../store/useSettingsStore';
 import { useUIStore } from '../store/useUIStore';
 import { useAccountingStore } from '../store/accountingStore';
+import { refreshAllAppData } from '@/contexts/AppContext';
+import { useCallback } from 'react';
 
 export const useAppStore = () => {
   const auth = useAuthStore();
@@ -19,16 +21,7 @@ export const useAppStore = () => {
   const ui = useUIStore();
   const accounting = useAccountingStore();
 
-  const refreshData = async () => {
-    await Promise.all([
-      inventory.loadInventory(),
-      purchase.loadPurchases(),
-      sales.loadSales(),
-      accounting.loadAccounting(),
-      customer.loadCustomers(),
-      supplier.loadSuppliers(),
-    ]);
-  };
+  const refreshData = useCallback(refreshAllAppData, []);
 
   return {
     ...auth,

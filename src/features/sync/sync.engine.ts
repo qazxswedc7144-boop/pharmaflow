@@ -208,7 +208,8 @@ export class DistributedSyncEngine {
           // Mark local record as synced
           if (mutation.payload && (mutation.payload as any).id) {
             const entityId = (mutation.payload as any).id;
-            if (mutation.entityType === 'SALE' || mutation.entityType === 'INVOICE' || mutation.entityType === 'invoice') {
+            const eType = String(mutation.entityType);
+            if (eType === 'SALE' || eType === 'INVOICE' || eType === 'invoice') {
               if ((this.db as any).invoices) {
                 await (this.db as any).invoices.update(entityId, {
                   is_synced: 1,
@@ -217,7 +218,7 @@ export class DistributedSyncEngine {
                   updatedAt: new Date().toISOString()
                 }).catch(() => null);
               }
-            } else if (mutation.entityType === 'PRODUCT' || mutation.entityType === 'product') {
+            } else if (eType === 'PRODUCT' || eType === 'product') {
               if ((this.db as any).products) {
                 await (this.db as any).products.update(entityId, {
                   is_synced: 1,

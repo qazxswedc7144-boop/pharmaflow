@@ -25,20 +25,41 @@ export const PurchaseRepository = {
   },
 
   getLastPurchasePriceForItem: async (productId: string): Promise<number> => {
-    const all = await PurchaseRepository.getAll();
-    const prices = all
-      .flatMap(p => p.items)
-      .filter(i => i.product_id === productId)
-      .map(i => i.price);
-    return prices.length > 0 ? (prices[prices.length - 1] ?? 0) : 0;
+    try {
+      const items = await db.invoiceItems
+        .where('product_id').equals(productId)
+        .or('productId').equals(productId)
+        .toArray();
+      if (items && items.length > 0) {
+        const lastItem = items[items.length - 1];
+        if (lastItem && (lastItem.price || lastItem.unitPrice || lastItem.costPrice)) {
+          return lastItem.price || lastItem.unitPrice || lastItem.costPrice || 0;
+        }
+      }
+    } catch {
+      // Fallback
+    }
+
+    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+    purchases.sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+
+    for (const p of purchases) {
+      if (!p.items || !Array.isArray(p.items)) continue;
+      const item = p.items.find(i => i && (i.product_id === productId || i.productId === productId || i.ProductID === productId));
+      if (item) {
+        return item.price || item.unitPrice || item.costPrice || 0;
+      }
+    }
+    return 0;
   },
 
   isInvoiceNumberDuplicate: async (invoiceNumber: string, excludeId?: string): Promise<boolean> => {
-    const found = await db.invoices
-      .where('invoice_number').equals(invoiceNumber)
-      .and(i => i.type === 'PURCHASE' && i.id !== excludeId)
-      .first();
-    return !!found;
+    const [bySnake, byCamel] = await Promise.all([
+      db.invoices.where('[type+invoice_number]').equals(['PURCHASE', invoiceNumber]).toArray(),
+      db.invoices.where('[type+invoiceNumber]').equals(['PURCHASE', invoiceNumber]).toArray()
+    ]);
+    const matches = [...bySnake, ...byCamel].filter(i => i.id !== excludeId);
+    return matches.length > 0;
   },
 
   getNextInvoiceNumber: async (): Promise<string> => {
@@ -47,19 +68,33 @@ export const PurchaseRepository = {
   },
 
   getItemPurchaseHistory: async (productId: string, limit: number = 5): Promise<Purchase[]> => {
-    const all = await PurchaseRepository.getAll();
-    return all
-      .filter(p => p.items.some(i => i.product_id === productId))
-      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-      .slice(0, limit);
+    const purchases = await db.invoices.where('type').equals('PURCHASE').toArray();
+    purchases.sort((a, b) => new Date(b.date || b.createdAt || 0).getTime() - new Date(a.date || a.createdAt || 0).getTime());
+
+    const matched: Purchase[] = [];
+    for (const p of purchases) {
+      if (p.items && Array.isArray(p.items) && p.items.some(i => i && (i.product_id === productId || i.productId === productId || i.ProductID === productId))) {
+        matched.push(p as unknown as Purchase);
+        if (matched.length >= limit) break;
+      }
+    }
+    return matched;
   },
 
   getUnpaidBySupplier: async (supplierId: string): Promise<Purchase[]> => {
-    const all = await db.invoices
-      .where('partner_id').equals(supplierId)
-      .and(i => i.type === 'PURCHASE')
-      .toArray();
-    return all.filter(p => (p.paidAmount || 0) < p.finalTotal) as unknown as Purchase[];
+    const [bySnake, byCamel] = await Promise.all([
+      db.invoices.where('[type+partner_id]').equals(['PURCHASE', supplierId]).toArray(),
+      db.invoices.where('[type+partnerId]').equals(['PURCHASE', supplierId]).toArray()
+    ]);
+    const map = new Map<string, any>();
+    for (const item of [...bySnake, ...byCamel]) {
+      if (item && item.id) map.set(item.id, item);
+    }
+    return Array.from(map.values()).filter(p => {
+      const total = p.finalTotal ?? p.totalAmount ?? 0;
+      const paid = p.paidAmount ?? 0;
+      return paid < total;
+    }) as unknown as Purchase[];
   },
 
   updatePaidAmount: async (id: string, amount: number): Promise<void> => {

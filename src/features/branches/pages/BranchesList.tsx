@@ -6,11 +6,11 @@ import { Branch, BranchSettings } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
   Building2, MapPin, Phone, Sliders, 
-  Plus, Search, Edit2, RotateCw
+  Plus, Search, Edit2, RotateCw, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const BranchesList: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate: _onNavigate }) => {
+export const BranchesList: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { addToast } = useUI();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -81,7 +81,7 @@ export const BranchesList: React.FC<{ onNavigate?: (view: string) => void }> = (
 
   const filteredBranches = branches.filter(b => 
     b.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    b.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (b.code || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (b.location || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -106,6 +106,22 @@ export const BranchesList: React.FC<{ onNavigate?: (view: string) => void }> = (
           </div>
           
           <div className="flex items-center gap-3 w-full md:w-auto">
+            {onNavigate && (
+              <button 
+                onClick={() => onNavigate('dashboard')}
+                title="العودة للصفحة الرئيسية"
+                className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all flex items-center justify-center text-white shrink-0 border border-white/10 shadow-sm hover:scale-105 active:scale-95"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
+            <button 
+              onClick={fetchBranches}
+              title="تحديث البيانات"
+              className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all text-white shrink-0"
+            >
+              <RotateCw size={16} />
+            </button>
             <button 
               onClick={() => {
                 setCurrentBranch({
@@ -121,12 +137,6 @@ export const BranchesList: React.FC<{ onNavigate?: (view: string) => void }> = (
             >
               <Plus size={16} />
               <span>إضافة فرع جديد</span>
-            </button>
-            <button 
-              onClick={fetchBranches}
-              className="p-4 bg-white/10 hover:bg-white/20 rounded-2xl transition-all"
-            >
-              <RotateCw size={16} />
             </button>
           </div>
         </div>

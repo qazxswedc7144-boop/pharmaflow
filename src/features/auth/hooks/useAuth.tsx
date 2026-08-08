@@ -263,11 +263,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Derived profile structure for backward compatibility
   const profile = user ? {
-    id: user.id,
-    name: user.User_Name,
-    role: user.Role,
-    email: user.User_Email,
-    tenantId: user.tenant_id
+    id: user.id || '',
+    name: user.User_Name || '',
+    role: user.Role || '',
+    email: user.User_Email || '',
+    tenantId: user.tenant_id || null
   } : null;
 
   return (

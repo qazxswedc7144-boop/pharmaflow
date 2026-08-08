@@ -51,6 +51,7 @@ export interface SyncableEntity extends VersionedEntity {
 
   // Compatibility fields for legacy databases and snake_case or PascalCase conventions
   lastModified?: string;
+  created_at?: string;
   updated_at?: string;
   Created_By?: string;
   Created_At?: string;

@@ -43,7 +43,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
   const filteredPartners = useMemo(() => {
     const list = vType === 'RECEIPT' ? customers : suppliers;
     if (!partnerSearch.trim()) return [];
-    return list.filter(p => p.Supplier_Name.toLowerCase().includes(partnerSearch.toLowerCase()));
+    return list.filter(p => (p.Supplier_Name || '').toLowerCase().includes(partnerSearch.toLowerCase()));
   }, [vType, customers, suppliers, partnerSearch]);
 
   useEffect(() => {
@@ -287,7 +287,7 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
                             onClick={(e) => {
                               e.stopPropagation();
                               setForm({...form, partnerId: p.id});
-                              setPartnerSearch(p.Supplier_Name);
+                              setPartnerSearch(p.Supplier_Name || '');
                               setShowPartnerDropdown(false);
                             }}
                             className="w-full text-right px-5 py-3 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0 flex items-center justify-between group"

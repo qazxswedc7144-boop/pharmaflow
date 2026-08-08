@@ -67,7 +67,7 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
   
   const [isAdjModalOpen, setIsAdjModalOpen] = useState(false);
   const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
-  const [settlementHistory, setSettlementHistory] = useState<unknown[]>([]);
+  const [settlementHistory, setSettlementHistory] = useState<any[]>([]);
   const [targetInvoice, setTargetInvoice] = useState<ArchiveInvoice | null>(null);
 
   const [page, setPage] = useState(1);
@@ -102,7 +102,7 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
   useEffect(() => {
     const loadArchive = async () => {
       const data = await InvoiceRepository.getInvoicesArchive();
-      setInvoices(data);
+      setInvoices(data as unknown as ArchiveInvoice[]);
     };
     loadArchive();
   }, [version]);
@@ -120,7 +120,7 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
       const term = searchTerm.toLowerCase();
       list = list.filter(inv => {
         const invId = inv.entityType === 'SALE' ? (inv.SaleID || inv.id) : (inv.invoiceId || inv.purchase_id || inv.id);
-        const partner = inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId);
+        const partner = String(inv.entityType === 'SALE' ? (inv.customerId || 'عميل نقدي') : (inv.partnerName || inv.partnerId || ''));
         return invId.toLowerCase().includes(term) || partner.toLowerCase().includes(term);
       });
     }
@@ -441,7 +441,7 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
                               <Lock size={10} className={isPeriodLocked ? "text-amber-500" : "text-red-400"} />
                             )}
                           </div>
-                          <p className="text-[9px] font-bold text-slate-400">{new Date(invDate).toLocaleDateString('ar-SA')}</p>
+                          <p className="text-[9px] font-bold text-slate-400">{new Date(invDate || Date.now()).toLocaleDateString('ar-SA')}</p>
                         </div>
                       </div>
                       <div className="flex flex-col items-end gap-1">
@@ -454,7 +454,7 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
                       <div className="flex justify-between items-end">
                         <div>
                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5">الطرف الثاني</p>
-                          <p className="text-xs font-black text-slate-700 truncate max-w-[150px]">{partner}</p>
+                          <p className="text-xs font-black text-slate-700 truncate max-w-[150px]">{String(partner || '')}</p>
                         </div>
                         <div className="text-left">
                           <p className="text-[8px] font-black text-slate-300 uppercase tracking-widest mb-0.5 text-left">الإجمالي</p>
@@ -531,10 +531,10 @@ const InvoicesArchiveModule: React.FC<InvoicesArchiveModuleProps> = ({ onNavigat
                     </div>
                   </div>
                   <div className="w-2/12 font-bold text-slate-400">
-                    {new Date(invDate).toLocaleDateString('ar-SA')}
+                    {new Date(invDate || Date.now()).toLocaleDateString('ar-SA')}
                   </div>
                   <div className="w-3/12 font-black text-slate-600 truncate">
-                    {partner}
+                    {String(partner || '')}
                   </div>
                   <div className="w-2/12 text-center">
                     <div className="flex flex-col items-center gap-1">

@@ -144,15 +144,7 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
   }, [setItems]);
 
   const handleRowClick = React.useCallback((item: InvoiceItem) => {
-    setEditingItem({
-      id: item.id,
-      name: item.name,
-      qty: item.qty,
-      price: item.price,
-      expiryDate: item.expiryDate || '',
-      category: item.category || '',
-      notes: item.notes || ''
-    });
+    setEditingItem(item);
     setIsEditModalOpen(true);
   }, []);
 
@@ -484,7 +476,7 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
           setEditingItem(null);
           setSelectedProduct(null);
         }}
-        onAdd={handleAddItem}
+        onAdd={(item: any) => handleAddItem(item)}
         mode="sale"
         initialData={editingItem ? {
           id: editingItem.id,
@@ -493,7 +485,7 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
           qty: editingItem.qty,
           price: editingItem.price,
           expiryDate: editingItem.expiryDate,
-          note: editingItem.note || editingItem.notes,
+          note: (editingItem as any).note || editingItem.notes,
           category: editingItem.category
         } : (selectedProduct ? {
           productId: selectedProduct.id,
@@ -657,10 +649,10 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
       {/* Item edit modal */}
       <InvoiceItemEditModal 
         isOpen={isEditModalOpen}
-        item={editingItem}
+        item={editingItem as any}
         mode="sale"
         currency={currency || "YER"}
-        onSave={handleSaveModalData}
+        onSave={(updatedItem: any) => handleSaveModalData(updatedItem)}
         onClose={() => {
           setIsEditModalOpen(false);
           setEditingItem(null);

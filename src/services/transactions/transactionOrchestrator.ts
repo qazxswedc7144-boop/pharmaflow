@@ -1,7 +1,6 @@
 
 import { InvoiceStatus, InvoiceItem } from '@/types';
-import { SystemOrchestrator } from '@/services/system/SystemOrchestrator';
-import { voucherService } from '@features/accounting/services/voucherService';
+import { UnifiedBusinessWorkflowOrchestrator } from '@/services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 
 export interface SaleOptions {
   isCash: boolean;
@@ -49,21 +48,21 @@ export interface VoucherPayload {
   date?: string;
 }
 
-// We'll modify the existing transactionOrchestrator to use SystemOrchestrator
 export const transactionOrchestrator = {
   async processInvoiceTransaction(invoice: InvoiceRequest): Promise<{ success: boolean; refId?: string }> {
-    const result = await SystemOrchestrator.processInvoice(invoice);
-    return result;
+    if (invoice.type === 'PURCHASE') {
+      return await UnifiedBusinessWorkflowOrchestrator.processPurchase(invoice.payload, invoice.options);
+    } else {
+      return await UnifiedBusinessWorkflowOrchestrator.processSale(invoice.payload, invoice.options);
+    }
   },
 
   async unpostInvoice(invoiceId: string, type: 'SALE' | 'PURCHASE'): Promise<{ success: boolean }> {
-    const result = await SystemOrchestrator.unpostInvoice(invoiceId, type);
-    return result;
+    return await UnifiedBusinessWorkflowOrchestrator.unpostInvoice(invoiceId, type);
   },
 
   async deleteInvoice(invoiceId: string, type: 'SALE' | 'PURCHASE'): Promise<{ success: boolean }> {
-    const result = await SystemOrchestrator.deleteInvoice(invoiceId, type);
-    return result;
+    return await UnifiedBusinessWorkflowOrchestrator.deleteInvoice(invoiceId, type);
   },
 
   /**
@@ -73,38 +72,27 @@ export const transactionOrchestrator = {
     type: 'purchase' | 'purchase_return' | 'sale' | 'sale_return' | 'supplier_payment' | 'customer_payment', 
     data: TransactionPayload | VoucherPayload
   ): Promise<{ success: boolean; refId?: string }> {
-    let result: { success: boolean; refId?: string };
     switch(type) {
       case 'purchase':
-        result = await this.handlePurchase(data as TransactionPayload);
-        break;
+        return await this.handlePurchase(data as TransactionPayload);
       case 'purchase_return':
-        result = await this.handlePurchaseReturn(data as TransactionPayload);
-        break;
+        return await this.handlePurchaseReturn(data as TransactionPayload);
       case 'sale':
-        result = await this.handleSale(data as TransactionPayload);
-        break;
+        return await this.handleSale(data as TransactionPayload);
       case 'sale_return':
-        result = await this.handleSalesReturn(data as TransactionPayload);
-        break;
+        return await this.handleSalesReturn(data as TransactionPayload);
       case 'supplier_payment':
-        result = await this.settleSupplier(data as VoucherPayload);
-        break;
+        return await this.settleSupplier(data as VoucherPayload);
       case 'customer_payment':
-        result = await this.settleCustomer(data as VoucherPayload);
-        break;
+        return await this.settleCustomer(data as VoucherPayload);
       default:
         throw new Error(`Unknown transaction type: ${type}`);
     }
-
-    // 3. NO AUTO PUSH - OFFLINE ONLY
-    return result;
   },
 
   async handlePurchase(data: TransactionPayload) {
-    return await SystemOrchestrator.processInvoice({
-      type: 'PURCHASE',
-      payload: {
+    return await UnifiedBusinessWorkflowOrchestrator.processPurchase(
+      {
         supplierId: data.supplierId,
         items: data.items,
         total: data.total,
@@ -112,17 +100,16 @@ export const transactionOrchestrator = {
         notes: data.notes,
         id: data.invoiceId
       },
-      options: {
+      {
         isCash: data.type === 'cash',
         paymentStatus: data.type === 'cash' ? 'Cash' : 'Credit'
       }
-    });
+    );
   },
 
   async handlePurchaseReturn(data: TransactionPayload) {
-    return await SystemOrchestrator.processInvoice({
-      type: 'PURCHASE',
-      payload: {
+    return await UnifiedBusinessWorkflowOrchestrator.processPurchase(
+      {
         supplierId: data.supplierId,
         items: data.items,
         total: data.total,
@@ -130,18 +117,17 @@ export const transactionOrchestrator = {
         notes: data.notes,
         id: data.invoiceId
       },
-      options: {
+      {
         isReturn: true,
         isCash: data.type === 'cash',
         paymentStatus: data.type === 'cash' ? 'Cash' : 'Credit'
       }
-    });
+    );
   },
 
   async handleSale(data: TransactionPayload) {
-    return await SystemOrchestrator.processInvoice({
-      type: 'SALE',
-      payload: {
+    return await UnifiedBusinessWorkflowOrchestrator.processSale(
+      {
         customerId: data.customerId,
         items: data.items,
         total: data.total,
@@ -149,17 +135,16 @@ export const transactionOrchestrator = {
         notes: data.notes,
         id: data.invoiceId
       },
-      options: {
+      {
         isCash: data.type === 'cash',
         paymentStatus: data.type === 'cash' ? 'Cash' : 'Credit'
       }
-    });
+    );
   },
 
   async handleSalesReturn(data: TransactionPayload) {
-    return await SystemOrchestrator.processInvoice({
-      type: 'SALE',
-      payload: {
+    return await UnifiedBusinessWorkflowOrchestrator.processSale(
+      {
         customerId: data.customerId,
         items: data.items,
         total: data.total,
@@ -167,31 +152,32 @@ export const transactionOrchestrator = {
         notes: data.notes,
         id: data.invoiceId
       },
-      options: {
+      {
         isReturn: true,
         isCash: data.type === 'cash',
         paymentStatus: data.type === 'cash' ? 'Cash' : 'Credit'
       }
-    });
+    );
   },
 
   async settleSupplier(data: VoucherPayload) {
-    const result = await voucherService.createPayment({
-      supplier_id: data.supplierId || '',
+    const res = await UnifiedBusinessWorkflowOrchestrator.processSupplierPayment({
+      partnerId: data.supplierId || '',
       amount: data.amount,
       notes: data.notes,
-      date: data.date || new Date().toISOString()
+      date: data.date
     });
-    return { success: true, refId: result.id };
+    return { success: true, refId: res.payment.id };
   },
 
   async settleCustomer(data: VoucherPayload) {
-    const result = await voucherService.createReceipt({
-      customer_id: data.customerId || '',
+    const res = await UnifiedBusinessWorkflowOrchestrator.processCustomerReceipt({
+      partnerId: data.customerId || '',
       amount: data.amount,
       notes: data.notes,
-      date: data.date || new Date().toISOString()
+      date: data.date
     });
-    return { success: true, refId: result.id };
+    return { success: true, refId: res.receipt.id };
   }
 };
+

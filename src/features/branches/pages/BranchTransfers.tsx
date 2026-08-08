@@ -5,11 +5,11 @@ import { BranchService } from '../services/BranchService';
 import { Branch, TransferStatus } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
-  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban
+  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban, ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const BranchTransfers: React.FC = () => {
+export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { addToast } = useUI();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
@@ -205,7 +205,7 @@ export const BranchTransfers: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('LIST')}
               className={`flex-1 sm:flex-initial px-6 py-3.5 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
@@ -218,6 +218,15 @@ export const BranchTransfers: React.FC = () => {
             >
               إنشاء طلب تحويل مخزني
             </button>
+            {onNavigate && (
+              <button
+                onClick={() => onNavigate('dashboard')}
+                title="العودة"
+                className="p-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
+              >
+                <ArrowLeft size={18} />
+              </button>
+            )}
           </div>
         </div>
       </div>

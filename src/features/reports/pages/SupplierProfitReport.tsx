@@ -45,7 +45,7 @@ const SupplierProfitReport: React.FC<{ onNavigate?: (view: any) => void }> = ({ 
 
         // Initialize from suppliers list
         suppliers.forEach(s => {
-          const sId = s.id || s.Supplier_ID;
+          const sId = s.id || s.Supplier_ID || 'UNKNOWN';
           
           // Filter by supplier if selected
           if (dateFilter.supplierId && sId !== dateFilter.supplierId) return;

@@ -24,6 +24,8 @@ interface FlattenedJournalLine {
   debit: number;
   credit: number;
   runningBalance: number;
+  sourceId?: string;
+  status?: string;
   sourceType?: string;
   entry: AccountingEntry;
 }
@@ -66,11 +68,12 @@ const AccountingModule: React.FC<AccountingModuleProps> = ({ onNavigate }) => {
         lines.push({
           ...line,
           date: entry.date,
-          description: entry.description,
+          description: entry.description || '',
           sourceId: entry.sourceId,
           sourceType: entry.sourceType,
           status: entry.status,
-          runningBalance
+          runningBalance,
+          entry
         });
       });
     });

@@ -1,20 +1,23 @@
-import React, { lazy } from 'react';
+import { lazy } from 'react';
 import { RefreshCw } from 'lucide-react';
 
 // Helper for retrying dynamic imports with retry resilience
 export const lazyWithRetry = (componentImport: () => Promise<any>) =>
   lazy(async () => {
-    const pageHasBeenForceRefreshed = JSON.parse(
-      window.sessionStorage.getItem('page-has-been-force-refreshed') || 'false'
-    );
+    const refreshTimestampStr = window.sessionStorage.getItem('page-force-refresh-timestamp');
+    const refreshTimestamp = refreshTimestampStr ? parseInt(refreshTimestampStr, 10) : 0;
+    const now = Date.now();
+    // Reset force refresh flag if more than 15 seconds have passed
+    const pageHasBeenForceRefreshed = refreshTimestamp > 0 && (now - refreshTimestamp < 15000);
 
     let attempts = 3;
     for (let i = 0; i < attempts; i++) {
       try {
         const result = await componentImport();
-        // If successful, reset force refresh flag on next idle
+        // If successful, reset force refresh flag
         if (typeof window !== 'undefined') {
-          setTimeout(() => window.sessionStorage.removeItem('page-has-been-force-refreshed'), 1000);
+          window.sessionStorage.removeItem('page-force-refresh-timestamp');
+          window.sessionStorage.removeItem('page-has-been-force-refreshed');
         }
         return result;
       } catch (error: any) {
@@ -34,15 +37,17 @@ export const lazyWithRetry = (componentImport: () => Promise<any>) =>
 
         if (i < attempts - 1) {
           // Wait longer on each successive attempt (exponential backoff)
-          await new Promise((resolve) => setTimeout(resolve, 500 * (i + 1)));
+          await new Promise((resolve) => setTimeout(resolve, 300 * (i + 1)));
         } else {
-          console.error('Lazy loading failed for a dynamic module after maximum attempts:', error);
           if (!pageHasBeenForceRefreshed) {
+            window.sessionStorage.setItem('page-force-refresh-timestamp', Date.now().toString());
             window.sessionStorage.setItem('page-has-been-force-refreshed', 'true');
-            // Force hard reload to get fresh build bundle asset manifest
+            // Force hard reload to fetch fresh build bundle asset manifest
             window.location.reload();
             return { default: () => null };
           }
+
+          console.warn('Dynamic chunk outdated or unavailable after reload:', error?.message || error);
           
           // Render safe UI recovery component instead of throwing unhandled exception
           return {
@@ -59,6 +64,7 @@ export const lazyWithRetry = (componentImport: () => Promise<any>) =>
                 </p>
                 <button
                   onClick={() => {
+                    window.sessionStorage.removeItem('page-force-refresh-timestamp');
                     window.sessionStorage.removeItem('page-has-been-force-refreshed');
                     window.location.reload();
                   }}

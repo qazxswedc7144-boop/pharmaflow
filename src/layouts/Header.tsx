@@ -79,11 +79,12 @@ interface HeaderProps {
   showBackButton?: boolean;
   onBackClick?: () => void;
   onMenuClick?: () => void;
+  onNavigate?: (view: string, params?: any) => void;
   currentView?: string;
   isHome?: boolean;
 }
 
-const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, currentView, isHome }: HeaderProps) => {
+const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, onNavigate, currentView, isHome }: HeaderProps) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   // Safely check location using react-router-dom useLocation if available in router context
@@ -143,7 +144,7 @@ const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, currentVi
   return (
     <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 pt-3.5 pb-3 flex items-center justify-between sticky top-0 z-50 shadow-sm min-h-[64px]" dir="rtl">
       
-      <SidebarMenu isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
+      <SidebarMenu isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onNavigate={onNavigate} />
 
       {/* الجهة اليمنى (بداية الصف في RTL): أيقونة الإعدادات وزر العودة متبوعاً بالعنوان */}
       <div className="flex items-center gap-2 md:gap-3 z-10">

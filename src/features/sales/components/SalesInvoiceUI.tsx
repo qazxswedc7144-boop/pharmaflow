@@ -45,7 +45,7 @@ export const SaleItemRow = React.memo(({
       {item.price.toLocaleString()}
     </div>
     <div className="flex-1 text-center text-[11px] font-black text-[#1E4D4D]">
-      {item.sum.toLocaleString()}
+      {(item.sum ?? (item.qty * item.price) ?? 0).toLocaleString()}
     </div>
 
     <div className="w-10 flex items-center justify-center shrink-0">

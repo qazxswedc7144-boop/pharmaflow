@@ -175,7 +175,7 @@ aiRouter.post("/generate-content", authenticateToken, async (req: AuthenticatedR
     }
 
     const client = await getAiClient();
-    const selectedModel = model === "gemini-flash-latest" ? "gemini-3.5-flash" : (model || "gemini-3.5-flash");
+    const selectedModel = model === "gemini-flash-latest" ? "gemini-3.6-flash" : (model || "gemini-3.6-flash");
 
     // Format content list securely
     let apiContents: any = contents;
@@ -239,6 +239,123 @@ aiRouter.post("/generate-content", authenticateToken, async (req: AuthenticatedR
       error: "AI_GENERATION_FAILED",
       message: sanitizeError(error)
     });
+  }
+});
+
+/**
+ * POST /api/ai/generate
+ * Unified server endpoint for GeminiGateway calls
+ */
+aiRouter.post("/generate", async (req, res) => {
+  try {
+    const { model, systemInstruction, prompt, temperature } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ message: "الطلب (prompt) مطلوب لخدمة الذكاء الاصطناعي." });
+    }
+
+    const hasKey = !!process.env.GEMINI_API_KEY;
+    if (!hasKey) {
+      return res.json({
+        text: "الخدمة في وضع عدم الاتصال التجريبي. يرجى ضبط مفتاح API الخاص بـ Gemini.",
+        usage: { promptTokens: 10, completionTokens: 10 }
+      });
+    }
+
+    const client = await getAiClient();
+    const targetModel = model || "gemini-3.6-flash";
+
+    const response = await client.models.generateContent({
+      model: targetModel,
+      contents: prompt,
+      config: {
+        systemInstruction: `${GOOGLE_PLAY_COMPLIANCE_INSTRUCTION}\n\n${systemInstruction || ""}`,
+        temperature: typeof temperature === 'number' ? temperature : 0.2
+      }
+    });
+
+    let promptTokens = estimateTokensCount(prompt);
+    let completionTokens = estimateTokensCount(response.text || "");
+    if (response.usageMetadata) {
+      promptTokens = response.usageMetadata.promptTokenCount || promptTokens;
+      completionTokens = response.usageMetadata.candidatesTokenCount || completionTokens;
+    }
+
+    return res.json({
+      text: response.text || "",
+      usage: { promptTokens, completionTokens }
+    });
+  } catch (error: any) {
+    console.error("❌ [API_AI] Error in /generate:", error);
+    return res.status(500).json({
+      message: sanitizeError(error)
+    });
+  }
+});
+
+/**
+ * POST /api/ai/stream
+ * Server-Sent Events (SSE) streaming endpoint for Gemini AI responses
+ */
+aiRouter.post("/stream", async (req, res): Promise<void> => {
+  try {
+    const { model, systemInstruction, prompt, temperature } = req.body;
+
+    if (!prompt) {
+      res.status(400).json({ success: false, errorCode: "MISSING_PROMPT", message: "الطلب (prompt) مطلوب لخدمة البث." });
+      return;
+    }
+
+    if (prompt.length > MAX_PROMPT_CHAR_LIMIT) {
+      res.status(400).json({ success: false, errorCode: "PROMPT_SIZE_EXCEEDED", message: "تجاوز نص الطلب الحد المسموح به." });
+      return;
+    }
+
+    const hasKey = !!process.env.GEMINI_API_KEY;
+    if (!hasKey) {
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.write(`data: ${JSON.stringify({ text: "الخدمة في وضع عدم الاتصال التجريبي. يرجى ضبط مفتاح API الخاص بـ Gemini." })}\n\n`);
+      res.write("data: [DONE]\n\n");
+      res.end();
+      return;
+    }
+
+    const client = await getAiClient();
+    const targetModel = model || "gemini-3.6-flash";
+
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+
+    const responseStream = await client.models.generateContentStream({
+      model: targetModel,
+      contents: prompt,
+      config: {
+        systemInstruction: `${GOOGLE_PLAY_COMPLIANCE_INSTRUCTION}\n\n${systemInstruction || ""}`,
+        temperature: typeof temperature === 'number' ? temperature : 0.2
+      }
+    });
+
+    for await (const chunk of responseStream) {
+      if (chunk.text) {
+        res.write(`data: ${JSON.stringify({ text: chunk.text })}\n\n`);
+      }
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
+    return;
+  } catch (error: any) {
+    console.error("❌ [API_AI] Error in /stream:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, errorCode: "STREAM_ERROR", message: sanitizeError(error) });
+    } else {
+      res.write(`data: ${JSON.stringify({ error: sanitizeError(error) })}\n\n`);
+      res.end();
+    }
+    return;
   }
 });
 

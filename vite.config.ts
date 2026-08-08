@@ -14,7 +14,10 @@ export default defineConfig(({ mode }) => {
         host: '0.0.0.0',
         hmr: false,
       },
-      plugins: [react(), tailwindcss()],
+      plugins: [
+        react(), 
+        tailwindcss()
+      ],
       base: '/',
       define: {
         'process.env.GEMINI_API_KEY': JSON.stringify(process.env.GEMINI_API_KEY || "")
@@ -30,15 +33,41 @@ export default defineConfig(({ mode }) => {
         outDir: 'dist',
         emptyOutDir: true,
         sourcemap: false,
-        chunkSizeWarningLimit: 1000,
+        target: 'es2022',
+        minify: 'esbuild',
+        cssCodeSplit: true,
+        chunkSizeWarningLimit: 1200,
         rollupOptions: {
           output: {
             manualChunks(id) {
               if (id.includes('node_modules')) {
-                if (id.includes('recharts')) return 'vendor-recharts';
-                if (id.includes('html2canvas')) return 'vendor-html2canvas';
-                if (id.includes('d3')) return 'vendor-d3';
-                return 'vendor';
+                if (id.includes('pdfjs-dist') || id.includes('jspdf') || id.includes('jspdf-autotable')) {
+                  return 'vendor-pdf';
+                }
+                if (id.includes('tesseract.js')) {
+                  return 'vendor-ocr';
+                }
+                if (id.includes('xlsx') || id.includes('jszip')) {
+                  return 'vendor-excel';
+                }
+                if (id.includes('recharts') || id.includes('d3') || id.includes('chart.js') || id.includes('react-chartjs-2')) {
+                  return 'vendor-charts';
+                }
+                if (id.includes('lucide-react')) {
+                  return 'vendor-icons';
+                }
+                if (id.includes('motion') || id.includes('framer-motion')) {
+                  return 'vendor-motion';
+                }
+                if (id.includes('firebase')) {
+                  return 'vendor-firebase';
+                }
+                if (id.includes('@google/genai')) {
+                  return 'vendor-gemini';
+                }
+                if (id.includes('dexie') || id.includes('zustand')) {
+                  return 'vendor-state';
+                }
               }
             }
           }
@@ -46,3 +75,4 @@ export default defineConfig(({ mode }) => {
       }
     };
 });
+

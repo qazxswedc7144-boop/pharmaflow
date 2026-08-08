@@ -2,12 +2,9 @@
 
 import { db } from "@/core/db";
 import { 
-  Branch, BranchSettings, BranchInventory, 
-  BranchTransfer, BranchTransferItem, TransferStatus 
+  Branch, BranchSettings, BranchInventory, TransferStatus 
 } from "@/types";
-import { LockService } from "@features/locking/lock.service";
-import { useUIStore } from "@/store/useUIStore";
-import { SubscriptionService } from "@/services/saas/subscriptionService";
+import { UnifiedBusinessWorkflowOrchestrator } from "@/services/orchestration/UnifiedBusinessWorkflowOrchestrator";
 
 export class BranchService {
   private static replicationListeners = new Set<(type: string, payload: any) => void>();
@@ -267,53 +264,13 @@ export class BranchService {
     reason: string,
     username: string
   ): Promise<string> {
-    // Trial limit check
-    const plan = localStorage.getItem('saas_active_plan') || 'TRIAL';
-    if (plan === 'TRIAL') {
-      const usage = await SubscriptionService.getLocalUsageCount();
-      if (usage >= 200) {
-        useUIStore.getState().setTrialBlockedModalOpen(true);
-        throw new Error("تم الوصول للحد التجريبي 200 عملية. يرجى الاشتراك للمتابعة.");
-      }
-    }
-
-    const transferId = `TRF-${Date.now()}`;
-    const transferNo = `TRF-N-${Math.floor(100000 + Math.random() * 900000)}`;
-    const now = new Date().toISOString();
-
-    const transfer: BranchTransfer = {
-      id: transferId,
-      transferNumber: transferNo,
+    const res = await UnifiedBusinessWorkflowOrchestrator.processStockTransferCreate({
       sourceBranchId,
       targetBranchId,
-      status: "DRAFT",
-      reason,
-      createdBy: username,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    await db.branchTransfers.add(transfer);
-
-    const transferItems: BranchTransferItem[] = items.map((item, i) => ({
-      id: `TRF-ITM-${Date.now()}-${i}`,
-      transferId,
-      productId: item.productId,
-      qty: item.qty,
-      receivedQty: 0,
-      batchNumber: item.batchNumber || "BATCH-GEN",
-      expiryDate: item.expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-      createdAt: now,
-    }));
-
-    await db.branchTransferItems.bulkAdd(transferItems);
-
-    this.triggerReplication("TransferCreated", {
-      transfer,
-      items: transferItems,
+      notes: username ? `${reason} (${username})` : reason,
+      items
     });
-
-    return transferId;
+    return res.transferId;
   }
 
   /**
@@ -375,76 +332,12 @@ export class BranchService {
     updatedBy: string,
     receivedQuantities?: Record<string, number>
   ): Promise<void> {
-    const { transfer, items } = await this.getTransferDetails(transferId);
-    if (transfer.status === newStatus) return;
-
-    const branchId = transfer.sourceBranchId || "BRH-MAIN-001";
-    const lockKey = `transfer:${transferId}`;
-
-    await LockService.withLock(
-      lockKey,
-      {
-        branchId,
-        lockType: "BRANCH_TRANSFER",
-        ownerId: updatedBy,
-        ttl: 15000
-      },
-      async () => {
-        const previousStatus = transfer.status;
-        const now = new Date().toISOString();
-
-        // Core validation and actions based on status flow:
-        // Workflow: DRAFT -> APPROVED -> IN_TRANSIT -> RECEIVED / CANCELLED
-        if (newStatus === "APPROVED") {
-          transfer.approvedBy = updatedBy;
-        } else if (newStatus === "IN_TRANSIT") {
-          transfer.shippedBy = updatedBy;
-          transfer.shippedAt = now;
-
-          // Subtract items from source branch stock automatically when sent
-          for (const item of items) {
-            await this.updateBranchStock(transfer.sourceBranchId, item.productId, -item.qty);
-          }
-        } else if (newStatus === "RECEIVED") {
-          transfer.receivedBy = updatedBy;
-          transfer.receivedAt = now;
-
-          // Add actual items received into target branch stock
-          for (const item of items) {
-            const recQty = receivedQuantities && receivedQuantities[item.id] !== undefined
-              ? receivedQuantities[item.id]
-              : item.qty;
-
-            // Update item database record with received qty
-            await db.branchTransferItems.update(item.id, { receivedQty: recQty });
-            await this.updateBranchStock(transfer.targetBranchId, item.productId, recQty);
-          }
-        } else if (newStatus === "CANCELLED") {
-          // Refund items to source branch stock if already shipped and then cancelled
-          if (previousStatus === "IN_TRANSIT") {
-            for (const item of items) {
-              await this.updateBranchStock(transfer.sourceBranchId, item.productId, item.qty);
-            }
-          }
-        }
-
-        transfer.status = newStatus;
-        transfer.updatedAt = now;
-        await db.branchTransfers.put(transfer);
-
-        const eventType = newStatus === "IN_TRANSIT" ? "TransferShipped" : (newStatus === "RECEIVED" ? "TransferReceived" : "TransferCreated");
-        this.triggerReplication(eventType, {
-          transferId,
-          status: newStatus,
-          approvedBy: transfer.approvedBy,
-          shippedBy: transfer.shippedBy,
-          shippedAt: transfer.shippedAt,
-          receivedBy: transfer.receivedBy,
-          receivedAt: transfer.receivedAt,
-          receivedQuantities
-        });
-      }
-    );
+    await UnifiedBusinessWorkflowOrchestrator.processStockTransferStatusUpdate({
+      transferId,
+      newStatus,
+      updatedBy,
+      receivedQuantities
+    });
   }
 
   /**

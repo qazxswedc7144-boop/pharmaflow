@@ -233,7 +233,6 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
                 const newId = db.generateId('PROD');
                 setEditingProduct({
                   id: newId,
-                  ProductID: newId,
                   name: '',
                   Name: '',
                   DefaultUnit: 'حبة',
@@ -245,9 +244,9 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
                   StockQuantity: 0,
                   ExpiryDate: '',
                   MinLevel: 5,
-                  category: 'أدوية',
+                  categoryName: 'أدوية',
                   categoryId: 'CAT-MED'
-                }); 
+                } as any); 
                 setActiveTab('details'); 
               }}
               className="flex-1 h-16 bg-[#1E4D4D] text-white rounded-[32px] flex items-center justify-center gap-2 text-[11px] font-black shadow-xl shadow-emerald-900/20 hover:scale-[1.02] active:scale-95 transition-all whitespace-nowrap px-4"
@@ -468,8 +467,8 @@ const ProductItem = React.memo(({ product, currency, onClick }: { product: Produ
                              <div className="space-y-3">
                                {purchaseHistory.map(ph => (
                                  <div key={ph.id} className="flex justify-between items-center">
-                                   <span className="text-[11px] font-bold text-slate-400">{ph.date.split('T')[0]}</span>
-                                   <span className="text-sm font-black text-blue-600">{ph.items.find(it => it.product_id === editingProduct.id)?.price} {currency}</span>
+                                   <span className="text-[11px] font-bold text-slate-400">{(ph.date || '').split('T')[0]}</span>
+                                   <span className="text-sm font-black text-blue-600">{ph.items?.find((it: any) => it.product_id === editingProduct.id)?.price || 0} {currency}</span>
                                  </div>
                                ))}
                              </div>

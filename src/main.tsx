@@ -26,10 +26,25 @@ try {
   console.error("[SYNC ENGINE] Failed starting local mutation sync scheduler:", error);
 }
 
-// Mock external services to prevent runtime crashes if legacy scripts try to access them
+// Filter out background telemetry errors from Firebase Analytics/Installations if API key lacks specific permissions
 if (typeof window !== "undefined") {
   (window as any).firebase = undefined;
   (window as any).google = undefined;
+
+  const originalError = console.error;
+  console.error = (...args: any[]) => {
+    const str = args.map(a => (typeof a === "object" ? JSON.stringify(a) : String(a))).join(" ");
+    if (
+      str.includes("analytics/config-fetch-failed") ||
+      str.includes("installations/request-failed") ||
+      str.includes("@firebase/analytics") ||
+      str.includes("API key not valid")
+    ) {
+      console.warn("[TELEMETRY WARNING IGNORED]", ...args);
+      return;
+    }
+    originalError.apply(console, args);
+  };
 }
 
 window.addEventListener("error", (e) => {

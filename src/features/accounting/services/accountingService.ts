@@ -76,6 +76,14 @@ export interface TrialBalanceItem {
   credit: number;
 }
 
+export interface AgingBucket {
+  current: number;
+  overdue30: number;
+  overdue60: number;
+  overdue90: number;
+  total: number;
+}
+
 export interface PartnerAging {
   partnerId: string;
   partnerName: string;
@@ -91,14 +99,20 @@ export const accountingService = {
     if (cached) return cached;
 
     try {
-      const incomeStatement = await ReportEngine.getIncomeStatement();
+      const inc = (await ReportEngine.getIncomeStatement()) as any;
+      const cogsVal = Number(inc.cogs || 0);
+      const expVal = Number(inc.expenses || 0);
+      const revVal = Number(inc.revenue || 0);
+      const netVal = Number(inc.netProfit || 0);
+      const marginVal = Number(inc.margin || 0);
+      const grossVal = Number(inc.grossProfit || 0);
       const metrics: FinancialMetrics = { 
-        income: incomeStatement.revenue, 
-        outcome: incomeStatement.cogs + incomeStatement.expenses, 
-        net: incomeStatement.netProfit, 
-        margin: incomeStatement.margin, 
-        grossProfit: incomeStatement.grossProfit, 
-        cogs: incomeStatement.cogs 
+        income: revVal, 
+        outcome: cogsVal + expVal, 
+        net: netVal, 
+        margin: marginVal, 
+        grossProfit: grossVal, 
+        cogs: cogsVal 
       };
       reportCache.set(cacheKey, metrics, 30 * 60 * 1000); 
       return metrics;
@@ -246,12 +260,12 @@ export const accountingService = {
   },
 
   getTrialBalance: async () => {
-    const tb = await ReportEngine.getTrialBalance() as TrialBalanceItem[];
+    const tb = (await ReportEngine.getTrialBalance()) as any[];
     return tb.map(acc => ({
-      accountId: acc.accountId,
-      name: acc.account_name || acc.accountId,
-      debit: acc.debit,
-      credit: acc.credit
+      accountId: acc.accountId || acc.id || '',
+      name: acc.account_name || acc.name || acc.accountId || '',
+      debit: acc.debit || 0,
+      credit: acc.credit || 0
     }));
   },
 
@@ -299,10 +313,10 @@ export const accountingService = {
       const journalEntry = await BusinessRulesEngine.accounting.mapVoucherToJournal({ id: voucherId, type, amount, name, category, notes });
       await dataValidator.validateAccountingEntry(journalEntry);
       
-      await AccountingRepository.addEntry(journalEntry);
+      await AccountingRepository.addEntry(journalEntry as any);
       
       // Integrated Balance Updates
-      for (const line of journalEntry.lines) {
+      for (const line of (journalEntry.lines || [])) {
         await db.updateAccountBalance(line.accountId, line.debit - line.credit);
       }
       
@@ -319,6 +333,8 @@ export const accountingService = {
       const cfRecord: CashFlow = {
         id: cfId,
         transaction_id: voucherId,
+        name: name || '',
+        branchId: 'BRH-MAIN-001',
         date: today.split('T')[0] || '',
         type: type,
         category: category,

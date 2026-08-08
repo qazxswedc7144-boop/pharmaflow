@@ -32,7 +32,7 @@ const formatDateDisplay = (dateStr: string) => {
 };
 
 // Memoized Item Row Component for Performance
-import { Product, InvoiceItem, Supplier } from '@/types';
+import { Product, InvoiceItem } from '@/types';
 
 const InvoiceItemRow = React.memo(({ 
   item, 
@@ -76,7 +76,7 @@ const InvoiceItemRow = React.memo(({
     <div className={`flex-1 text-center text-[9px] font-black ${isPriceHigher(item) ? 'text-red-500 font-black' : 'text-slate-600'}`}>
       {item.price.toLocaleString()}
     </div>
-    <div className="flex-1 text-center text-[9px] font-black text-[#1E4D4D]">{item.sum.toLocaleString()}</div>
+    <div className="flex-1 text-center text-[9px] font-black text-[#1E4D4D]">{(item.sum ?? 0).toLocaleString()}</div>
     
     <div className="w-10 flex items-center justify-center shrink-0">
       <button 
@@ -690,7 +690,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
                    <div className="flex flex-wrap gap-2 text-[10px] text-slate-400 pt-0.5 border-t border-slate-50">
                      {item.barcode && <span className="bg-slate-100 px-1 rounded text-slate-600">كود: {item.barcode}</span>}
                      {item.expiryDate && <span className="bg-amber-50 text-amber-700 px-1 rounded">انتهاء: {item.expiryDate}</span>}
-                     {item.discountPercent > 0 && <span className="bg-blue-50 text-blue-700 px-1 rounded">خصم: {item.discountPercent}%</span>}
+                     {(item as any).discountPercent > 0 && <span className="bg-blue-50 text-blue-700 px-1 rounded">خصم: {item.discountPercent}%</span>}
                      {item.batchNumber && <span className="bg-purple-50 text-purple-700 px-1 rounded">تشغيلة: {item.batchNumber}</span>}
                    </div>
                  </div>
@@ -739,7 +739,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
           setEditingItem(null);
           setSelectedProduct(null);
         }}
-        onAdd={handleAddItem}
+        onAdd={(item: any) => handleAddItem(item)}
         mode="purchase"
         initialData={editingItem ? {
           id: editingItem.id,
@@ -748,7 +748,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
           qty: editingItem.qty,
           price: editingItem.price,
           expiryDate: editingItem.expiryDate,
-          note: editingItem.note || editingItem.notes,
+          note: (editingItem as any).note || editingItem.notes,
           category: editingItem.category
         } : (selectedProduct ? {
           productId: selectedProduct.id,
@@ -897,9 +897,9 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
           <DraftRecoveryDialog
             isOpen={isRecoveryModalOpen}
             moduleName="فاتورة المشتريات والتوريد"
-            updatedAt={recoveryDraftData.updatedAt}
-            itemCount={(recoveryDraftData.payload?.items || recoveryDraftData.items)?.length || 0}
-            totalAmount={recoveryDraftData.payload?.totals?.subtotal || recoveryDraftData.totals?.subtotal}
+            updatedAt={(recoveryDraftData as any).updatedAt}
+            itemCount={((recoveryDraftData as any).payload?.items || (recoveryDraftData as any).items)?.length || 0}
+            totalAmount={(recoveryDraftData as any).payload?.totals?.subtotal || (recoveryDraftData as any).totals?.subtotal}
             onRestore={restoreDraft}
             onDiscard={discardDraft}
           />
@@ -909,7 +909,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
       {/* Item edit modal */}
       <InvoiceItemEditModal 
         isOpen={isEditModalOpen}
-        item={editingItem}
+        item={editingItem as any}
         mode="purchase"
         currency={currency || "YER"}
         onSave={handleSaveModalData}

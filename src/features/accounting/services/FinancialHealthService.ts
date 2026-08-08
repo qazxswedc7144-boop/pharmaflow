@@ -120,7 +120,7 @@ export class FinancialHealthService {
     // Accounts Payable (Unpaid Purchases)
     const accountsPayable = purchases
       .filter(p => p.status === 'UNPAID' && p.invoiceStatus !== 'CANCELLED')
-      .reduce((acc, p) => acc + (p.totalAmount - (p.paidAmount || 0)), 0);
+      .reduce((acc, p) => acc + ((p.totalAmount || p.finalTotal || 0) - (p.paidAmount || 0)), 0);
 
     // Inventory Value (Cost Price * Stock)
     const inventoryValue = products.reduce((acc, p) => acc + ((p.CostPrice || 0) * (p.StockQuantity || 0)), 0);
@@ -145,7 +145,7 @@ export class FinancialHealthService {
     const collectionRate = totalCreditAmount > 0 ? (totalCollectedAmount / totalCreditAmount) * 100 : 100;
 
     // Supplier Payment Ratio (Paid / Total Purchases)
-    const totalPurchases = purchases.reduce((acc, p) => acc + p.totalAmount, 0);
+    const totalPurchases = purchases.reduce((acc, p) => acc + (p.totalAmount || p.finalTotal || 0), 0);
     const totalPaidPurchases = purchases.reduce((acc, p) => acc + (p.paidAmount || 0), 0);
     const supplierPaymentRatio = totalPurchases > 0 ? (totalPaidPurchases / totalPurchases) * 100 : 100;
 
@@ -191,7 +191,8 @@ export class FinancialHealthService {
     // 2. AP overdue > 30 days
     const overdueAP = purchases.some(p => {
       if (p.status === 'UNPAID' && p.invoiceStatus !== 'CANCELLED') {
-        const diff = (Date.now() - new Date(p.date).getTime()) / (1000 * 3600 * 24);
+        const pDate = p.date ? new Date(p.date).getTime() : Date.now();
+        const diff = (Date.now() - pDate) / (1000 * 3600 * 24);
         return diff > 30;
       }
       return false;

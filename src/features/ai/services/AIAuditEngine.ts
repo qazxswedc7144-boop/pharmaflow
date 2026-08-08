@@ -48,10 +48,10 @@ export class AIAuditEngine {
     const anomalies: string[] = [];
     
     // 1. Financial Anomaly Detection
-    const total = type === 'SALE' ? (invoice as Sale).finalTotal : (invoice as Purchase).totalAmount;
+    const total = (type === 'SALE' ? (invoice as Sale).finalTotal : (invoice as Purchase).totalAmount) || 0;
     
     // Check for high variance compared to entity history
-    const entityId = type === 'SALE' ? (invoice as Sale).customerId : (invoice as Purchase).partnerId;
+    const entityId = (type === 'SALE' ? (invoice as Sale).customerId : (invoice as Purchase).partnerId) || '';
     const avgAmount = await this.getEntityAvgAmount(entityId, type);
     
     if (avgAmount > 0 && total > avgAmount * 3) {
@@ -68,21 +68,24 @@ export class AIAuditEngine {
     // Check for negative margin
     if (type === 'SALE') {
       const sale = invoice as Sale;
-      if ((sale.totalCost ?? 0) > 0 && sale.finalTotal < sale.totalCost) {
+      const finalTotal = sale.finalTotal || 0;
+      const totalCost = sale.totalCost || 0;
+      if (totalCost > 0 && finalTotal < totalCost) {
         baseScore += 30;
-        anomalies.push(`Negative margin detected: Sale (${sale.finalTotal}) < Cost (${sale.totalCost}) 💸`);
+        anomalies.push(`Negative margin detected: Sale (${finalTotal}) < Cost (${totalCost}) 💸`);
       }
     }
     
     // Check for duplicate amounts in short period
-    const isDuplicate = await this.checkDuplicateAmount(total, type, invoice.id);
+    const totalAmount = invoice.finalTotal ?? invoice.subtotal ?? 0;
+    const isDuplicate = await this.checkDuplicateAmount(totalAmount, type, invoice.id);
     if (isDuplicate) {
       baseScore += 15;
-      anomalies.push(`Duplicate transaction amount (${total}) detected in a short time frame ⚠️`);
+      anomalies.push(`Duplicate transaction amount (${totalAmount}) detected in a short time frame ⚠️`);
     }
     
     // Check for weird timing (late night posting)
-    const hour = new Date(invoice.date).getHours();
+    const hour = new Date(invoice.date || Date.now()).getHours();
     if (hour < 6 || hour > 22) { // 10 PM to 6 AM
       baseScore += 15;
       anomalies.push(`Transaction posted during off-hours (${hour}:00) ⏰`);

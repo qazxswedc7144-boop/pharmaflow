@@ -52,7 +52,7 @@ export const InvoiceValidationEngine = {
     });
 
     // 4. منع الإجمالي السالب
-    const total = type === 'SALE' ? invoice.finalTotal : invoice.totalAmount;
+    const total = (type === 'SALE' ? invoice.finalTotal : invoice.totalAmount) ?? 0;
     if (total < 0) {
       throw new Error("إجمالي الفاتورة لا يمكن أن يكون سالباً");
     }

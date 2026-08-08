@@ -2,6 +2,72 @@
 import Dexie, { type Table, type Transaction } from 'dexie';
 import { useAuthStore } from '@/store/authStore';
 
+function ensureItemPrimaryKey(table: any, item: any) {
+  if (!item || typeof item !== 'object') return item;
+  try {
+    const schema = table?.schema;
+    if (!schema || !schema.primKey) return item;
+    
+    const keyPath = schema.primKey.keyPath;
+    const isAuto = schema.primKey.auto;
+
+    if (keyPath && typeof keyPath === 'string' && !isAuto) {
+      if (item[keyPath] === undefined || item[keyPath] === null || item[keyPath] === '') {
+        const tableName = table.name || 'entity';
+        const candidate = item.id || item.ID || item[`${tableName}Id`] || item[`${tableName}_id`] || 
+                          item.key || item.code || item.invoice_number || item.invoiceNumber || 
+                          item.Supplier_ID || item.Customer_ID || item.ProductID || item.productId || 
+                          item.draftId || item.voucherId || item.linkId || item.transaction_id || 
+                          item.Transaction_ID || item.errorId || item.AdjustmentID;
+        item[keyPath] = candidate || `${tableName.toUpperCase()}-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+      }
+    }
+  } catch (e) {
+    console.warn('[DexieGuard] Error ensuring primary key:', e);
+  }
+  return item;
+}
+
+if (typeof Dexie !== 'undefined' && (Dexie as any).Table) {
+  const TableProto = (Dexie as any).Table.prototype;
+  
+  const originalPut = TableProto.put;
+  if (originalPut) {
+    TableProto.put = function(this: any, item: any, key?: any) {
+      ensureItemPrimaryKey(this, item);
+      return originalPut.call(this, item, key);
+    };
+  }
+
+  const originalAdd = TableProto.add;
+  if (originalAdd) {
+    TableProto.add = function(this: any, item: any, key?: any) {
+      ensureItemPrimaryKey(this, item);
+      return originalAdd.call(this, item, key);
+    };
+  }
+
+  const originalBulkPut = TableProto.bulkPut;
+  if (originalBulkPut) {
+    TableProto.bulkPut = function(this: any, items: any[], keys?: any, options?: any) {
+      if (Array.isArray(items)) {
+        items.forEach(item => ensureItemPrimaryKey(this, item));
+      }
+      return originalBulkPut.call(this, items, keys, options);
+    };
+  }
+
+  const originalBulkAdd = TableProto.bulkAdd;
+  if (originalBulkAdd) {
+    TableProto.bulkAdd = function(this: any, items: any[], keys?: any, options?: any) {
+      if (Array.isArray(items)) {
+        items.forEach(item => ensureItemPrimaryKey(this, item));
+      }
+      return originalBulkAdd.call(this, items, keys, options);
+    };
+  }
+}
+
 export function getCurrentUserSession() {
   try {
     const stored = typeof window !== 'undefined' ? localStorage.getItem('pharmaflow_user') : null;
@@ -21,7 +87,7 @@ export function getCurrentUserSession() {
   };
 }
 import { 
-  Product, UnifiedInvoice, InvoiceItem, Account, AccountingEntry, 
+  Product, UnifiedInvoice, InvoiceItem, Account, AccountingEntry, JournalEntry, InvoiceStatus, Customer, Supplier, 
   JournalLine, InventoryTransaction, AccountingPeriod, SystemBackup, ValidationRule,
   VoucherInvoiceLink as Voucher, AuditLogEntry as AuditLog, Currency
 } from '@/types';
@@ -273,6 +339,11 @@ export class PharmaFlowDB extends Dexie {
       syncLogs: '++id, action, mutationId, timestamp'
     });
 
+    // Version 24: Dexie Query Optimization - Compound Indexes for Invoices
+    this.version(24).stores({
+      invoices: '&id, invoice_number, invoiceNumber, date, Date, partner_id, partnerId, type, payment_status, financial_status, document_status, is_synced, createdAt, transactionUuid, [type+partner_id], [type+partnerId], [type+invoice_number], [type+invoiceNumber]'
+    });
+
     // Handle structural integrity and recovery
     this.on('versionchange', () => {
       console.warn("Database structure updated in another tab. Reloading...");
@@ -423,7 +494,7 @@ export class PharmaFlowDB extends Dexie {
       id: l.id,
       invoiceId: l.target_id || '',
       userId: l.user_id || '',
-      userName: l.userName || 'مستخدم النظام',
+      userName: (l as any).userName || (l as any).user_name || 'مستخدم النظام',
       timestamp: l.timestamp || new Date().toISOString(),
       action: (l.action === 'CREATE' ? 'CREATED' : l.action === 'POST' ? 'POSTED' : l.action) as 'CREATED' | 'POSTED' | string,
       details: l.details || `تمت عملية ${l.action} على المستند`
@@ -495,8 +566,7 @@ export class PharmaFlowDB extends Dexie {
       isReturn: isReturn,
       notes: `Ref: ${refId}`,
       transactionUuid: transactionUuid,
-      is_synced: (typeof navigator !== 'undefined' && navigator.onLine) ? 1 : 0,
-      isSynced: (typeof navigator !== 'undefined' && navigator.onLine),
+            isSynced: (typeof navigator !== 'undefined' && navigator.onLine),
       syncStatus: (typeof navigator !== 'undefined' && navigator.onLine) ? 'SYNCED' : 'PENDING',
       updatedAt: new Date().toISOString()
     };
@@ -528,8 +598,7 @@ export class PharmaFlowDB extends Dexie {
       isReturn: isReturn,
       notes: `Ref: ${refId}`,
       transactionUuid: transactionUuid,
-      is_synced: (typeof navigator !== 'undefined' && navigator.onLine) ? 1 : 0,
-      isSynced: (typeof navigator !== 'undefined' && navigator.onLine),
+            isSynced: (typeof navigator !== 'undefined' && navigator.onLine),
       syncStatus: (typeof navigator !== 'undefined' && navigator.onLine) ? 'SYNCED' : 'PENDING',
       updatedAt: new Date().toISOString()
     };
@@ -593,7 +662,7 @@ export class PharmaFlowDB extends Dexie {
   async isDateLocked(date: string) {
     const period = await this.accountingPeriods
       .where('Start_Date').belowOrEqual(date)
-      .and(p => p.End_Date >= date && p.Is_Locked)
+      .and(p => !!p.End_Date && p.End_Date >= date && !!p.Is_Locked)
       .first();
     return !!period;
   }
@@ -687,9 +756,9 @@ export class PharmaFlowDB extends Dexie {
       const count = await this.accounts.count();
       if (count === 0) {
         await this.accounts.bulkPut([
-          { id: 'acc-cash', code: '101', name: 'الصندوق الرئيسي', type: 'ASSET', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
-          { id: 'acc-sales', code: '401', name: 'إيرادات المبيعات', type: 'REVENUE', balance: 0, isSystem: true, isActive: true, balance_type: 'CREDIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
-          { id: 'acc-cogs', code: '501', name: 'تكلفة البضاعة المباعة', type: 'EXPENSE', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() }
+          { id: 'acc-cash', code: '101', name: 'الصندوق الرئيسي', type: 'ASSET', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', balanceType: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
+          { id: 'acc-sales', code: '401', name: 'إيرادات المبيعات', type: 'REVENUE', balance: 0, isSystem: true, isActive: true, balance_type: 'CREDIT', balanceType: 'CREDIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() },
+          { id: 'acc-cogs', code: '501', name: 'تكلفة البضاعة المباعة', type: 'EXPENSE', balance: 0, isSystem: true, isActive: true, balance_type: 'DEBIT', balanceType: 'DEBIT', debit: 0, credit: 0, updatedAt: new Date().toISOString() }
         ]).catch((err) => console.warn('[DB] Accounts seed warning:', err));
       }
 

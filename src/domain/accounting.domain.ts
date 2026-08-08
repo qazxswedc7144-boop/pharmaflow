@@ -100,6 +100,7 @@ export interface Voucher extends DomainEntity {
   id: string;
   voucherNumber?: string;
   voucherType?: VoucherType;
+  type?: string;
   date: string;
   partnerId?: string;
   partnerName?: string;
@@ -108,6 +109,7 @@ export interface Voucher extends DomainEntity {
   paymentMethod?: string;
   referenceId?: string;
   notes?: string;
+  userId?: string;
   branchId?: string;
   status?: 'DRAFT' | 'POSTED' | 'CANCELLED';
   lines?: JournalLine[];

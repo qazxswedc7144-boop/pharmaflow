@@ -74,6 +74,7 @@ export const DraftService = {
       const existing = await db.draft_invoices.get(draftId);
       const now = new Date().toISOString();
       const draft = {
+        id: draftId,
         draftId,
         invoiceType,
         items,

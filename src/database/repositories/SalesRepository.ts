@@ -26,11 +26,19 @@ export const SalesRepository = {
   },
 
   getUnpaidByCustomer: async (partnerId: string): Promise<Sale[]> => {
-    const all = await db.invoices
-      .where('partner_id').equals(partnerId)
-      .and(i => i.type === 'SALE')
-      .toArray();
-    return all.filter(s => (s.paidAmount || 0) < s.finalTotal) as unknown as Sale[];
+    const [bySnake, byCamel] = await Promise.all([
+      db.invoices.where('[type+partner_id]').equals(['SALE', partnerId]).toArray(),
+      db.invoices.where('[type+partnerId]').equals(['SALE', partnerId]).toArray()
+    ]);
+    const map = new Map<string, any>();
+    for (const item of [...bySnake, ...byCamel]) {
+      if (item && item.id) map.set(item.id, item);
+    }
+    return Array.from(map.values()).filter(s => {
+      const total = s.finalTotal ?? s.totalAmount ?? 0;
+      const paid = s.paidAmount ?? 0;
+      return paid < total;
+    }) as unknown as Sale[];
   },
 
   updatePaidAmount: async (id: string, amount: number): Promise<void> => {

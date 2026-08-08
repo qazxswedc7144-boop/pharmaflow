@@ -45,11 +45,18 @@ export const SupplierRepository = {
   },
 
   save: async (partner: Supplier, type?: 'S' | 'C'): Promise<string> => {
-    if (type === 'C' || partner.Supplier_ID?.startsWith('C-')) {
-       const key = await db.customers.put(partner);
+    const isCustomer = type === 'C' || partner.Supplier_ID?.startsWith('C-') || partner.id?.startsWith('C-');
+    const partnerId = partner.id || partner.Supplier_ID || (isCustomer ? `C-${Date.now()}` : `S-${Date.now()}`);
+    const partnerPayload = {
+      ...partner,
+      id: partnerId,
+      Supplier_ID: partner.Supplier_ID || partnerId
+    };
+    if (isCustomer) {
+       const key = await db.customers.put(partnerPayload);
        return String(key);
     }
-    const key = await db.suppliers.put(partner);
+    const key = await db.suppliers.put(partnerPayload);
     return String(key);
   },
 

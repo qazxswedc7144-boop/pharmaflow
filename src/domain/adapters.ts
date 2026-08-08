@@ -6,9 +6,7 @@
 
 import { Product } from "./inventory.domain";
 import { SalesInvoice, SalesInvoiceItem } from "./sales.domain";
-import { PurchaseInvoice, PurchaseInvoiceItem } from "./purchases.domain";
 import { Customer, Supplier } from "./partners.domain";
-import { Account, JournalEntry } from "./accounting.domain";
 import { InvoiceStatus, PaymentStatus, PaymentMethod } from "./enums.types";
 
 export class DomainAdapters {

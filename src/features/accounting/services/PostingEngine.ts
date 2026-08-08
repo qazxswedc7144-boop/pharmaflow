@@ -1,6 +1,6 @@
 
 import { db } from '@/core/db';
-import { AccountingEntry } from '@/types';
+import { AccountingEntry, Sale, Purchase, UnifiedInvoice } from '@/types';
 import { AccountingEngine } from './AccountingEngine';
 import { InventoryService } from '@features/inventory/services/InventoryService';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
@@ -32,10 +32,10 @@ export class PostingEngine {
     const warehouseId = 'WH-MAIN'; // Default for now
 
     // 1. Record Inventory Movements (FIFO)
-    for (const item of sale.items) {
+    for (const item of sale.items || []) {
       await InventoryService.recordMovement({
         type: 'SALE',
-        productId: item.product_id,
+        productId: item.product_id || (item as any).productId || 'N/A',
         warehouseId,
         quantity: -item.qty,
         sourceDocId: saleId,
@@ -79,10 +79,10 @@ export class PostingEngine {
     const warehouseId = 'WH-MAIN';
 
     // 1. Reverse Inventory Movements
-    for (const item of sale.items) {
+    for (const item of sale.items || []) {
       await InventoryService.recordMovement({
         type: 'ADJUSTMENT',
-        productId: item.product_id,
+        productId: item.product_id || (item as any).productId || 'N/A',
         warehouseId,
         quantity: item.qty,
         sourceDocId: saleId,
@@ -122,16 +122,16 @@ export class PostingEngine {
     if (purchase.invoiceStatus === 'POSTED') return;
 
     // 4. Accounting Period Lock Check
-    await PeriodLockEngine.validateOperation(purchase.date, 'ترحيل');
+    await PeriodLockEngine.validateOperation(purchase.date || new Date().toISOString(), 'ترحيل');
 
     const userId = purchase.Created_By || 'SYSTEM';
     const warehouseId = 'WH-MAIN';
 
     // 1. Record Inventory Movements
-    for (const item of purchase.items) {
+    for (const item of purchase.items || []) {
       await InventoryService.recordMovement({
         type: 'PURCHASE',
-        productId: item.product_id,
+        productId: item.product_id || (item as any).productId || 'N/A',
         warehouseId,
         quantity: item.qty,
         sourceDocId: purchaseId,
@@ -167,16 +167,16 @@ export class PostingEngine {
     if (!purchase || purchase.invoiceStatus !== 'POSTED') return;
 
     // 4. Accounting Period Lock Check
-    await PeriodLockEngine.validateOperation(purchase.date, 'إلغاء ترحيل');
+    await PeriodLockEngine.validateOperation(purchase.date || new Date().toISOString(), 'إلغاء ترحيل');
 
     const userId = 'SYSTEM';
     const warehouseId = 'WH-MAIN';
 
     // 1. Reverse Inventory
-    for (const item of purchase.items) {
+    for (const item of purchase.items || []) {
       await InventoryService.recordMovement({
         type: 'ADJUSTMENT',
-        productId: item.product_id,
+        productId: item.product_id || (item as any).productId || 'N/A',
         warehouseId,
         quantity: -item.qty,
         sourceDocId: purchaseId,
@@ -199,7 +199,7 @@ export class PostingEngine {
     }
 
     // 3. Reverse Supplier Balance
-    await db.updateSupplierBalance(purchase.partnerId, -purchase.totalAmount);
+    await db.updateSupplierBalance(purchase.partnerId, -(purchase.totalAmount || 0));
 
     // 4. Update Status
     await db.db.purchases.update(purchaseId, { invoiceStatus: 'DRAFT_EDIT' });
@@ -250,7 +250,8 @@ export class PostingEngine {
   }
 
   static async postInvoice(invoice: Sale | Purchase | UnifiedInvoice): Promise<void> {
-    const type = ('SaleID' in invoice || ('documentType' in invoice && (invoice as UnifiedInvoice).documentType === 'SALE')) ? 'SALE' : 'PURCHASE';
+    const inv = invoice as any;
+    const type = ('SaleID' in invoice || inv.documentType === 'SALE') ? 'SALE' : 'PURCHASE';
     if (type === 'SALE') await this.postSale(invoice.id);
     else await this.postPurchase(invoice.id);
   }

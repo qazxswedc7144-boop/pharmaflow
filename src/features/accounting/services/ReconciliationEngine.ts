@@ -23,8 +23,9 @@ export const ReconciliationEngine = {
     const partner = await SupplierRepository.getById(partnerId, type);
     if (!partner) return 0;
 
+    const partnerName = partner.Supplier_Name || (partner as any).name || (partner as any).Name || '';
     const statement = await AccountStatementRepository.getStatement(
-      partner.Supplier_Name, 
+      partnerName, 
       type === 'S' ? 'Supplier' : 'Customer'
     );
     
@@ -32,8 +33,9 @@ export const ReconciliationEngine = {
       ? statement[statement.length - 1].runningBalance 
       : (partner.openingBalance || 0);
 
-    if (Math.abs(partner.balance - actualBalance) > 0.001) {
-      logger.warn("Reconciliation", "Partner", `تم اكتشاف انحراف في رصيد [${partner.Supplier_Name}]. القديم: ${partner.balance}، الفعلي: ${actualBalance}. جاري التصحيح...`);
+    const currentBal = partner.balance ?? 0;
+    if (Math.abs(currentBal - actualBalance) > 0.001) {
+      logger.warn("Reconciliation", "Partner", `تم اكتشاف انحراف في رصيد [${partnerName}]. القديم: ${currentBal}، الفعلي: ${actualBalance}. جاري التصحيح...`);
       partner.balance = actualBalance;
       await SupplierRepository.save(partner, type);
     }
@@ -48,22 +50,26 @@ export const ReconciliationEngine = {
     const unified = await InvoiceRepository.getUnifiedInvoice(invoiceId);
     if (!unified) return;
 
+    const unifiedObj = unified as any;
+    const finalTotal = Number(unifiedObj.finalTotal || 0);
+    const paidAmount = Number(unifiedObj.paidAmount || 0);
+
     // جلب المبالغ المسددة من سجل الروابط (Source of Truth for Payments)
     const actualPaid = await VoucherInvoiceLinkRepository.getTotalPaidForInvoice(invoiceId);
     
     // الفحص الإضافي للفواتير النقدية (التي لا تمر عبر السندات أحياناً)
-    const finalPaid = unified.paymentStatus === 'Cash' ? Math.max(actualPaid, unified.finalTotal) : actualPaid;
+    const finalPaid = unifiedObj.paymentStatus === 'Cash' ? Math.max(actualPaid, finalTotal) : actualPaid;
 
-    if (Math.abs(unified.paidAmount - finalPaid) > 0.001) {
+    if (Math.abs(paidAmount - finalPaid) > 0.001) {
       logger.info("Reconciliation", "Invoice", `تحديث مبالغ السداد للفاتورة #${invoiceId}. القيمة الجديدة: ${finalPaid}`);
       
-      const nextStatus = InvoiceWorkflowEngine.determineNextStatus(unified.finalTotal, finalPaid, unified.documentStatus);
+      const nextStatus = InvoiceWorkflowEngine.determineNextStatus(finalTotal, finalPaid, unifiedObj.documentStatus || 'DRAFT');
 
-      unified.paidAmount = finalPaid;
-      unified.documentStatus = nextStatus;
-      unified.financialStatus = finalPaid >= unified.finalTotal ? 'Paid' : 'Unpaid';
+      unifiedObj.paidAmount = finalPaid;
+      unifiedObj.documentStatus = nextStatus;
+      unifiedObj.financialStatus = finalPaid >= finalTotal ? 'Paid' : 'Unpaid';
       
-      await db.invoices.put(unified);
+      await db.invoices.put(unifiedObj);
     }
   },
 

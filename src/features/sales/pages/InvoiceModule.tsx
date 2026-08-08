@@ -65,7 +65,7 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
       setCombinedRecent([]);
     } else {
       const recent = await InvoiceRepository.getRecentInvoices();
-      setCombinedRecent(recent);
+      setCombinedRecent(recent as unknown as CombinedInvoiceItem[]);
       setSalesList([]);
       setPurchaseList([]);
     }
@@ -168,7 +168,7 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in duration-500">
-           {combinedList.map(item => (
+           {combinedList.map((item: any) => (
               <div 
                 key={item.id} 
                 onClick={() => handleOpenForEdit(item)}
@@ -186,7 +186,7 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
                      {item.InvoiceStatus !== 'CANCELLED' && item.invoiceStatus !== 'CANCELLED' && (
                        <button onClick={(e) => handleCancelInvoice(e, item)} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-red-300 hover:text-red-500 transition-all shadow-sm" title={isAr ? "إلغاء المستند" : "Cancel Invoice"}><Ban size={16} /></button>
                      )}
-                     <button onClick={(e) => { e.stopPropagation(); viewHistory(e, item.displayId); }} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm"><History size={16} /></button>
+                     <button onClick={(e) => { e.stopPropagation(); viewHistory(e, item.displayId || ''); }} className="w-10 h-10 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm"><History size={16} /></button>
                      <button onClick={async (e) => { 
                        e.stopPropagation(); 
                        try {
@@ -200,11 +200,11 @@ const InvoiceModule: React.FC<InvoiceModuleProps> = ({ lang, onNavigate }) => {
                    </div>
                  </div>
                  
-                 <h4 className="text-2xl font-black text-[#1E4D4D] mb-1">{item.displayTotal.toLocaleString()} <span className="text-xs font-bold opacity-30 tracking-tight uppercase">{currency}</span></h4>
+                 <h4 className="text-2xl font-black text-[#1E4D4D] mb-1">{(item.displayTotal || 0).toLocaleString()} <span className="text-xs font-bold opacity-30 tracking-tight uppercase">{currency}</span></h4>
                  <p className="text-sm font-black text-slate-500 truncate mb-6">{item.displayPartner}</p>
                  
                  <div className="flex items-center justify-between border-t border-slate-100 pt-5 mt-2">
-                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5"><Clock size={12} /> {new Date(item.date || item.Date).toLocaleDateString('ar-SA')}</span>
+                    <span className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5"><Clock size={12} /> {new Date(item.date || item.Date || Date.now()).toLocaleDateString('ar-SA')}</span>
                     <span className={`text-[11px] font-black px-3 py-1 rounded-full ${
                       (item.InvoiceStatus === 'CANCELLED' || item.invoiceStatus === 'CANCELLED') ? 'bg-red-100 text-red-700' :
                       item.InvoiceStatus === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'

@@ -42,9 +42,9 @@ export const AutoJournalMapper = {
     const { type, payload, options } = request;
     const isReturn = !!options?.isReturn;
     const finalStatus: InvoiceStatus = (options?.invoiceStatus as InvoiceStatus) || 'POSTED';
-    const isPosting = finalStatus === 'POSTED' || finalStatus === 'LOCKED' || finalStatus === 'APPROVED';
+    const isPosting = (finalStatus as string) === 'POSTED' || (finalStatus as string) === 'LOCKED' || (finalStatus as string) === 'APPROVED';
     const currency = options?.currency || CurrencyService.getCurrentCurrencyCode();
-    const paymentStatus: PaymentStatus = options?.paymentStatus === 'Credit' ? 'Credit' : 'Cash';
+    const paymentStatus: PaymentStatus = (options?.paymentStatus === 'Credit' ? 'UNPAID' : 'PAID') as PaymentStatus;
     
     const invoiceId = payload.id || db.generateId(type === 'SALE' ? 'SAL' : 'PUR');
     const enrichedPayload = { ...payload, id: invoiceId };
@@ -134,6 +134,7 @@ export const AutoJournalMapper = {
                 date: payload.date || new Date().toISOString(),
                 customerId: payload.customerId,
                 items: payload.items,
+                subtotal: payload.total,
                 finalTotal: payload.total,
                 paymentStatus,
                 created_at: new Date().toISOString(),

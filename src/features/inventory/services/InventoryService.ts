@@ -25,7 +25,7 @@ export class InventoryService {
   static async saveProduct(product: Product): Promise<string> {
     const isNew = !product.id;
     const now = new Date().toISOString();
-    const productPayload: Product & { Created_At?: string; createdAt?: number } = {
+    const productPayload: any = {
       ...product,
       updated_at: now,
       updatedAt: now,
@@ -291,7 +291,7 @@ export class InventoryService {
         TransactionID: db.generateId('ITX'),
         productId: movement.productId,
         warehouseId: movement.warehouseId || 'WH-MAIN',
-        SourceDocumentType: finalSourceType,
+        SourceDocumentType: finalSourceType as any,
         SourceDocumentID: finalSourceId,
         QuantityChange: actualChange,
         before_qty: currentQty,

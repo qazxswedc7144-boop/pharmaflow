@@ -54,11 +54,9 @@ const InventoryAuditModule: React.FC<InventoryAuditModuleProps> = ({ lang, onNav
           const id = db.generateId('DT');
           const newTask: DailyAuditTask = {
             id,
-            taskId: id,
             date: todayStr,
             items,
-            completed: false,
-            status: 'PENDING'
+            completed: false
           };
           await db.createDailyAuditTask(newTask);
           currentTask = newTask;

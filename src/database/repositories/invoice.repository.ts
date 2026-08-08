@@ -86,7 +86,7 @@ export const InvoiceRepository = {
     return [
       ...sales.map(s => ({ ...s, entityType: 'SALE' as const })),
       ...purchases.map(p => ({ ...p, entityType: 'PURCHASE' as const }))
-    ].sort((a,b) => new Date((a as Sale).Date || (a as Purchase).date).getTime() - new Date((b as Sale).Date || (b as Purchase).date).getTime());
+    ].sort((a,b) => new Date((a as Sale).Date || (a as Sale).date || (a as Purchase).date || Date.now()).getTime() - new Date((b as Sale).Date || (b as Sale).date || (b as Purchase).date || Date.now()).getTime());
   },
 
   getInvoicesArchive: async (): Promise<Array<(Sale | Purchase) & { entityType: 'SALE' | 'PURCHASE' }>> => {

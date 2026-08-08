@@ -23,9 +23,10 @@ export const priceIntelligenceService = {
     // تسجيل الحركات في سجل الاستخدام العام وفي سجل تاريخ الأسعار التفصيلي
     for (const item of items) {
       // 1. تسجيل تاريخ السعر (Price History Memory)
+      const prodId = item.product_id || (item as any).productId || 'N/A';
       await PriceHistoryRepository.record(
-        item.product_id,
-        item.name,
+        prodId,
+        item.name || (item as any).productName || 'صنف',
         partnerId,
         item.price,
         timestamp
@@ -34,7 +35,7 @@ export const priceIntelligenceService = {
       // 2. تسجيل الاستخدام اللوجستي
       const logEntry: ItemUsageLog = {
         id: db.generateId('USG'),
-        productId: item.product_id,
+        productId: prodId,
         timestamp,
         type,
         partnerId,

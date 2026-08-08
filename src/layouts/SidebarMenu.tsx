@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, Database, Settings, CreditCard, 
+  X, Settings, CreditCard, 
   ChevronDown, ChevronUp,
-  CloudUpload, Printer, LogOut,
-  FileSpreadsheet, FileJson, Upload, Phone, LifeBuoy, Key, User, Moon, Sun, Globe
+  Printer, LogOut,
+  Upload, Phone, LifeBuoy, User, Moon, Sun, Globe,
+  ShoppingBag, ShoppingCart, Archive, RotateCcw, PackageCheck, Sliders, Truck,
+  FileText, Scale, Clock, ArrowRightLeft, BarChart2, Layers, ShieldCheck, FileCheck2, HardDrive
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useUI } from '@/contexts/AppContext';
@@ -13,6 +15,7 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 interface SidebarMenuProps {
   isOpen: boolean;
   onClose: () => void;
+  onNavigate?: (view: string, params?: any) => void;
 }
 
 const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: any) => {
@@ -21,7 +24,7 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
     <div className="border-b border-gray-100 dark:border-gray-700/50">
       <button 
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors focus:outline-none"
+        className="w-full flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors focus:outline-none cursor-pointer"
       >
         <div className="flex items-center gap-3 text-[#1E4D4D] dark:text-emerald-400 font-bold">
           <Icon size={18} />
@@ -37,7 +40,7 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden bg-gray-50/30 dark:bg-gray-900/30"
           >
-            <div className="p-4 space-y-4 font-cairo">{children}</div>
+            <div className="p-3 space-y-2 font-cairo">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -45,11 +48,18 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
   );
 };
 
-export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => {
+export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNavigate }) => {
   const { resolvedTheme, setThemeMode } = useTheme();
   const { currency, setCurrency } = useUI();
   const { signOut } = useAuth();
   const isDarkMode = resolvedTheme === 'dark';
+
+  const handleNavClick = (view: string, params?: any) => {
+    onClose();
+    if (onNavigate) {
+      onNavigate(view, params);
+    }
+  };
 
   return (
     <AnimatePresence>
@@ -63,11 +73,14 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
           <motion.div 
             initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="fixed inset-y-0 right-0 h-full h-dvh w-[340px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-[201] flex flex-col font-cairo overflow-hidden"
+            className="fixed inset-y-0 right-0 h-full h-dvh w-[350px] max-w-[90vw] bg-white dark:bg-gray-900 shadow-2xl z-[201] flex flex-col font-cairo overflow-hidden"
             dir="rtl"
           >
             <div className="p-4 border-b dark:border-gray-800 flex items-center justify-between bg-[#1E4D4D] text-white shrink-0">
-              <h2 className="font-bold text-lg">قائمة النظام</h2>
+              <div className="flex items-center gap-2">
+                <Settings size={20} className="text-emerald-400" />
+                <h2 className="font-bold text-lg">النافذة التشغيلية والخدمات</h2>
+              </div>
               <button onClick={onClose} className="p-1.5 hover:bg-white/20 rounded-lg transition-colors focus:outline-none cursor-pointer"><X size={20} /></button>
             </div>
             
@@ -126,33 +139,132 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
                 </div>
               </div>
 
-              {/* 1️⃣ Backup & Security */}
-              <AccordionSection title="النسخ الاحتياطي والأمان" icon={Database}>
-                <button className="w-full text-right text-sm text-[#1E4D4D] dark:text-emerald-100 bg-emerald-50 dark:bg-emerald-900/20 py-2.5 px-3 rounded-lg hover:bg-emerald-100 dark:hover:bg-emerald-800/40 transition-colors flex items-center justify-center gap-2 border border-emerald-100 dark:border-emerald-800/50 focus:outline-none">
-                  <Database size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span className="font-bold text-emerald-800 dark:text-emerald-300">نسخ احتياطي فوري للبيانات</span>
+              {/* 1️⃣ Operational Sales & Purchases */}
+              <AccordionSection title="قسم المبيعات والمشتريات التشغيلي" icon={ShoppingCart} defaultOpen={true}>
+                <button 
+                  onClick={() => handleNavClick('sales')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <ShoppingBag size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>كاشير المبيعات POS</span>
                 </button>
-                
-                <div className="space-y-1 mt-3">
-                  <label className="text-xs font-bold text-gray-500 dark:text-gray-400">استعادة نسخة احتياطية سابقة</label>
-                  <label className="flex items-center justify-center gap-2 w-full text-sm text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-dashed border-gray-300 dark:border-gray-600 py-3 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <CloudUpload size={18} className="text-gray-400" />
-                    <span>اختر ملف النسخة الاحتياطية</span>
-                    <input type="file" className="hidden" accept=".json,.bak" />
-                  </label>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100 dark:border-gray-700/50 mt-3">
-                  <button className="flex items-center justify-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-2.5 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none">
-                    <FileSpreadsheet size={14} className="text-green-600" /> تصدير الأصناف
-                  </button>
-                  <button className="flex items-center justify-center gap-1.5 text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-2.5 px-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none">
-                    <FileJson size={14} className="text-blue-500" /> تصدير العملاء
-                  </button>
-                </div>
+                <button 
+                  onClick={() => handleNavClick('invoices-archive')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Archive size={16} className="text-blue-600 dark:text-blue-400" />
+                  <span>أرشيف وسجل الفواتير</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('invoices-archive', { filter: 'returns' })}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <RotateCcw size={16} className="text-amber-600 dark:text-amber-400" />
+                  <span>مرتجعات الفواتير</span>
+                </button>
               </AccordionSection>
 
-              {/* 2️⃣ Pharmacy & Printing */}
+              {/* 2️⃣ Advanced Inventory Management */}
+              <AccordionSection title="قسم إدارة المخزون المتقدم" icon={Truck}>
+                <button 
+                  onClick={() => handleNavClick('inventory-audit')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <PackageCheck size={16} className="text-teal-600 dark:text-teal-400" />
+                  <span>جرد المخزون والتحقق</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('adjustments-registry')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Sliders size={16} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>تسوية المخزون</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('inventory')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Truck size={16} className="text-cyan-600 dark:text-cyan-400" />
+                  <span>حركة المخزون واللوجستيات</span>
+                </button>
+              </AccordionSection>
+
+              {/* 3️⃣ Advanced Accounting & Finance */}
+              <AccordionSection title="قسم المحاسبة والمالية المتقدم" icon={FileText}>
+                <button 
+                  onClick={() => handleNavClick('vouchers')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <FileText size={16} className="text-purple-600 dark:text-purple-400" />
+                  <span>سندات القبض والصرف</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('reconciliation')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Scale size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>تسوية الحسابات</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('aging-report')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Clock size={16} className="text-rose-600 dark:text-rose-400" />
+                  <span>تقارير أعمار الديون</span>
+                </button>
+              </AccordionSection>
+
+              {/* 4️⃣ Branch Management & Consolidation */}
+              <AccordionSection title="قسم إدارة الفروع والدمج" icon={ArrowRightLeft}>
+                <button 
+                  onClick={() => handleNavClick('branch-transfers')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <ArrowRightLeft size={16} className="text-[#10B981]" />
+                  <span>حركات نقل المخزون بين الفروع</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('branch-reports')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <BarChart2 size={16} className="text-indigo-600 dark:text-indigo-400" />
+                  <span>تقارير تحليلات الفروع الذكي</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('consolidation')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <Layers size={16} className="text-blue-600 dark:text-blue-400" />
+                  <span>القوائم المالية المجمعة</span>
+                </button>
+              </AccordionSection>
+
+              {/* 5️⃣ System & Security */}
+              <AccordionSection title="قسم النظام والأمان" icon={ShieldCheck}>
+                <button 
+                  onClick={() => handleNavClick('system-health')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <User size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>إدارة المستخدمين والصلاحيات</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('audit-history')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <FileCheck2 size={16} className="text-amber-600 dark:text-amber-400" />
+                  <span>سجل التغييرات والتدقيق</span>
+                </button>
+                <button 
+                  onClick={() => handleNavClick('backup')}
+                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                >
+                  <HardDrive size={16} className="text-purple-600 dark:text-purple-400" />
+                  <span>النسخ الاحتياطي والأمان</span>
+                </button>
+              </AccordionSection>
+
+              {/* Pharmacy Info & Printing Config */}
               <AccordionSection title="بيانات الصيدلية والطباعة" icon={Printer}>
                 <div className="space-y-3">
                   <input type="text" placeholder="اسم الصيدلية" className="w-full text-sm p-2.5 border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-[#10B981] outline-none transition-all" />
@@ -163,7 +275,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
 
-                <button className="w-full mt-3 flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none">
+                <button className="w-full mt-3 flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 py-2.5 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors focus:outline-none cursor-pointer">
                   <Upload size={16} /> رفع شعار الصيدلية (Logo)
                 </button>
 
@@ -178,7 +290,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
                 </div>
               </AccordionSection>
 
-              {/* 3️⃣ Subscription */}
+              {/* Subscription & Technical Support */}
               <AccordionSection title="الحسابات والاشتراك" icon={CreditCard}>
                 <div className="bg-gradient-to-br from-[#1E4D4D] to-[#2A6B6B] p-4 rounded-xl text-white shadow-lg relative overflow-hidden">
                   <div className="absolute top-0 left-0 w-full h-full bg-white/5 opacity-50 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize: '16px 16px' }} />
@@ -198,42 +310,19 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose }) => 
                   </div>
                 </div>
 
-                <button className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none">
+                <button className="w-full mt-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white text-sm py-2.5 rounded-lg font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 focus:outline-none cursor-pointer">
                   <CreditCard size={18} /> ترقية / تجديد الاشتراك
                 </button>
 
                 <div className="pt-4 border-t border-gray-100 dark:border-gray-700/50 mt-4">
                   <p className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-3">الدعم الفني السريع</p>
                   <div className="grid grid-cols-2 gap-2">
-                    <button className="flex flex-col items-center justify-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none">
+                    <button className="flex flex-col items-center justify-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none cursor-pointer">
                       <Phone size={18} className="text-blue-500" /> اتصال بالدعم
                     </button>
-                    <button className="flex flex-col items-center justify-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none">
+                    <button className="flex flex-col items-center justify-center gap-2 text-xs font-bold text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 py-3 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors focus:outline-none cursor-pointer">
                       <LifeBuoy size={18} className="text-orange-500" /> تذكرة صيانة
                     </button>
-                  </div>
-                </div>
-              </AccordionSection>
-
-              {/* 4️⃣ System */}
-              <AccordionSection title="إعدادات النظام" icon={Settings}>
-                <div className="space-y-4">
-                  <div>
-                    <label className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-2 block">إدارة المستخدمين والصلاحيات</label>
-                    <div className="flex flex-col gap-3 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-100 dark:border-gray-700">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-[#1E4D4D]/10 dark:bg-emerald-900/30 flex items-center justify-center text-[#1E4D4D] dark:text-emerald-400 shrink-0">
-                          <User size={20} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-gray-800 dark:text-gray-100">Administrator</p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">مدير النظام</p>
-                        </div>
-                      </div>
-                      <button className="flex items-center justify-center gap-1.5 w-full text-xs font-bold text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors focus:outline-none">
-                        <Key size={14} /> تغيير كلمة المرور
-                      </button>
-                    </div>
                   </div>
                 </div>
               </AccordionSection>

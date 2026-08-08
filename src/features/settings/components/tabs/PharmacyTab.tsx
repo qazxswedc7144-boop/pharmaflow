@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { SettingsCard, Accordion, SettingInput, SettingToggle, SettingSelect } from '../shared/SettingsUI';
 import { Building2, Printer, Download, Image as ImageIcon } from 'lucide-react';
 import { settingsService, type SettingValue } from '../../data/SettingsService';
-import logoImg from '@/assets/brand/logo.png';
 
 export default function PharmacyTab() {
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});

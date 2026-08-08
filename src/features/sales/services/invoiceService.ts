@@ -1,4 +1,5 @@
 import { db } from "@/core/db";
+import { UnifiedBusinessWorkflowOrchestrator } from "@/services/orchestration/UnifiedBusinessWorkflowOrchestrator";
 
 export interface InvoiceItem {
   product_id: string;
@@ -7,7 +8,7 @@ export interface InvoiceItem {
 }
 
 /**
- * محرك الفواتير المطور لربط PharmaFlow بـ Dexie (Local-only version)
+ * محرك الفواتير المطور لربط PharmaFlow بالمخدم المركزي عبر UnifiedBusinessWorkflowOrchestrator
  */
 export const invoiceService = {
   /**
@@ -18,34 +19,31 @@ export const invoiceService = {
   },
 
   /**
-   * إنشاء فاتورة جديدة (نسخة محلية 100%)
+   * إنشاء فاتورة جديدة مأمنة عبر UnifiedBusinessWorkflowOrchestrator
    */
   async createInvoice(customerId: string, items: InvoiceItem[], total: number) {
     try {
-      // إدخال الفاتورة في النسخة المحلية (Dexie) لضمان العمل بدون إنترنت
-      const salePayload = await db.processSale(
+      const result = await UnifiedBusinessWorkflowOrchestrator.processSale({
         customerId,
-        items.map(it => ({
+        items: items.map(it => ({
+          id: `ITEM_${Date.now()}_${it.product_id}`,
+          productId: it.product_id,
+          productName: 'Item from service',
+          quantity: it.quantity,
+          unitPrice: it.unit_price,
+          subtotal: it.quantity * it.unit_price,
           product_id: it.product_id,
           qty: it.quantity,
           price: it.unit_price,
-          name: 'Item from service' // Fallback
+          name: 'Item from service'
         })),
-        total,
-        false,
-        db.generateId('INV'),
-        'YER',
-        'completed',
-        'completed', // docStatus
-        100, // auditScore
-        'low', // riskLevel
-        total, // totalCost
-        '', // refId
-        '', // attachment
-        new Date().toISOString() // date
-      );
+        total
+      }, {
+        invoiceStatus: 'POSTED',
+        isCash: true
+      });
 
-      return { success: true, localId: salePayload?.id || '', synced: false };
+      return { success: true, localId: result.refId || '', synced: false };
     } catch (error: unknown) {
       const errMsg = error instanceof Error ? error.message : String(error);
       console.error("Database Error:", errMsg);

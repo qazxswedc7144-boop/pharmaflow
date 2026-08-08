@@ -69,7 +69,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
   } | null>(null);
 
   const [isRecoveryModalOpen, setIsRecoveryModalOpen] = useState(false);
-  const [recoveryDraftData, setRecoveryDraftData] = useState<Record<string, unknown> | null>(null);
+  const [recoveryDraftData, setRecoveryDraftData] = useState<any>(null);
 
   const [customerSearchTerm, setCustomerSearchTerm] = useState('');
   const [showCustomerDropdown, setShowCustomerDropdown] = useState(false);
@@ -269,7 +269,8 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
     } else if (e.key === 'Enter') {
       if (selectedCustomerIndex >= 0) {
         e.preventDefault();
-        selectCustomer(filteredCustomers[selectedCustomerIndex]);
+        const found = filteredCustomers[selectedCustomerIndex];
+        if (found) selectCustomer(found);
       }
     } else if (e.key === 'Escape') {
       setShowCustomerDropdown(false);
@@ -302,7 +303,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
         Supplier_Name: newCustomerName,
         Phone: '',
         Address: '',
-        Balance: 0,
+        balance: 0,
         openingBalance: 0,
         Is_Active: true,
         Created_At: new Date().toISOString()
@@ -356,17 +357,21 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
           setHasDependencies(deps);
 
           if (inv) {
+            const i = inv as any;
             const h = {
-              invoice_number: inv.invoiceNumber, customer_id: inv.partnerId,
-              payment_method: inv.paymentStatus, status: inv.documentStatus,
-              payment_status: inv.financialStatus, date: inv.date.split('T')[0],
-              isReturn: inv.isReturn,
-              notes: inv.notes || '',
-              attachment: inv.attachment || '',
-              warehouse: inv.warehouse || ''
+              invoice_number: String(i.invoiceNumber || i.id || ''),
+              customer_id: String(i.partnerId || i.customerId || ''),
+              payment_method: String(i.paymentStatus || 'Cash'),
+              status: (i.documentStatus || 'DRAFT') as InvoiceStatus,
+              payment_status: (i.financialStatus || 'Unpaid') as PaymentStatus,
+              date: String(i.date || '').split('T')[0],
+              isReturn: Boolean(i.isReturn),
+              notes: String(i.notes || ''),
+              attachment: String(i.attachment || ''),
+              warehouse: String(i.warehouse || '')
             };
             setHeader(h);
-            setItems(inv.items);
+            setItems(i.items || []);
             return;
           }
         } else {
@@ -487,7 +492,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
             },
             options: { 
               isCash: header.payment_method === 'Cash', 
-              paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
+              paymentStatus: header.payment_method === 'Cash' ? 'Cash' : 'Credit',
               isReturn: header.isReturn, 
               currency,
               invoiceStatus: header.status,
@@ -507,7 +512,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
     try {
       setSelectedProduct(p);
       setManualItemName(p.Name || p.name);
-      setCategoryName(p.categoryName || p.category || '');
+      setCategoryName(p.categoryName || (p as any).category || '');
       setTempExpiry(p.ExpiryDate || p.expiryDate || '');
       const suggestion = await priceIntelligenceService.getSuggestedPrice(p.id, 'SALE', header.customer_id);
       setTempPrice(suggestion.suggestedPrice || p.UnitPrice || p.price || 0);
@@ -543,7 +548,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
       const priceVal = typeof tempPrice === 'number' ? tempPrice : parseFloat(tempPrice) || 0;
       const qtyVal = typeof tempQty === 'number' ? tempQty : Number(tempQty) || 1;
 
-      const newItem: InvoiceItem = {
+      const newItem: any = {
         id: db.generateId('SALE_DET'), parent_id: header.invoice_number,
         product_id: prod?.id || db.generateId('NEW'),
         name: prod?.Name || name, 
@@ -552,7 +557,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
         sum: qtyVal * priceVal, 
         row_order: items.length + 1,
         expiryDate: tempExpiry || prod?.ExpiryDate || prod?.expiryDate || '',
-        category: categoryName || prod?.categoryName || prod?.category || '',
+        category: categoryName || prod?.categoryName || (prod as any)?.category || '',
         notes: tempNote
       };
       setItems(prev => [...prev, newItem]);
@@ -648,7 +653,7 @@ export const useSales = (onNavigate?: (view: string, params?: Record<string, unk
           },
           options: { 
             isCash: header.payment_method === 'Cash', 
-            paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
+            paymentStatus: header.payment_method === 'Cash' ? 'Cash' : 'Credit',
             invoiceStatus: nextStatus, 
             isReturn: header.isReturn, 
             currency,

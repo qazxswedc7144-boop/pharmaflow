@@ -102,7 +102,7 @@ const AgingReportModule: React.FC<{ onNavigate?: (v: any) => void }> = ({ onNavi
         </div>
         <div className="flex items-center gap-2">
           <Button 
-            variant="outline" 
+            variant="print" 
             size="sm"
             onClick={() => window.print()} 
             className="!py-1.5 !px-4 !text-[10px] bg-[#1E4D4D] text-white hover:bg-[#153737] border-transparent shadow-sm print:hidden"

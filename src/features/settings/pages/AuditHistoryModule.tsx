@@ -10,6 +10,7 @@ import {
   ShieldCheck, FileText, Trash2, Plus,
   Lock
 } from 'lucide-react';
+import { EncryptedAuditExportModal } from '@/components/shared/EncryptedAuditExportModal';
 
 interface AuditHistoryModuleProps {
   onNavigate?: (view: any) => void;
@@ -23,6 +24,7 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ onNavigate, rec
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<'ALL' | 'ADD' | 'UPDATE' | 'DELETE'>('ALL');
   const [loading, setLoading] = useState(true);
+  const [showExportModal, setShowExportModal] = useState(false);
 
   useEffect(() => {
     const fetchAuditLogs = async () => {
@@ -93,11 +95,20 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ onNavigate, rec
             </p>
           </div>
         </div>
-        {!recordId && (
-          <button onClick={() => onNavigate?.('dashboard')} className="bg-white border border-slate-200 text-[#1E4D4D] px-8 py-4 rounded-[22px] text-xs font-black flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm active:scale-95">
-             <ArrowRight size={20} /> الرئيسية
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => setShowExportModal(true)} 
+            className="bg-[#1E4D4D] hover:bg-[#163b3b] text-white px-6 py-4 rounded-[22px] text-xs font-black flex items-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer"
+          >
+            <Lock size={16} className="text-emerald-400" />
+            <span>تصدير PDF مشفر</span>
           </button>
-        )}
+          {!recordId && (
+            <button onClick={() => onNavigate?.('dashboard')} className="bg-white border border-slate-200 text-[#1E4D4D] px-8 py-4 rounded-[22px] text-xs font-black flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm active:scale-95 cursor-pointer">
+               <ArrowRight size={20} /> الرئيسية
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-2 rounded-[32px] border border-slate-100 shadow-sm">
@@ -197,6 +208,12 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ onNavigate, rec
             يمنع النظام برمجياً أي محاولة لتعديل أو حذف هذه الأسطر لضمان الشفافية المطلقة والمطابقة المحاسبية المستمرة.
          </p>
       </div>
+
+      <EncryptedAuditExportModal 
+        isOpen={showExportModal} 
+        onClose={() => setShowExportModal(false)} 
+        logs={filteredLogs} 
+      />
     </div>
   );
 };

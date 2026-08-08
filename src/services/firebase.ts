@@ -9,13 +9,23 @@ const firebaseConfig = {
   authDomain: firebaseAppletConfig.authDomain,
   projectId: firebaseAppletConfig.projectId,
   storageBucket: firebaseAppletConfig.storageBucket,
-  messagingSenderId: firebaseAppletConfig.messagingSenderId,
-  appId: firebaseAppletConfig.appId,
   ...(import.meta.env.VITE_FIREBASE_DATABASE_URL && { databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL })
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0]!;
-const rtdb = getDatabase(app);
+let rtdbInstance: any = null;
+try {
+  const dbUrl = import.meta.env.VITE_FIREBASE_DATABASE_URL || (firebaseAppletConfig.projectId ? `https://${firebaseAppletConfig.projectId}-default-rtdb.firebaseio.com` : undefined);
+  if (dbUrl) {
+    rtdbInstance = getDatabase(app, dbUrl);
+  } else {
+    rtdbInstance = getDatabase(app);
+  }
+} catch (err) {
+  console.warn("Realtime Database initialization skipped:", err);
+}
+
+const rtdb = rtdbInstance;
 const db = firebaseAppletConfig.firestoreDatabaseId && firebaseAppletConfig.firestoreDatabaseId !== "(default)"
   ? getFirestore(app, firebaseAppletConfig.firestoreDatabaseId)
   : getFirestore(app);

@@ -30,8 +30,9 @@ export class StockMovementEngine {
     };
 
     // VALIDATION: Reject if quantity_after < 0 - bypassed to support flexible offline selling
-    if (movement.quantity_after < 0) {
-      console.warn(`Insufficient stock for item ${movement.item_id}. Resulting stock would be ${movement.quantity_after}. Allowed warning-only.`);
+    const qtyAfter = movement.quantity_after ?? 0;
+    if (qtyAfter < 0) {
+      console.warn(`Insufficient stock for item ${movement.item_id}. Resulting stock would be ${qtyAfter}. Allowed warning-only.`);
     }
 
     try {
@@ -42,9 +43,11 @@ export class StockMovementEngine {
     }
 
     // Update Product StockQuantity (Sync) in Dexie
-    const { product: updatedProduct, log } = movement.quantity_change > 0 
-      ? InventoryEngine.addStock(product, Math.abs(movement.quantity_change), movement.unit_cost)
-      : InventoryEngine.removeStock(product, Math.abs(movement.quantity_change));
+    const qtyChange = movement.quantity_change ?? 0;
+    const unitCost = movement.unit_cost ?? 0;
+    const { product: updatedProduct, log } = qtyChange > 0 
+      ? InventoryEngine.addStock(product, Math.abs(qtyChange), unitCost)
+      : InventoryEngine.removeStock(product, Math.abs(qtyChange));
 
     try {
       await db.products.update(product.id, { stock: updatedProduct.stock || updatedProduct.StockQuantity });
@@ -73,7 +76,7 @@ export class StockMovementEngine {
         .equals(item_id)
         .toArray();
       
-      return (movements || []).reduce((sum: number, m: StockMovement) => sum + m.quantity_change, 0);
+      return (movements || []).reduce((sum: number, m: StockMovement) => sum + (m.quantity_change ?? 0), 0);
     } catch (error) {
       return 0;
     }

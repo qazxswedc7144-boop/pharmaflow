@@ -1,6 +1,6 @@
 // src/domain/partners.domain.ts
 import { DomainEntity } from "./base.types";
-import { PartnerType } from "./enums.types";
+
 
 /**
  * Customer Domain Entity
@@ -16,7 +16,7 @@ export interface Customer extends DomainEntity {
   creditLimit?: number;
   taxNumber?: string;
   isActive?: boolean;
-  type?: PartnerType.CUSTOMER | 'CUSTOMER' | string;
+  type?: 'CUSTOMER' | string;
   branchId?: string;
 
   // Compatibility fields
@@ -44,7 +44,7 @@ export interface Supplier extends DomainEntity {
   openingBalance?: number;
   taxNumber?: string;
   isActive?: boolean;
-  type?: PartnerType.SUPPLIER | 'SUPPLIER' | string;
+  type?: 'SUPPLIER' | string;
   purchaseHistory?: Record<string, unknown>[];
   branchId?: string;
 

@@ -44,6 +44,11 @@ class RealtimeReplicationService {
 
     console.log(`[REPLICATION_CLIENT] Connecting Firebase RTDB on branch: ${branchId}...`);
 
+    if (!rtdb) {
+      console.warn("[REPLICATION_CLIENT] RTDB uninitialized, skipping replication connect.");
+      return;
+    }
+
     try {
       this.replicationRef = ref(rtdb, `replication_events/${branchId}`);
       this.connectedRef = ref(rtdb, ".info/connected");

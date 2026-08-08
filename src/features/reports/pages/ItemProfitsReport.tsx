@@ -49,7 +49,7 @@ const ItemProfitsReport: React.FC<{ onNavigate?: (view: any) => void }> = ({ onN
       if (!matchesFrom || !matchesTo) return;
 
       sale.items.forEach(item => {
-        const productId = item.product_id;
+        const productId = item.product_id || 'UNKNOWN';
         if (dateFilter.productId && productId !== dateFilter.productId) return;
 
         const product = products.find(p => p.id === productId);

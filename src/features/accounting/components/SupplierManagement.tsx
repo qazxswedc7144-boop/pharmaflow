@@ -47,10 +47,10 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
         const balances: Record<string, number> = {};
         for (const p of list) {
           try {
-            balances[p.Supplier_ID] = await SupplierRepository.getPartnerBalance(p.Supplier_ID, partnerType === 'supplier' ? 'S' : 'C');
+            if (p.Supplier_ID) balances[p.Supplier_ID] = await SupplierRepository.getPartnerBalance(p.Supplier_ID, partnerType === 'supplier' ? 'S' : 'C');
           } catch (e) {
             console.error(`Failed to fetch balance for ${p.Supplier_ID}:`, e);
-            balances[p.Supplier_ID] = 0;
+            if (p.Supplier_ID) balances[p.Supplier_ID] = 0;
           }
         }
         setPartnerBalances(balances);
@@ -101,7 +101,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
     if (!debouncedSearch.trim()) return list;
     const term = debouncedSearch.toLowerCase();
     return list.filter(p => 
-      p.Supplier_Name.toLowerCase().includes(term) || 
+      (p.Supplier_Name || '').toLowerCase().includes(term) || 
       (p.Phone && p.Phone.includes(debouncedSearch))
     );
   }, [suppliers, customers, partnerType, debouncedSearch]);
@@ -228,7 +228,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
         <AnimatePresence mode="popLayout">
           {partners.map(p => {
             const isExpanded = expandedId === p.Supplier_ID;
-            const balance = partnerBalances[p.Supplier_ID] || 0;
+            const partnerId = p.Supplier_ID || p.id || ''; const balance = partnerBalances[partnerId] || 0;
             
             return (
               <motion.div 
@@ -248,7 +248,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
                         <h3 className={`text-2xl font-black truncate leading-none mb-3 ${partnerType === 'supplier' ? 'text-[#1E4D4D]' : 'text-[#2563EB]'}`}>{p.Supplier_Name}</h3>
                       <div className="flex flex-wrap items-center gap-4 flex-nowrap">
                           <span className="flex items-center gap-2 text-[11px] font-bold text-slate-400 bg-slate-50 px-4 py-1.5 rounded-full"><Phone size={14} /> {p.Phone || '---'}</span>
-                          <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">ID: {p.Supplier_ID.split('-')[0]}</span>
+                          <span className="text-[11px] font-black text-slate-300 uppercase tracking-widest">ID: {(p.Supplier_ID || '').split('-')[0]}</span>
                           {p.Address && <span className="flex items-center gap-2 text-[11px] font-bold text-slate-400"><MapPin size={14} /> {p.Address}</span>}
                         </div>
                      </div>
@@ -263,7 +263,7 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
                      </div>
                      
                      <button 
-                      onClick={(e) => toggleExpand(p.Supplier_ID, e)} 
+                      onClick={(e) => toggleExpand(p.Supplier_ID || p.id || '', e)} 
                       className={`h-11 px-6 rounded-xl text-[11px] font-black transition-all flex items-center gap-2 whitespace-nowrap ${isExpanded ? 'bg-slate-100 text-slate-600' : `${partnerType === 'supplier' ? 'bg-[#1E4D4D]' : 'bg-blue-600'} text-white shadow-xl hover:-translate-y-1`}`}
                      >
                        {isExpanded ? <ChevronUp size={16} /> : <FileText size={16} />}
@@ -317,12 +317,12 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
                                       <td className="py-6 px-10 min-w-[300px]">
                                          <p className="text-[11px] font-black text-[#1E4D4D]">{entry.description}</p>
                                          <div className="flex items-center gap-3 mt-2 flex-nowrap">
-                                            <Badge variant="neutral" className="!rounded-full px-3 py-0.5 text-[11px] font-black">#{entry.referenceId}</Badge>
-                                            {entry.linkedInvoices && (
+                                            <Badge variant="neutral" className="!rounded-full px-3 py-0.5 text-[11px] font-black">#{(entry as any).referenceId || (entry as any).id || ''}</Badge>
+                                            {(entry as any).linkedInvoices && (
                                               <div className="flex items-center gap-2 flex-nowrap">
                                                  <LinkIcon size={12} className="text-blue-500" />
                                                  <span className="text-[11px] font-bold text-blue-600 bg-blue-50 px-3 py-0.5 rounded-full">
-                                                   {isAr ? `يغطي: ${entry.linkedInvoices}` : `Covers: ${entry.linkedInvoices}`}
+                                                   {isAr ? `يغطي: ${(entry as any).linkedInvoices}` : `Covers: ${(entry as any).linkedInvoices}`}
                                                  </span>
                                               </div>
                                             )}
@@ -330,8 +330,8 @@ const SupplierManagement: React.FC<SupplierManagementProps> = ({ lang, onNavigat
                                       </td>
                                       <td className="py-6 px-10 text-center text-[11px] text-red-500 font-black">{entry.debit > 0 ? entry.debit.toLocaleString() : '-'}</td>
                                       <td className="py-6 px-10 text-center text-[11px] text-emerald-600 font-black">{entry.credit > 0 ? entry.credit.toLocaleString() : '-'}</td>
-                                      <td className={`py-6 px-10 text-left font-black text-[14px] bg-emerald-50/10 ${entry.runningBalance >= 0 ? 'text-[#1E4D4D]' : 'text-red-600'}`}>
-                                        {Math.abs(entry.runningBalance || 0).toLocaleString()} <span className="text-[11px] font-normal opacity-30">{currency}</span>
+                                      <td className={`py-6 px-10 text-left font-black text-[14px] bg-emerald-50/10 ${((entry as any).runningBalance || entry.balance || 0) >= 0 ? 'text-[#1E4D4D]' : 'text-red-600'}`}>
+                                        {Math.abs((entry as any).runningBalance || entry.balance || 0).toLocaleString()} <span className="text-[11px] font-normal opacity-30">{currency}</span>
                                       </td>
                                     </tr>
                                   )) : (

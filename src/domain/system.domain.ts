@@ -1,6 +1,6 @@
 // src/domain/system.domain.ts
 import { DomainEntity } from "./base.types";
-import { UserRole, UserStatus, Permission as PermissionEnum } from "./enums.types";
+import { UserRole, UserStatus } from "./enums.types";
 
 /**
  * Enterprise User Entity

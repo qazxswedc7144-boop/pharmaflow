@@ -146,7 +146,7 @@ export class ErrorManager {
     }
 
     // 2. Audit Log persistence
-    const currentUser = opts.userId || authService.getCurrentUser()?.User_Email || authService.getCurrentUser()?.Username || 'SYSTEM';
+    const currentUser = opts.userId || authService.getCurrentUser()?.User_Email || (authService.getCurrentUser() as any)?.Username || 'SYSTEM';
     const action = opts.action || 'ERROR_OCCURRED';
     const auditDetails = `[Code: ${normalized.code}] [Module: ${normalized.module}] [Message: ${normalized.message}] [ArabicMsg: ${normalized.arabicMessage}]`;
 

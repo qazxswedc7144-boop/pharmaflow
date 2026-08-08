@@ -1,9 +1,9 @@
 // src/domain/repositories.contracts.ts
-import { Account, JournalEntry, JournalLine, Voucher } from "./accounting.domain";
+import { Account, JournalEntry, JournalLine } from "./accounting.domain";
 import { SalesInvoice } from "./sales.domain";
 import { PurchaseInvoice } from "./purchases.domain";
-import { Product, StockMovement, ProductBatch, InventoryAdjustment } from "./inventory.domain";
-import { Customer, Supplier, Partner } from "./partners.domain";
+import { Product, StockMovement } from "./inventory.domain";
+import { Customer, Supplier } from "./partners.domain";
 import { AuditLog } from "./system.domain";
 
 export interface IAccountRepository {

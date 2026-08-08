@@ -215,20 +215,20 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
     const fetchEditingInvoice = async () => {
       try {
         if (editingInvoiceId) {
-          const inv = await InvoiceRepository.getPurchaseById(editingInvoiceId);
+          const inv: any = await InvoiceRepository.getPurchaseById(editingInvoiceId);
           if (inv) {
             setHeader({
-              invoice_number: inv.invoiceId,
-              supplier_id: inv.partnerId,
+              invoice_number: inv.invoiceId || inv.invoice_number || '',
+              supplier_id: inv.partnerId || inv.supplier_id || '',
               payment_method: inv.status === 'PAID' ? 'Cash' : 'Credit',
-              status: inv.invoiceStatus,
+              status: inv.invoiceStatus || inv.status || 'DRAFT',
               payment_status: inv.payment_status || 'Unpaid',
               date: inv.date,
               notes: inv.notes || '',
               attachment: inv.attachment || '',
               isReturn: inv.invoiceType === 'مرتجع'
             });
-            setItems(inv.items);
+            setItems(inv.items || []);
             setAdjData({
               discountPercent: inv.discountPercent || 0,
               otherFees: inv.otherFees || 0,
@@ -285,7 +285,7 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
           if (hasSavedDraft) {
             const draft = await DraftService.getDraft('purchases');
             if (draft && draft.items && draft.items.length > 0) {
-              setRecoveryDraftData(draft);
+              setRecoveryDraftData(draft as any);
               setIsRecoveryModalOpen(true);
             }
           }
@@ -299,13 +299,14 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
 
   const restoreDraft = useCallback(async () => {
     if (recoveryDraftData) {
-      const data = recoveryDraftData.totals?.header ? recoveryDraftData.totals : (recoveryDraftData.payload || recoveryDraftData);
+      const draftObj: any = recoveryDraftData;
+      const data = draftObj.totals?.header ? draftObj.totals : (draftObj.payload || draftObj);
       if (data) {
         if (data.header) {
           setHeader(data.header);
         }
-        if (recoveryDraftData.items) {
-          setItems(recoveryDraftData.items);
+        if (draftObj.items) {
+          setItems(draftObj.items);
         } else if (data.items) {
           setItems(data.items);
         }
@@ -313,11 +314,11 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
           setAdjData(data.adjData);
         } else if (data.totals?.adjData) {
           setAdjData(data.totals.adjData);
-        } else if (recoveryDraftData.totals?.adjData) {
-          setAdjData(recoveryDraftData.totals.adjData);
+        } else if (draftObj.totals?.adjData) {
+          setAdjData(draftObj.totals.adjData);
         }
-        if (recoveryDraftData.partner?.partnerName) {
-          setSupplierSearchTerm(recoveryDraftData.partner.partnerName);
+        if (draftObj.partner?.partnerName) {
+          setSupplierSearchTerm(draftObj.partner.partnerName);
         } else if (data.partner?.partnerName) {
           setSupplierSearchTerm(data.partner.partnerName);
         }
@@ -330,8 +331,8 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
 
   const discardDraft = useCallback(async () => {
     try {
-      if (recoveryDraftData?.draftId) {
-        await DraftService.clearInvoiceDraft(recoveryDraftData.draftId);
+      if ((recoveryDraftData as any)?.draftId) {
+        await DraftService.clearInvoiceDraft((recoveryDraftData as any).draftId);
       }
       await DraftService.clearDraft('purchases');
       const unfinished = await DraftService.getUnfinishedInvoiceDraft('PURCHASE');
@@ -362,7 +363,7 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
       e.preventDefault();
       setSelectedSupplierIndex(prev => Math.max(prev - 1, -1));
     } else if (e.key === 'Enter') {
-      if (selectedSupplierIndex >= 0) {
+      if (selectedSupplierIndex >= 0 && filteredSuppliers[selectedSupplierIndex]) {
         e.preventDefault();
         selectSupplier(filteredSuppliers[selectedSupplierIndex]);
       }
@@ -548,7 +549,7 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
     const matchedSupplierId = matchedSupplier ? (matchedSupplier.id || matchedSupplier.Supplier_ID) : (suppliers?.[0]?.id || '');
 
     // Transform extracted raw items into standard local InvoiceItem array
-    const mappedItems: InvoiceItem[] = cleanedItems.map((item, idx) => {
+    const mappedItems: any[] = cleanedItems.map((item, idx) => {
       const q = Number(item.quantity || 1);
       const p = Number(item.price || 0);
       const disc = Number(item.discountPercent || 0);
@@ -566,27 +567,32 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
         id: `PUR-DET-${Date.now()}-${idx}`,
         parent_id: aiParsedData.invoice_number || `INV-${Math.floor(Math.random() * 100000)}`,
         product_id: item.product_id || `manual-${Date.now()}-${idx}`,
+        productId: item.product_id || `manual-${Date.now()}-${idx}`,
+        productName: item.name || '',
         name: item.name || '',
+        quantity: q,
         qty: q,
+        unitPrice: p,
         price: p,
+        subtotal: finalSum,
         sum: finalSum,
         discount_val: disc,
         row_order: idx + 1,
         expiryDate: item.expiryDate || '',
         notes: notesParts.join(' | '),
-        categoryId: item.categoryId || ''
+        category: item.categoryId || ''
       };
     });
 
     // Update screen reactive states (Intermediate Review Space)
-    setItems(mappedItems);
+    setItems(mappedItems as any);
     setHeader(prev => ({
       ...prev,
       invoice_number: aiParsedData.invoice_number || prev.invoice_number,
-      supplier_id: matchedSupplierId,
+      supplier_id: matchedSupplierId || prev.supplier_id || '',
       isReturn: aiParsedData.type === 'return',
       notes: aiParsedData.notes || prev.notes,
-      status: 'DRAFT' // Strict requirement 1: Initial state is Draft awaiting review
+      status: 'DRAFT' as const
     }));
 
     setHasUnsavedAI(true);
@@ -722,14 +728,19 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
       id: `PUR-DET-${Date.now()}`,
       parent_id: header.invoice_number,
       product_id: selectedProduct?.id || `manual-${Date.now()}`,
+      productId: selectedProduct?.id || `manual-${Date.now()}`,
+      productName: manualItemName,
       name: manualItemName,
+      quantity: Number(tempQty),
       qty: Number(tempQty),
+      unitPrice: Number(tempPrice),
       price: Number(tempPrice),
+      subtotal: Number(tempQty) * Number(tempPrice),
       sum: Number(tempQty) * Number(tempPrice),
       row_order: items.length + 1,
       expiryDate: tempExpiry,
       notes: tempNote,
-      categoryId: selectedCategoryId || selectedProduct?.categoryId
+      category: selectedCategoryId || selectedProduct?.categoryId
     };
 
     setItems(prev => [...prev, newItem]);
@@ -770,13 +781,13 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
         const originalSupplier = aiParsedData.supplier;
         const finalSupplier = suppliers.find(s => s.id === header.supplier_id)?.Supplier_Name;
         if (originalSupplier && finalSupplier && originalSupplier !== finalSupplier) {
-          saveLearning(originalSupplier, finalSupplier);
+          saveLearning(originalSupplier, finalSupplier || '');
         }
 
         (aiParsedData.items || []).forEach(aiItem => {
           const finalItem = items.find(i => i.qty === aiItem.quantity && i.price === aiItem.price);
           if (finalItem && aiItem.name !== finalItem.name && aiItem.name) {
-            saveLearning(aiItem.name, finalItem.name);
+            saveLearning(aiItem.name, finalItem.name || '');
           }
         });
       }
@@ -798,7 +809,7 @@ export function usePurchases(onNavigate?: (view: string, params?: Record<string,
             },
             options: {
               isCash: header.payment_method === 'Cash',
-              paymentStatus: header.payment_method === 'Cash' ? 'PAID' : 'UNPAID',
+              paymentStatus: header.payment_method === 'Cash' ? 'Cash' : 'Credit',
               invoiceStatus: 'POSTED',
               isReturn: !!header.isReturn,
               currency,

@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  RotateCcw, Sparkles, ShoppingBag, CheckCircle2, Package, 
-  AlertCircle, Plus, Minus, Trash2, Users, X, FileText, Check
+  RotateCcw, ShoppingBag, 
+  Plus, Minus, Users, X, Check
 } from 'lucide-react';
 import { Product, Supplier, InvoiceItem } from '@/types';
 import { PurchaseRepository } from '@/database/repositories/PurchaseRepository';
 import { DraftService } from '@/services/system/DraftService';
+import { UnifiedBusinessWorkflowOrchestrator } from '@/services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 import { db } from '@/core/db';
 import { useUI } from '@/contexts/AppContext';
 
@@ -33,7 +34,6 @@ export const AutoReorderModal: React.FC<AutoReorderModalProps> = ({
   lowStockProducts,
   suppliers,
   onSuccess,
-  onNavigateToPurchases
 }) => {
   const { addToast, currency } = useUI();
   const [selectedSupplierId, setSelectedSupplierId] = useState<string>('');
@@ -47,8 +47,7 @@ export const AutoReorderModal: React.FC<AutoReorderModalProps> = ({
       const targetStock = minLevel * 2;
       const calculatedQty = Math.max(minLevel, targetStock - currentStock);
 
-      const lastPrice = PurchaseRepository.getLastPurchasePriceForItem(product.id) || 
-                        product.LastPurchasePrice || 
+      const lastPrice = product.LastPurchasePrice || 
                         product.costPrice || 
                         product.CostPrice || 
                         product.cost || 
@@ -175,7 +174,7 @@ export const AutoReorderModal: React.FC<AutoReorderModalProps> = ({
           sum: sumVal,
           subtotal: sumVal,
           expiryDate: prod.ExpiryDate || prod.expiryDate || '',
-          category: prod.categoryName || prod.category || 'عام',
+          category: prod.categoryName || (prod as any).category || 'عام',
           notes: `إعادة طلب تلقائي (الرصيد الحالي: ${prod.stock ?? prod.StockQuantity ?? 0})`
         };
       });
@@ -209,8 +208,22 @@ export const AutoReorderModal: React.FC<AutoReorderModalProps> = ({
         updatedAt: new Date().toISOString()
       };
 
-      // Save persistent invoice record in IndexedDB
-      await PurchaseRepository.save(draftInvoiceData as any);
+      // Save persistent invoice record via Orchestrator
+      await UnifiedBusinessWorkflowOrchestrator.processPurchase(
+        {
+          id: draftId,
+          supplierId: selectedSupplierId || '',
+          items: invoiceItems,
+          total: grandTotal,
+          date: new Date().toISOString().split('T')[0],
+          notes: draftInvoiceData.notes
+        },
+        {
+          invoiceStatus: 'DRAFT',
+          isCash: false,
+          paymentStatus: 'Credit'
+        }
+      );
 
       // Also save active session draft for seamless opening in Purchases view
       await DraftService.saveDraft('pharmaflow_purchase_draft', 'Purchase Invoice', {

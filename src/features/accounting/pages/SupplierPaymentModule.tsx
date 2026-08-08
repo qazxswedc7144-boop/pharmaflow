@@ -3,9 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useAccounting, useUI } from '@/contexts/AppContext';
 import { Purchase } from '@/types';
 import { PurchaseRepository } from '@/database/repositories/PurchaseRepository';
-import { SupplierRepository } from '@/database/repositories/SupplierRepository';
-import { accountingService } from '@features/accounting/services/accountingService';
-import { db } from '@/core/db';
+import { UnifiedBusinessWorkflowOrchestrator } from '@/services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 import { Card, Button, Badge } from '@/components/shared/SharedUI';
 import { 
   ArrowRight, History, CheckCircle2, ListChecks,
@@ -27,16 +25,16 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
   const [isProcessing, setIsProcessing] = useState(false);
 
   const filteredSuppliers = useMemo(() => {
-    if (!supplierSearchTerm) return suppliers.filter(s => s.balance > 0);
+    if (!supplierSearchTerm) return suppliers.filter(s => (s.balance || 0) > 0);
     return suppliers.filter(s => 
-      s.balance > 0 && 
-      (s.Supplier_Name.toLowerCase().includes(supplierSearchTerm.toLowerCase()) || 
-       s.Supplier_ID.toLowerCase().includes(supplierSearchTerm.toLowerCase()))
+      (s.balance || 0) > 0 && 
+      ((s.Supplier_Name || '').toLowerCase().includes(supplierSearchTerm.toLowerCase()) || 
+       (s.Supplier_ID || '').toLowerCase().includes(supplierSearchTerm.toLowerCase()))
     );
   }, [suppliers, supplierSearchTerm]);
 
   const selectedSupplier = useMemo(() => 
-    suppliers.find(s => s.Supplier_ID === selectedSupplierId),
+    suppliers.find(s => (s.Supplier_ID || '') === selectedSupplierId),
     [suppliers, selectedSupplierId]
   );
 
@@ -82,7 +80,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
     unpaidInvoices.forEach(inv => {
       if (remaining <= 0) return;
       
-      const unpaidAmount = inv.totalAmount - (inv.paidAmount || 0);
+      const unpaidAmount = (inv.totalAmount || inv.finalTotal || 0) - (inv.paidAmount || 0);
       const toPay = Math.min(remaining, unpaidAmount);
       
       if (toPay > 0) {
@@ -109,7 +107,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
     if (!selectedInvoiceIds.has(id)) return;
     const inv = unpaidInvoices.find(i => i.id === id);
     if (!inv) return;
-    const max = inv.totalAmount - (inv.paidAmount || 0);
+    const max = (inv.totalAmount || inv.finalTotal || 0) - (inv.paidAmount || 0);
     
     if (val > max) {
       addToast(`المبلغ يتجاوز رصيد الفاتورة (${max.toLocaleString()})`, "warning");
@@ -148,34 +146,12 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
 
     setIsProcessing(true);
     try {
-      await db.runTransaction(async () => {
-        const voucherId = await accountingService.recordVoucher(
-          'خرج',
-          selectedSupplier?.Supplier_Name || 'مورد غير معروف',
-          totalPaidAmount,
-          'مدفوعات موردين',
-          `سداد مورد: ${selectedSupplier?.Supplier_Name} | ${notes}`,
-          selectedSupplierId,
-          allocations
-        );
-
-        for (const invoiceId in allocations) {
-          const alloc = allocations[invoiceId];
-          if (alloc && alloc.amount > 0) {
-             await PurchaseRepository.updatePaidAmount(invoiceId, alloc.amount);
-          }
-        }
-
-        await SupplierRepository.postToLedger({
-          id: db.generateId('PL'),
-          partnerId: selectedSupplierId,
-          date: new Date().toISOString(),
-          description: `سند صرف رقم #${voucherId}`,
-          debit: totalPaidAmount, 
-          credit: 0,
-          referenceId: voucherId
-        });
-      }, ['vouchers', 'voucherInvoiceLinks', 'journalEntries', 'journalLines', 'accounts', 'suppliers', 'purchases', 'auditLogs', 'settings']);
+      await UnifiedBusinessWorkflowOrchestrator.processSupplierPayment({
+        partnerId: selectedSupplierId,
+        amount: totalPaidAmount,
+        notes,
+        allocations
+      });
 
       addToast("تمت معالجة السداد بنجاح ✅", "success");
       refreshGlobal();
@@ -223,16 +199,16 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
                             {filteredSuppliers.length > 0 ? (
                               filteredSuppliers.map(s => (
                                 <button 
-                                  key={s.Supplier_ID} 
+                                  key={(s.Supplier_ID || '')} 
                                   onClick={() => {
-                                    setSelectedSupplierId(s.Supplier_ID);
-                                    setSupplierSearchTerm(s.Supplier_Name);
+                                    setSelectedSupplierId((s.Supplier_ID || ''));
+                                    setSupplierSearchTerm((s.Supplier_Name || ''));
                                     setShowSupplierDropdown(false);
                                   }}
                                   className="w-full p-4 text-right hover:bg-blue-50 border-b border-slate-50 last:border-0 flex justify-between items-center group transition-colors"
                                 >
-                                  <div className="font-black text-[#1E4D4D] group-hover:text-blue-600">{s.Supplier_Name}</div>
-                                  <Badge variant="danger">{s.balance.toLocaleString()} {currency}</Badge>
+                                  <div className="font-black text-[#1E4D4D] group-hover:text-blue-600">{(s.Supplier_Name || '')}</div>
+                                  <Badge variant="danger">{(s.balance || 0).toLocaleString()} {currency}</Badge>
                                 </button>
                               ))
                             ) : (
@@ -245,7 +221,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
                     {selectedSupplier && (
                       <div className="bg-red-50 p-4 rounded-2xl border border-red-100">
                          <p className="text-[10px] font-black text-red-600 uppercase mb-1">إجمالي المستحقات له</p>
-                         <h3 className="text-xl font-black text-[#1E4D4D] text-center">{selectedSupplier.balance.toLocaleString()} <span className="text-xs opacity-40">{currency}</span></h3>
+                         <h3 className="text-xl font-black text-[#1E4D4D] text-center">{(selectedSupplier?.balance || 0).toLocaleString()} <span className="text-xs opacity-40">{currency}</span></h3>
                       </div>
                     )}
                  </div>
@@ -284,7 +260,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
                 <div className="space-y-4">
                    {unpaidInvoices.map(inv => {
                      const isSelected = selectedInvoiceIds.has(inv.id);
-                     const remaining = inv.totalAmount - (inv.paidAmount || 0);
+                     const remaining = (inv.totalAmount || inv.finalTotal || 0) - (inv.paidAmount || 0);
                      const allocation = allocations[inv.id] || { amount: 0, note: '' };
                      const status = inv.paidAmount && inv.paidAmount > 0 ? 'PartiallyPaid' : 'Unpaid';
 
@@ -305,7 +281,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
                                       </div>
                                       <div className="flex items-center gap-2 mt-1">
                                          <Calendar size={10} className="text-slate-300" />
-                                         <span className="text-[10px] text-slate-400 font-bold">{new Date(inv.date).toLocaleDateString('ar-SA')}</span>
+                                         <span className="text-[10px] text-slate-400 font-bold">{new Date(inv.date || Date.now()).toLocaleDateString('ar-SA')}</span>
                                       </div>
                                    </div>
                                 </div>
