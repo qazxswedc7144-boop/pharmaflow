@@ -21,9 +21,6 @@ if (!process.env.JWT_REFRESH_SECRET) {
 }
 
 // Global resilience listeners to protect the containerized server process from premature exit under background load or DB hiccups
-if (process.env.K_SERVICE || process.env.CLOUD_RUN_JOB) {
-  process.env.NODE_ENV = "production";
-}
 process.on("unhandledRejection", (reason: any) => {
   const detail = (reason?.message || String(reason || "")).replace(/error/gi, "err_");
   console.warn("⚠️ Unhandled Promise Rejection captured in process:", detail);
@@ -49,6 +46,10 @@ if (typeof __filename !== "undefined") {
   } catch {
     // fallback to process.cwd()
   }
+}
+
+if (process.env.K_SERVICE || process.env.CLOUD_RUN_JOB || __filenameResolved.includes("dist")) {
+  process.env.NODE_ENV = "production";
 }
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -104,7 +105,7 @@ async function startServer() {
     }, 100);
   }
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
   if (process.env.NODE_ENV !== "production") {

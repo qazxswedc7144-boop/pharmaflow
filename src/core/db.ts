@@ -229,8 +229,8 @@ export class PharmaFlowDB extends Dexie {
       systemBackups: '&id, backupName, createdAt, backupType',
       
       // Compatibility Stores
-      sales: '&id, invoice_number, date, Date, InvoiceStatus, hash, SaleID, createdAt',
-      purchases: '&id, invoice_number, date, Date, invoiceStatus, hash, createdAt',
+      sales: '&id, invoice_number, date, Date, InvoiceStatus, hash, SaleID, createdAt, transactionUuid',
+      purchases: '&id, invoice_number, date, Date, invoiceStatus, hash, createdAt, transactionUuid',
       categories: '&id, categoryId, categoryName',
       receipts: '&id, voucher_id',
       payments: '&id, voucher_id',
@@ -342,6 +342,17 @@ export class PharmaFlowDB extends Dexie {
     // Version 24: Dexie Query Optimization - Compound Indexes for Invoices
     this.version(24).stores({
       invoices: '&id, invoice_number, invoiceNumber, date, Date, partner_id, partnerId, type, payment_status, financial_status, document_status, is_synced, createdAt, transactionUuid, [type+partner_id], [type+partnerId], [type+invoice_number], [type+invoiceNumber]'
+    });
+
+    // Version 25: Index transactionUuid on sales and purchases
+    this.version(25).stores({
+      sales: '&id, invoice_number, date, Date, InvoiceStatus, hash, SaleID, createdAt, transactionUuid',
+      purchases: '&id, invoice_number, date, Date, invoiceStatus, hash, createdAt, transactionUuid'
+    });
+
+    // Version 26: Index productId, parentId, invoiceId on invoiceItems
+    this.version(26).stores({
+      invoiceItems: '&id, parent_id, parentId, invoice_id, invoiceId, product_id, productId, [parent_id+product_id], [parentId+productId], [invoice_id+product_id], [invoiceId+productId]'
     });
 
     // Handle structural integrity and recovery

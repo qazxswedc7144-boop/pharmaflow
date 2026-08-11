@@ -190,9 +190,20 @@ interface LogEntry {
   details: string;
 }
 
-export default function SecurityAuditDashboard({ onNavigate }: { onNavigate?: (v: string) => void }) {
+interface SecurityAuditDashboardProps {
+  onNavigate?: (v: string, params?: any) => void;
+  initialTab?: 'matrix' | 'pentest' | 'api' | 'firestore' | 'logs' | 'risks';
+}
+
+export default function SecurityAuditDashboard({ onNavigate, initialTab }: SecurityAuditDashboardProps) {
   const { profile } = useAuth();
-  const [activeTab, setActiveTab] = useState<'matrix' | 'pentest' | 'api' | 'firestore' | 'logs' | 'risks'>('matrix');
+  const [activeTab, setActiveTab] = useState<'matrix' | 'pentest' | 'api' | 'firestore' | 'logs' | 'risks'>(initialTab || 'matrix');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
   const [activeSimulationRole, setActiveSimulationRole] = useState<string>('Super Admin');
 
   // State for interactive route penetration testing

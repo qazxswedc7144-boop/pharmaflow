@@ -50,7 +50,7 @@ export default function SyncTab() {
         <div className="flex flex-wrap gap-3">
           <button 
             onClick={handleForceSync}
-            className="px-6 py-2.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors font-cairo flex items-center gap-2"
+            className="px-6 py-2.5 bg-[#1E4D4D] text-white font-bold rounded-xl hover:bg-[#153737] transition-colors font-cairo flex items-center gap-2 shadow-sm"
           >
             <RefreshCw size={18} />
             إعادة محاولة المزامنة

@@ -57,11 +57,20 @@ export class SystemOrchestrator {
    */
   static async recoverIdempotencyKeys(): Promise<void> {
     try {
-      const processingKeys = await db.idempotencyKeys.where('status').equals('PROCESSING').toArray();
+      const processingKeys = await db.idempotencyKeys.where('status').equals('PROCESSING').toArray().catch(() => []);
       for (const record of processingKeys) {
-        const sale = await db.db.sales.where('transactionUuid').equals(record.id).first();
-        const purchase = await db.db.purchases.where('transactionUuid').equals(record.id).first();
-        const invoice = sale || purchase;
+        let sale = await db.db.sales.where('transactionUuid').equals(record.id).first().catch(() => null);
+        if (!sale) {
+          sale = await db.db.sales.filter((s: any) => s.transactionUuid === record.id || s.id === record.id).first().catch(() => null);
+        }
+        let purchase = await db.db.purchases.where('transactionUuid').equals(record.id).first().catch(() => null);
+        if (!purchase) {
+          purchase = await db.db.purchases.filter((p: any) => p.transactionUuid === record.id || p.id === record.id).first().catch(() => null);
+        }
+        let invoice = sale || purchase;
+        if (!invoice) {
+          invoice = await db.invoices.where('transactionUuid').equals(record.id).first().catch(() => null) as any;
+        }
 
         if (invoice && (invoice.InvoiceStatus === 'POSTED' || invoice.invoiceStatus === 'POSTED')) {
           await db.idempotencyKeys.update(record.id, {

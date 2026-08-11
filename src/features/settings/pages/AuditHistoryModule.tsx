@@ -13,18 +13,30 @@ import {
 import { EncryptedAuditExportModal } from '@/components/shared/EncryptedAuditExportModal';
 
 interface AuditHistoryModuleProps {
-  onNavigate?: (view: any) => void;
+  onNavigate?: (view: any, params?: any) => void;
   recordId?: string; 
   tableName?: string;
+  initialFilter?: 'ALL' | 'ADD' | 'UPDATE' | 'DELETE';
 }
 
-const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ onNavigate, recordId, tableName }) => {
+const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ 
+  onNavigate, 
+  recordId, 
+  tableName,
+  initialFilter = 'ALL'
+}) => {
   const { version } = useUI();
   const [logs, setLogs] = useState<FinancialAuditEntry[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'ALL' | 'ADD' | 'UPDATE' | 'DELETE'>('ALL');
+  const [filterType, setFilterType] = useState<'ALL' | 'ADD' | 'UPDATE' | 'DELETE'>(initialFilter);
   const [loading, setLoading] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
+
+  useEffect(() => {
+    if (initialFilter) {
+      setFilterType(initialFilter);
+    }
+  }, [initialFilter]);
 
   useEffect(() => {
     const fetchAuditLogs = async () => {
@@ -75,69 +87,106 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({ onNavigate, rec
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 bg-[#F8FAFA] min-h-full pb-32 animate-in fade-in" dir="rtl">
-      {/* Header - Immutable Security Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className="w-16 h-16 bg-slate-900 text-white rounded-[24px] flex items-center justify-center text-3xl shadow-xl border-4 border-emerald-950">
-             <ShieldCheck size={32} className="text-emerald-400" />
-          </div>
-          <div>
-            <div className="flex items-center gap-3">
-              <h2 className="text-2xl md:text-3xl font-black text-[#1E4D4D] tracking-tight">سجل الرقابة النهائية</h2>
-              <div className="flex items-center gap-1 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-                <Lock size={12} className="text-slate-400" />
-                <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest">Immutable Logs</span>
-              </div>
+    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5 bg-[#F8FAFA] min-h-full pb-32 animate-in fade-in" dir="rtl">
+      {/* Top Header Card */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm transition-all">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+          
+          {/* Main Title & Group */}
+          <div className="flex items-center gap-3.5 sm:gap-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-2xl shadow-md border-2 border-emerald-950 shrink-0">
+              <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" />
             </div>
-            <p className="text-slate-400 text-sm font-bold uppercase tracking-widest flex items-center gap-2 mt-1">
-               <Database size={12}/> {recordId ? `تاريخ تدقيق المستند: #${recordId}` : 'الأرشيف المركزي غير القابل للتلاعب'}
-            </p>
+            
+            <div className="space-y-1">
+              <div className="flex items-center flex-wrap gap-2">
+                <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-[#1E4D4D] tracking-tight">
+                  سجل الرقابة النهائية
+                </h2>
+                <div className="inline-flex items-center gap-1.5 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200 text-slate-700">
+                  <Lock size={11} className="text-slate-500" />
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-600">Immutable Logs</span>
+                </div>
+              </div>
+              <p className="text-slate-500 text-xs sm:text-sm font-bold flex items-center gap-1.5">
+                <Database size={13} className="text-slate-400 shrink-0" />
+                <span>
+                  {recordId ? `تاريخ تدقيق المستند: #${recordId}` : 'سجل تدقيق غير قابل للتلاعب'}
+                </span>
+              </p>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <button 
-            onClick={() => setShowExportModal(true)} 
-            className="bg-[#1E4D4D] hover:bg-[#163b3b] text-white px-6 py-4 rounded-[22px] text-xs font-black flex items-center gap-2.5 transition-all shadow-md active:scale-95 cursor-pointer"
-          >
-            <Lock size={16} className="text-emerald-400" />
-            <span>تصدير PDF مشفر</span>
-          </button>
-          {!recordId && (
-            <button onClick={() => onNavigate?.('dashboard')} className="bg-white border border-slate-200 text-[#1E4D4D] px-8 py-4 rounded-[22px] text-xs font-black flex items-center gap-2 hover:bg-slate-50 transition-all shadow-sm active:scale-95 cursor-pointer">
-               <ArrowRight size={20} /> الرئيسية
+
+          {/* Actions Row */}
+          <div className="flex items-center gap-2.5 sm:gap-3 shrink-0 self-stretch sm:self-auto w-full lg:w-auto">
+            <button 
+              onClick={() => setShowExportModal(true)} 
+              className="flex-1 lg:flex-none bg-[#1E4D4D] hover:bg-[#163b3b] text-white px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-sm active:scale-95 cursor-pointer"
+            >
+              <Lock size={15} className="text-emerald-400" />
+              <span>تصدير PDF مشفر</span>
             </button>
-          )}
+            
+            {!recordId && (
+              <button 
+                onClick={() => onNavigate?.('dashboard')} 
+                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[#1E4D4D] px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
+              >
+                <ArrowRight size={16} />
+                <span>الرئيسية</span>
+              </button>
+            )}
+          </div>
+
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center bg-white p-2 rounded-[32px] border border-slate-100 shadow-sm">
-        <div className="flex p-1 bg-slate-50 rounded-[26px] w-fit overflow-x-auto no-scrollbar gap-1">
+      {/* Filters Section - Unified Filter Card */}
+      <div className="bg-white p-2 sm:p-3 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center">
+        <div className="flex p-1 bg-slate-100/80 rounded-xl sm:rounded-2xl overflow-x-auto no-scrollbar gap-1">
           {(['ALL', 'ADD', 'UPDATE', 'DELETE'] as const).map(type => (
             <button 
               key={type} 
               onClick={() => setFilterType(type)} 
-              className={`px-8 py-3 rounded-2xl text-[11px] font-black transition-all whitespace-nowrap ${filterType === type ? 'bg-white text-[#1E4D4D] shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+              className={`px-4 sm:px-6 py-2 rounded-lg sm:rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer ${
+                filterType === type 
+                  ? 'bg-white text-[#1E4D4D] shadow-sm' 
+                  : 'text-slate-500 hover:text-[#1E4D4D]'
+              }`}
             >
               {type === 'ALL' ? 'الكل' : type === 'ADD' ? 'الإضافة' : type === 'UPDATE' ? 'التعديلات' : 'الحذف'}
             </button>
           ))}
         </div>
 
-        <div className="relative w-full md:w-80 group px-2">
-          <input type="text" placeholder="بحث بالمرجع أو المسؤول..." className="w-full bg-slate-50 border-2 border-transparent rounded-2xl px-12 py-3 text-[11px] font-black focus:bg-white focus:border-slate-900 shadow-inner transition-all outline-none" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
-          <Search size={16} className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-300" />
+        <div className="relative w-full sm:w-72">
+          <input 
+            type="text" 
+            placeholder="بحث بالمرجع أو المسؤول..." 
+            className="w-full bg-slate-50/80 border border-slate-200/80 rounded-xl sm:rounded-2xl px-10 py-2.5 text-xs font-bold text-slate-800 placeholder-slate-400 focus:bg-white focus:border-[#1E4D4D] transition-all outline-none" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
+          <Search size={15} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
         </div>
       </div>
 
-      <Card noPadding className="shadow-2xl border-slate-100 overflow-hidden !rounded-[44px] bg-white">
+      <Card noPadding className="shadow-lg border-slate-200/80 overflow-hidden !rounded-3xl sm:!rounded-[36px] bg-white">
         {loading ? (
-          <div className="py-32 flex flex-col items-center justify-center space-y-4">
+          <div className="py-24 sm:py-32 flex flex-col items-center justify-center space-y-4">
              <div className="w-10 h-10 border-4 border-slate-900 border-t-transparent rounded-full animate-spin"></div>
              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Accessing Sealed Logs...</p>
           </div>
         ) : filteredLogs.length === 0 ? (
-          <div className="py-32 text-center opacity-30 italic font-black uppercase tracking-[4px]">No Integrity Logs Captured</div>
+          <div className="py-20 sm:py-24 flex flex-col items-center justify-center text-center p-6 space-y-3">
+            <div className="w-14 h-14 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mb-1 border border-slate-200/80">
+              <ShieldCheck size={32} className="text-slate-400" />
+            </div>
+            <h3 className="text-base sm:text-lg font-black text-[#1E4D4D]">لا توجد سجلات تدقيق حالياً</h3>
+            <p className="text-xs text-slate-400 font-semibold max-w-sm">
+              لم يتم العثور على أي عمليات مسجلة في سجل الرقابة وفقاً لمعايير البحث المحددة.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto custom-scrollbar">
             <table className="w-full text-right text-[11px]">

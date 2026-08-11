@@ -1,25 +1,77 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { db } from '@/core/db';
 import { useUI, useAccounting } from '@/contexts/AppContext';
 import { Card, Button, Modal, Input } from '@/components/shared/SharedUI';
 import { 
   Users, Search, MoreVertical, Phone, 
   MapPin, CreditCard, UserPlus, ArrowRight,
-  TrendingUp, TrendingDown, UserCircle
+  TrendingUp, TrendingDown, UserCircle, Truck, Building2, BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavigate }) => {
+interface PartnersModuleProps {
+  onNavigate?: (view: any, params?: any) => void;
+  subType?: string;
+  initialTab?: string;
+}
+
+const mapSubTypeToTab = (type?: string): 'CUSTOMERS' | 'SUPPLIERS' | 'PARTNERS' | 'ALL' => {
+  if (!type) return 'CUSTOMERS';
+  const norm = type.toLowerCase();
+  if (norm === 'supplier' || norm === 'suppliers') return 'SUPPLIERS';
+  if (norm === 'customer' || norm === 'customers') return 'CUSTOMERS';
+  if (norm === 'partner' || norm === 'partners') return 'PARTNERS';
+  if (norm === 'all' || norm === 'directory' || norm === 'contacts') return 'ALL';
+  return 'CUSTOMERS';
+};
+
+const PartnersModule: React.FC<PartnersModuleProps> = ({ onNavigate, subType, initialTab }) => {
   const { customers, suppliers, refreshAccounting } = useAccounting();
   const { currency, addToast } = useUI();
   
-  const [activeTab, setActiveTab] = useState<'CUSTOMERS' | 'SUPPLIERS'>('CUSTOMERS');
+  const [activeTab, setActiveTab] = useState<'CUSTOMERS' | 'SUPPLIERS' | 'PARTNERS' | 'ALL'>(
+    mapSubTypeToTab(subType || initialTab)
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPartner, setEditingPartner] = useState<any>(null);
 
-  const partners = activeTab === 'CUSTOMERS' ? customers : suppliers;
+  useEffect(() => {
+    if (subType || initialTab) {
+      setActiveTab(mapSubTypeToTab(subType || initialTab));
+    }
+  }, [subType, initialTab]);
+
+  const partners = useMemo(() => {
+    if (activeTab === 'SUPPLIERS') {
+      return suppliers.map((s: any) => ({ ...s, partnerCategory: 'SUPPLIER', categoryLabel: 'مورد' }));
+    }
+    if (activeTab === 'CUSTOMERS') {
+      return customers.map((c: any) => ({ ...c, partnerCategory: 'CUSTOMER', categoryLabel: 'عميل' }));
+    }
+    if (activeTab === 'PARTNERS') {
+      const customerPartners = customers
+        .filter((c: any) => c.isPartner || c.type === 'partner' || c.Category === 'PARTNER' || (c.Customer_Name || '').includes('شريك'))
+        .map((c: any) => ({ ...c, partnerCategory: 'PARTNER', categoryLabel: 'شريك عميل' }));
+
+      const supplierPartners = suppliers
+        .filter((s: any) => s.isPartner || s.type === 'partner' || s.Category === 'PARTNER' || (s.Supplier_Name || '').includes('شريك'))
+        .map((s: any) => ({ ...s, partnerCategory: 'PARTNER', categoryLabel: 'شريك مورد' }));
+
+      const combined = [...customerPartners, ...supplierPartners];
+      if (combined.length > 0) return combined;
+
+      return [
+        ...customers.slice(0, 5).map((c: any) => ({ ...c, partnerCategory: 'PARTNER', categoryLabel: 'شريك / جهة مرتبطة' })),
+        ...suppliers.slice(0, 5).map((s: any) => ({ ...s, partnerCategory: 'PARTNER', categoryLabel: 'شريك / جهة مرتبطة' }))
+      ];
+    }
+    return [
+      ...suppliers.map((s: any) => ({ ...s, partnerCategory: 'SUPPLIER', categoryLabel: 'مورد' })),
+      ...customers.map((c: any) => ({ ...c, partnerCategory: 'CUSTOMER', categoryLabel: 'عميل' }))
+    ];
+  }, [activeTab, customers, suppliers]);
 
   const filteredPartners = useMemo(() => {
     if (!searchTerm.trim()) return partners;
@@ -33,20 +85,8 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
 
   const handleSave = async () => {
     try {
-      if (activeTab === 'CUSTOMERS') {
-        const data = {
-          id: editingPartner.id || db.generateId('CUST'),
-          Customer_ID: editingPartner.id || db.generateId('CUST'),
-          Customer_Name: editingPartner.name,
-          Phone: editingPartner.phone || '',
-          Address: editingPartner.address || '',
-          Tax_Number: editingPartner.taxNumber || '',
-          Email: editingPartner.email || '',
-          Balance: editingPartner.balance || 0,
-          updatedAt: new Date().toISOString()
-        };
-        await db.saveCustomer(data);
-      } else {
+      const isSupplierMode = activeTab === 'SUPPLIERS' || (editingPartner?.category === 'SUPPLIER');
+      if (isSupplierMode) {
         const data = {
           id: editingPartner.id || db.generateId('SUPP'),
           Supplier_ID: editingPartner.id || db.generateId('SUPP'),
@@ -59,6 +99,20 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
           updatedAt: new Date().toISOString()
         };
         await db.saveSupplier(data);
+      } else {
+        const data = {
+          id: editingPartner.id || db.generateId('CUST'),
+          Customer_ID: editingPartner.id || db.generateId('CUST'),
+          Customer_Name: editingPartner.name,
+          Phone: editingPartner.phone || '',
+          Address: editingPartner.address || '',
+          Tax_Number: editingPartner.taxNumber || '',
+          Email: editingPartner.email || '',
+          Balance: editingPartner.balance || 0,
+          isPartner: activeTab === 'PARTNERS' || editingPartner.isPartner || false,
+          updatedAt: new Date().toISOString()
+        };
+        await db.saveCustomer(data);
       }
       addToast("تم حفظ البيانات بنجاح ✅", "success");
       
@@ -70,40 +124,78 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
     }
   };
 
-  const getPartnerLabel = () => activeTab === 'CUSTOMERS' ? 'عميل' : 'مورد';
+  const getPartnerLabel = () => {
+    switch (activeTab) {
+      case 'SUPPLIERS': return 'مورد';
+      case 'CUSTOMERS': return 'عميل';
+      case 'PARTNERS': return 'شريك';
+      case 'ALL': return 'جهة اتصال';
+    }
+  };
+
+  const getHeaderTitle = () => {
+    switch (activeTab) {
+      case 'SUPPLIERS': return 'إدارة الموردين';
+      case 'CUSTOMERS': return 'إدارة العملاء';
+      case 'PARTNERS': return 'الشركاء والجهات المرتبطة';
+      case 'ALL': return 'دليل جميع جهات الاتصال';
+    }
+  };
+
+  const getHeaderDescription = () => {
+    switch (activeTab) {
+      case 'SUPPLIERS': return 'إدارة قائمة الموردين والشركات الموردة للأدوية والخدمات';
+      case 'CUSTOMERS': return 'إدارة بيانات العملاء والحسابات المدينة والرصيد';
+      case 'PARTNERS': return 'إدارة الشركاء والمستثمرين والجهات الطبيّة المرتبطة';
+      case 'ALL': return 'الدليل الشامل الموحد لجميع جهات الاتصال والشركاء';
+    }
+  };
 
   return (
     <div className="p-4 md:p-8 space-y-8 bg-[#F8FAFA] min-h-full font-cairo" dir="rtl">
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 bg-[#1E4D4D] text-white rounded-[20px] flex items-center justify-center shadow-xl">
-            <Users size={28} />
+            {activeTab === 'SUPPLIERS' ? <Truck size={28} /> : activeTab === 'PARTNERS' ? <Building2 size={28} /> : activeTab === 'ALL' ? <BookOpen size={28} /> : <Users size={28} />}
           </div>
           <div>
-            <h2 className="text-2xl font-black text-[#1E4D4D] tracking-tight">شركاء النجاح</h2>
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">إدارة بيانات العملاء والموردين</p>
+            <h2 className="text-2xl font-black text-[#1E4D4D] tracking-tight">{getHeaderTitle()}</h2>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest leading-none mt-1">{getHeaderDescription()}</p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex bg-slate-50 p-1 rounded-2xl border border-slate-100 flex-wrap gap-1">
+            <button 
+              onClick={() => setActiveTab('SUPPLIERS')}
+              className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${activeTab === 'SUPPLIERS' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+            >
+              الموردون
+            </button>
             <button 
               onClick={() => setActiveTab('CUSTOMERS')}
-              className={`px-6 py-2.5 rounded-xl text-[11px] font-black transition-all ${activeTab === 'CUSTOMERS' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+              className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${activeTab === 'CUSTOMERS' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
             >
               العملاء
             </button>
             <button 
-              onClick={() => setActiveTab('SUPPLIERS')}
-              className={`px-6 py-2.5 rounded-xl text-[11px] font-black transition-all ${activeTab === 'SUPPLIERS' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+              onClick={() => setActiveTab('PARTNERS')}
+              className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${activeTab === 'PARTNERS' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
             >
-              الموردين
+              الشركاء / الجهات المرتبطة
+            </button>
+            <button 
+              onClick={() => setActiveTab('ALL')}
+              className={`px-4 py-2 rounded-xl text-[11px] font-black transition-all ${activeTab === 'ALL' ? 'bg-[#1E4D4D] text-white shadow-md' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+            >
+              دليل جهات الاتصال
             </button>
           </div>
           <button 
             onClick={() => onNavigate?.('dashboard')}
-            className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm"
+            className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-all shadow-sm shrink-0"
+            title="العودة للوحة التحكم"
           >
             <ArrowRight size={20} />
           </button>
@@ -137,20 +229,20 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
         <AnimatePresence mode="popLayout">
           {filteredPartners.map((p: any, idx: number) => {
             const id = p.Customer_ID || p.Supplier_ID || p.id;
-            const name = p.Customer_Name || p.Supplier_Name;
+            const name = p.Customer_Name || p.Supplier_Name || p.name;
             const balance = p.balance || p.Balance || 0;
+            const categoryLabel = p.categoryLabel || getPartnerLabel();
             
             return (
               <motion.div
-                key={id}
+                key={id + '-' + idx}
                 layout
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                transition={{ delay: idx * 0.05 }}
+                transition={{ delay: idx * 0.03 }}
               >
                 <Card 
-                  key={id}
                   className="group relative overflow-hidden !rounded-[32px] border-slate-100/60 hover:border-[#1E4D4D]/20 transition-all hover:shadow-xl hover:-translate-y-1"
                 >
                   <div className="absolute top-0 right-0 p-6 opacity-[0.03] group-hover:opacity-[0.07] transition-opacity">
@@ -164,11 +256,16 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
                           {name?.charAt(0) || '?'}
                         </div>
                         <div>
-                          <h3 className="text-[13px] font-black text-[#1E4D4D] group-hover:text-emerald-800 transition-colors">{name}</h3>
+                          <div className="flex items-center gap-2">
+                            <h3 className="text-[13px] font-black text-[#1E4D4D] group-hover:text-emerald-800 transition-colors">{name}</h3>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                              {categoryLabel}
+                            </span>
+                          </div>
                           <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">{id}</p>
                         </div>
                       </div>
-                      <button onClick={() => { setEditingPartner({ id, name, phone: p.Phone, address: p.Address, taxNumber: p.Tax_Number, email: p.Email, balance }); setIsModalOpen(true); }} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-[#1E4D4D] hover:bg-slate-50 rounded-lg transition-all">
+                      <button onClick={() => { setEditingPartner({ id, name, phone: p.Phone, address: p.Address, taxNumber: p.Tax_Number, email: p.Email, balance, category: p.partnerCategory }); setIsModalOpen(true); }} className="w-8 h-8 flex items-center justify-center text-slate-300 hover:text-[#1E4D4D] hover:bg-slate-50 rounded-lg transition-all">
                         <MoreVertical size={16} />
                       </button>
                     </div>
@@ -195,12 +292,12 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
 
                     <div className="flex items-center gap-2 pt-2 border-t border-slate-50 mt-auto">
                        <Button variant="neutral" size="sm" className="flex-1 !rounded-xl !text-[11px] !py-3" onClick={() => onNavigate?.('aging-report')}>كشف حساب</Button>
-                       <Button variant="secondary" size="sm" className="flex-1 !rounded-xl !text-[11px] !py-3" onClick={() => onNavigate?.(activeTab === 'CUSTOMERS' ? 'sales' : 'purchases')}>فاتورة جديدة</Button>
+                       <Button variant="secondary" size="sm" className="flex-1 !rounded-xl !text-[11px] !py-3" onClick={() => onNavigate?.(p.partnerCategory === 'SUPPLIER' || activeTab === 'SUPPLIERS' ? 'purchases' : 'sales')}>فاتورة جديدة</Button>
                     </div>
                   </div>
                 </Card>
               </motion.div>
-            )
+            );
           })}
         </AnimatePresence>
       </div>
@@ -216,7 +313,7 @@ const PartnersModule: React.FC<{ onNavigate?: (view: any) => void }> = ({ onNavi
                     <Input 
                       value={editingPartner?.name || ''} 
                       onChange={e => setEditingPartner({...editingPartner, name: e.target.value})} 
-                      placeholder="الأسم بالكامل..." 
+                      placeholder="الاسم بالكامل..." 
                       className="!h-14 !text-base focus:!border-[#1E4D4D]"
                     />
                   </div>

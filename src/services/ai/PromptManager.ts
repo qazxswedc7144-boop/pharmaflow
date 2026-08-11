@@ -53,33 +53,126 @@ export class PromptManager {
       },
     ],
     [
-      'financial_summary_explainer',
+      'SMART_PHARMACY_INTELLIGENCE',
       {
-        id: 'financial_summary_explainer',
-        name: 'Financial Performance Analyst',
-        description: 'Summarizes financial trends, COGS, gross margins, and customer/supplier balances.',
-        systemInstruction: `أنت المحلل المالي الاستراتيجي لـ PharmaFlow ERP.
-الهدف:
-تحليل الميزانية العمومية، هامش الربح الإجمالي، ومصروفات التشغيل للصيدلية تقديم رؤى مالية دقيقة.
-شروط صارمة:
-- لا تقم بتوليد أرقام وهمية؛ استخدم البيانات الحقيقية فقط.
-- وضح دائماً نسبة الربح ومؤشرات السيولة بدقة.`,
-        userTemplate: `الملخص المالي المعتمد:
+        id: 'SMART_PHARMACY_INTELLIGENCE',
+        name: 'Smart Pharmacy Intelligence Engine',
+        description: 'Read-only comprehensive analysis across inventory, sales, procurement, and financials.',
+        systemInstruction: `أنت المحرك الذكي المتقدم للرصد والتحليل الصيدلاني بنظام PharmaFlow ERP.
+وظيفتك: قراءة سياق المخزون والمبيعات والمشتريات والمالية وتحليلها بصورة قراءة فقط (READ-ONLY) بالكامل.
+
+تعليمات صارمة:
+1. توليد تقرير تحليلي دقيق بصيغة JSON مفصلة ومطابقة للهيكل التالي:
+[
+  {
+    "type": "FACT | INSIGHT | WARNING | RECOMMENDATION | ANOMALY",
+    "severity": "INFO | LOW | MEDIUM | HIGH | CRITICAL",
+    "confidence": 0.95,
+    "domain": "inventory | sales | purchasing | accounting | pharmacy",
+    "title": "عنوان باللغة العربية",
+    "summary": "ملخص تحليلي استراتيجي",
+    "evidence": ["دليل حقيقي من البيانات"],
+    "recommendation": "توصية استرشادية واضحة",
+    "requiresHumanReview": true
+  }
+]
+2. التمييز الصارم بين الحقائق الموثقة والأرقام وبين التوصيات الاسترشادية والتحذيرات.
+3. عدم التوصية أبداً بتجاوز مدة الصلاحية أو تعديل أي سجلات تلقائياً.
+4. عند رصد أي انحراف استخدم عبارة "تحديد انحراف محتمل" وليس عبارات جزافية.
+5. إذا كانت بيانات الدواء غير متوفرة، صرّح فوراً بأن مصدر المعرفة الدوائية غير متاح ولا تبتكر معلومات.
+6. ممنوع تماماً إجراء أية عمليات كتابة أو إنشاء فواتير أو تعديل مخزون.`,
+        userTemplate: `سياق النظام المتاح للتحليل:
+{{consolidatedContext}}
+
+طلب التحليل الذكي:
+{{userQuery}}`,
+        requiredScopes: [{ module: 'analytics', action: 'analyze', requiredRole: 'pharmacist' }],
+        responseFormat: 'json',
+      },
+    ],
+    [
+      'FINANCIAL_HEALTH_AUDIT',
+      {
+        id: 'FINANCIAL_HEALTH_AUDIT',
+        name: 'Financial Health Audit',
+        description: 'Audits pharmacy financial health, profit margins, and liquidity.',
+        systemInstruction: `أنت المستشار المالي الرقمي لـ PharmaFlow ERP. قدم تحليلاً مالياً شاملاً وقراءة دقيقة لهوامش الربح والسيولة بدون تعديل أية سجلات.`,
+        userTemplate: `سياق البيانات المالية:
 {{financialContext}}
 
-طلب التحليل المالي:
+السؤال:
 {{userQuery}}`,
         requiredScopes: [{ module: 'accounting', action: 'analyze', requiredRole: 'accountant' }],
+        responseFormat: 'text',
+      },
+    ],
+    [
+      'INVENTORY_RISK_CHECK',
+      {
+        id: 'INVENTORY_RISK_CHECK',
+        name: 'Inventory Risk Check',
+        description: 'Audits expiring medicines and low stock levels.',
+        systemInstruction: `أنت المنسق الذكي للمخزون الصيدلاني. قم بتحليل مخاطر الصلاحية والنواقص واقترح خطط التصريف المناسبة.`,
+        userTemplate: `سياق المخزون:
+{{inventoryContext}}
+
+السؤال:
+{{userQuery}}`,
+        requiredScopes: [{ module: 'inventory', action: 'analyze', requiredRole: 'pharmacist' }],
+        responseFormat: 'text',
+      },
+    ],
+    [
+      'BUSINESS_ANALYTICS',
+      {
+        id: 'BUSINESS_ANALYTICS',
+        name: 'Executive Business Summary',
+        description: 'Provides holistic executive performance summary.',
+        systemInstruction: `أنت محلل الأعمال التنفيذي بـ PharmaFlow ERP. ملخص شامل وأداء كلي متوازن.`,
+        userTemplate: `السياق العام:
+{{consolidatedContext}}
+
+السؤال:
+{{userQuery}}`,
+        requiredScopes: [{ module: 'analytics', action: 'analyze', requiredRole: 'manager' }],
         responseFormat: 'text',
       },
     ],
   ]);
 
   /**
-   * Retrieves prompt template by ID.
+   * Retrieves prompt template by ID with normalized lookup.
    */
   public static getTemplate(templateId: string): PromptTemplate | undefined {
-    return this.templates.get(templateId);
+    if (!templateId) return undefined;
+    const direct = this.templates.get(templateId);
+    if (direct) return direct;
+
+    const lowerKey = templateId.toLowerCase();
+    const aliasMap: Record<string, string> = {
+      'financial_health_audit': 'FINANCIAL_HEALTH_AUDIT',
+      'inventory_risk_check': 'INVENTORY_RISK_CHECK',
+      'business_analytics': 'BUSINESS_ANALYTICS',
+      'drug_interaction_check': 'DRUG_INTERACTION_CHECK',
+      'expiring_medicines_audit': 'EXPIRING_MEDICINES_AUDIT',
+      'stock_reorder_suggestions': 'STOCK_REORDER_SUGGESTIONS',
+      'revenue_margin_analysis': 'REVENUE_MARGIN_ANALYSIS',
+      'receivable_payable_review': 'RECEIVABLE_PAYABLE_REVIEW',
+      'ledger_audit': 'LEDGER_AUDIT',
+      'inventory_lookup_guide': 'INVENTORY_LOOKUP_GUIDE',
+      'smart_pharmacy_intelligence': 'SMART_PHARMACY_INTELLIGENCE',
+    };
+
+    const mappedKey = aliasMap[lowerKey];
+    if (mappedKey && this.templates.has(mappedKey)) {
+      return this.templates.get(mappedKey);
+    }
+
+    for (const [key, tpl] of this.templates.entries()) {
+      if (key.toLowerCase() === lowerKey) return tpl;
+    }
+
+    return undefined;
   }
 
   /**

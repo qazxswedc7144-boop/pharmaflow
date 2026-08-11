@@ -5,18 +5,38 @@ import { BranchService } from '../services/BranchService';
 import { Branch, TransferStatus } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
-  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban, ArrowLeft
+  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban, ArrowLeft,
+  PlusCircle, Clock, History, PackageCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
-export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
+interface BranchTransfersProps {
+  onNavigate?: (view: string, params?: any) => void;
+  initialTab?: 'LIST' | 'CREATE';
+  initialStatus?: 'ALL' | 'PENDING' | 'IN_TRANSIT' | 'RECEIVED';
+}
+
+export const BranchTransfers: React.FC<BranchTransfersProps> = ({ 
+  onNavigate, 
+  initialTab = 'LIST', 
+  initialStatus = 'ALL' 
+}) => {
   const { addToast } = useUI();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [transfers, setTransfers] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'LIST' | 'CREATE'>('LIST');
+  const [activeTab, setActiveTab] = useState<'LIST' | 'CREATE'>(initialTab);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'PENDING' | 'IN_TRANSIT' | 'RECEIVED'>(initialStatus);
+
+  useEffect(() => {
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]);
+
+  useEffect(() => {
+    if (initialStatus) setStatusFilter(initialStatus);
+  }, [initialStatus]);
 
   // Form State
   const [sourceBranchId, setSourceBranchId] = useState('');
@@ -173,6 +193,18 @@ export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> 
     }
   };
 
+  const filteredTransfers = transfers.filter(item => {
+    if (statusFilter === 'PENDING') return item.status === 'DRAFT' || item.status === 'APPROVED';
+    if (statusFilter === 'IN_TRANSIT') return item.status === 'IN_TRANSIT';
+    if (statusFilter === 'RECEIVED') return item.status === 'RECEIVED';
+    return true;
+  });
+
+  const pendingCount = transfers.filter(t => t.status === 'DRAFT' || t.status === 'APPROVED').length;
+  const inTransitCount = transfers.filter(t => t.status === 'IN_TRANSIT').length;
+  const receivedCount = transfers.filter(t => t.status === 'RECEIVED').length;
+  const allCount = transfers.length;
+
   const getStatusBadge = (status: TransferStatus) => {
     switch (status) {
       case "DRAFT":
@@ -205,24 +237,51 @@ export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> 
             </div>
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <button
-              onClick={() => setActiveTab('LIST')}
-              className={`flex-1 sm:flex-initial px-6 py-3.5 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
-            >
-              طلبات التحويل الحالية
-            </button>
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             <button
               onClick={() => setActiveTab('CREATE')}
-              className={`flex-1 sm:flex-initial px-6 py-3.5 rounded-2xl text-xs font-black transition-all ${activeTab === 'CREATE' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'text-slate-400 hover:text-[#1E4D4D]'}`}
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'CREATE' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
             >
-              إنشاء طلب تحويل مخزني
+              <PlusCircle size={15} />
+              <span>إنشاء تحويل جديد</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('LIST'); setStatusFilter('PENDING'); }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' && statusFilter === 'PENDING' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              <Clock size={15} />
+              <span>التحويلات المعلقة</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'LIST' && statusFilter === 'PENDING' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'}`}>{pendingCount}</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('LIST'); setStatusFilter('IN_TRANSIT'); }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' && statusFilter === 'IN_TRANSIT' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              <Truck size={15} />
+              <span>قيد الشحن / النقل</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'LIST' && statusFilter === 'IN_TRANSIT' ? 'bg-white/20 text-white' : 'bg-blue-100 text-blue-800'}`}>{inTransitCount}</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('LIST'); setStatusFilter('RECEIVED'); }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' && statusFilter === 'RECEIVED' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              <PackageCheck size={15} />
+              <span>التحويلات المستلمة</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'LIST' && statusFilter === 'RECEIVED' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-800'}`}>{receivedCount}</span>
+            </button>
+            <button
+              onClick={() => { setActiveTab('LIST'); setStatusFilter('ALL'); }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-2xl text-xs font-black transition-all ${activeTab === 'LIST' && statusFilter === 'ALL' ? 'bg-[#1E4D4D] text-white shadow-lg' : 'bg-slate-50 text-slate-600 hover:bg-slate-100'}`}
+            >
+              <History size={15} />
+              <span>سجل التحويلات</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'LIST' && statusFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>{allCount}</span>
             </button>
             {onNavigate && (
               <button
                 onClick={() => onNavigate('dashboard')}
                 title="العودة"
-                className="p-3.5 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
+                className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-2xl transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
               >
                 <ArrowLeft size={18} />
               </button>
@@ -248,9 +307,9 @@ export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> 
             </button>
           </div>
 
-          {transfers.length === 0 ? (
+          {filteredTransfers.length === 0 ? (
             <div className="p-12 text-center text-slate-400 font-bold">
-              لا توجد مناقلات مسجلة حالياً بين الفروع.
+              لا توجد مناقلات مسجلة بهذه الحالة بين الفروع.
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -267,7 +326,7 @@ export const BranchTransfers: React.FC<{ onNavigate?: (view: string) => void }> 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 font-semibold text-slate-700">
-                  {transfers.map((item) => (
+                  {filteredTransfers.map((item) => (
                     <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                       <td className="p-4 font-black text-slate-800">{item.transferNumber}</td>
                       <td className="p-4">{item.sourceName}</td>

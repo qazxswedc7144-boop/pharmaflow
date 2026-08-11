@@ -1,9 +1,10 @@
-import { useState, Suspense, useMemo } from 'react';
+import { useState, Suspense, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Settings, Building2, Users, ShoppingCart, Truck, 
-  Package, RefreshCw, Database, ShieldCheck, Code,
-  Search, Save, ArrowRight, CreditCard, Shield
+  Package, RefreshCw, ShieldCheck, Code,
+  Search, Save, ArrowRight, CreditCard,
+  Globe, Clock, Cpu
 } from 'lucide-react';
 import { LoadingSkeleton } from '../components/shared/SettingsUI';
 
@@ -15,37 +16,43 @@ const UsersTab = lazy(() => import('../components/tabs/UsersTab'));
 const SalesTab = lazy(() => import('../components/tabs/SalesTab'));
 const PurchasesTab = lazy(() => import('../components/tabs/PurchasesTab'));
 const InventoryTab = lazy(() => import('../components/tabs/InventoryTab'));
-const SyncTab = lazy(() => import('../components/tabs/SyncTab'));
-const DatabaseTab = lazy(() => import('../components/tabs/DatabaseTab'));
 const SecurityTab = lazy(() => import('../components/tabs/SecurityTab'));
 const SubscriptionTab = lazy(() => import('../components/tabs/SubscriptionTab'));
 const DeveloperTab = lazy(() => import('../components/tabs/DeveloperTab'));
 const BackupTab = lazy(() => import('../components/tabs/BackupTab'));
 
 const TABS = [
-  { id: 'general', label: 'إعدادات عامة', icon: Settings, component: GeneralTab },
-  { id: 'pharmacy', label: 'الصيدلية', icon: Building2, component: PharmacyTab },
-  { id: 'users', label: 'المستخدمون', icon: Users, component: UsersTab },
-  { id: 'subscription', label: 'الاشتراك', icon: CreditCard, component: SubscriptionTab },
-  { id: 'sales', label: 'المبيعات', icon: ShoppingCart, component: SalesTab },
-  { id: 'purchases', label: 'المشتريات', icon: Truck, component: PurchasesTab },
-  { id: 'inventory', label: 'المخزون', icon: Package, component: InventoryTab },
-  { id: 'sync', label: 'المزامنة', icon: RefreshCw, component: SyncTab },
-  { id: 'database', label: 'قاعدة البيانات', icon: Database, component: DatabaseTab },
-  { id: 'security', label: 'الأمان', icon: ShieldCheck, component: SecurityTab },
-  { id: 'backup', label: 'النسخ الاحتياطي', icon: Shield, component: BackupTab },
-  { id: 'developer', label: 'المطور', icon: Code, component: DeveloperTab }
+  { id: 'general', label: 'إعدادات النظام العامة', icon: Settings, component: GeneralTab },
+  { id: 'users', label: 'المستخدمون والصلاحيات', icon: Users, component: UsersTab },
+  { id: 'pharmacy', label: 'الفروع والإعدادات الخاصة بها', icon: Building2, component: PharmacyTab },
+  { id: 'currency', label: 'العملة والمنطقة الزمنية', icon: Globe, component: GeneralTab },
+  { id: 'datetime', label: 'التاريخ والوقت', icon: Clock, component: GeneralTab },
+  { id: 'performance', label: 'إعدادات الأداء والأجهزة', icon: Cpu, component: DeveloperTab },
+  { id: 'backup', label: 'إعدادات النسخ الاحتياطي والمزامنة', icon: RefreshCw, component: BackupTab },
+  { id: 'sales', label: 'إعدادات المبيعات', icon: ShoppingCart, component: SalesTab },
+  { id: 'purchases', label: 'إعدادات المشتريات', icon: Truck, component: PurchasesTab },
+  { id: 'inventory', label: 'إعدادات المخزون', icon: Package, component: InventoryTab },
+  { id: 'subscription', label: 'الاشتراك والدعم', icon: CreditCard, component: SubscriptionTab },
+  { id: 'security', label: 'سجل الأمان والتدقيق', icon: ShieldCheck, component: SecurityTab },
+  { id: 'developer', label: 'أدوات المطور', icon: Code, component: DeveloperTab }
 ];
 
 interface SettingsModuleProps {
-  onNavigate?: (view: string) => void;
+  onNavigate?: (view: string, params?: any) => void;
+  initialTab?: string;
 }
 
-export default function SettingsModule({ onNavigate }: SettingsModuleProps) {
-  const [activeTab, setActiveTab] = useState(TABS[0]?.id || 'general');
+export default function SettingsModule({ onNavigate, initialTab }: SettingsModuleProps) {
+  const [activeTab, setActiveTab] = useState(initialTab || 'general');
   const [searchQuery, setSearchQuery] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const filteredTabs = useMemo(() => {
     if (!searchQuery) return TABS;
@@ -57,10 +64,12 @@ export default function SettingsModule({ onNavigate }: SettingsModuleProps) {
     return tab ? tab.component : GeneralTab;
   }, [activeTab]);
 
+  const activeTabMeta = useMemo(() => {
+    return TABS.find(t => t.id === activeTab) || TABS[0] || { id: 'general', label: 'إعدادات النظام العامة', icon: Settings, component: GeneralTab };
+  }, [activeTab]);
+
   const handleManualSave = async () => {
     setIsSaving(true);
-    // Settings are already saved locally onChange in their respective tabs.
-    // This button serves as a user-reassurance and triggers the Sync wake up.
     window.dispatchEvent(new CustomEvent('SYNC_WAKEUP'));
     
     setTimeout(() => {
@@ -71,7 +80,7 @@ export default function SettingsModule({ onNavigate }: SettingsModuleProps) {
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-50 relative">
+    <div className="w-full max-w-full mx-auto box-border font-cairo space-y-4 relative" dir="rtl">
       {/* Toast Notification */}
       <AnimatePresence>
         {toastMessage && (
@@ -79,7 +88,7 @@ export default function SettingsModule({ onNavigate }: SettingsModuleProps) {
             initial={{ opacity: 0, y: -20, x: '-50%' }}
             animate={{ opacity: 1, y: 20, x: '-50%' }}
             exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="fixed top-0 left-1/2 z-50 px-6 py-3 bg-slate-800 text-white rounded-xl shadow-2xl font-cairo text-sm font-bold flex items-center gap-2"
+            className="fixed top-4 left-1/2 z-50 px-6 py-3 bg-[#1E4D4D] text-white rounded-xl shadow-2xl font-cairo text-sm font-bold flex items-center gap-2"
           >
             <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
             {toastMessage}
@@ -87,83 +96,103 @@ export default function SettingsModule({ onNavigate }: SettingsModuleProps) {
         )}
       </AnimatePresence>
 
-      {/* Sticky Header */}
-      <div className="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button 
-            onClick={() => onNavigate?.('dashboard')}
-            className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-500 hover:bg-slate-100 hover:text-slate-800 transition-colors"
-          >
-            <ArrowRight size={20} />
-          </button>
-          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center text-indigo-600">
-            <Settings size={24} />
-          </div>
-          <div>
-            <h1 className="text-2xl font-black text-slate-800 font-cairo">مركز الإدارة</h1>
-            <p className="text-sm text-slate-500 font-cairo">Enterprise Administration Center</p>
+      {/* Header Container */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 box-border w-full">
+        <div className="flex items-center justify-between w-full sm:w-auto">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => onNavigate?.('dashboard')}
+              title="رجوع للوحة التحكم"
+              className="w-9 h-9 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-[#1E4D4D] hover:text-white dark:hover:bg-[#1E4D4D] transition-colors shrink-0"
+            >
+              <ArrowRight size={18} />
+            </button>
+            <div className="w-10 h-10 bg-[#1E4D4D]/10 rounded-xl flex items-center justify-center text-[#1E4D4D] dark:text-emerald-400 shrink-0">
+              <Settings size={20} />
+            </div>
+            <div>
+              <h1 className="text-base sm:text-lg font-black text-slate-800 dark:text-slate-100 font-cairo leading-tight">مركز إعدادات النظام</h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 font-cairo hidden sm:block">الإعدادات الإدارية والتنفيذية الحاكمة لتطبيق PharmaFlow</p>
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="relative w-full md:w-64">
-            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative flex-1 sm:w-48">
+            <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             <input
               type="text"
               placeholder="ابحث في الإعدادات..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-4 pr-10 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-cairo"
+              className="w-full pl-3 pr-9 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-xs focus:ring-2 focus:ring-[#1E4D4D]/20 focus:border-[#1E4D4D] dark:text-white transition-all font-cairo"
             />
           </div>
           <button
             onClick={handleManualSave}
             disabled={isSaving}
-            className={`px-6 py-2.5 rounded-xl text-white font-bold font-cairo flex items-center gap-2 transition-all shadow-sm
-              ${isSaving ? 'bg-indigo-400 cursor-not-allowed' : 'bg-indigo-600 hover:bg-indigo-700 hover:shadow-md'}
+            className={`px-4 py-2 rounded-xl text-white font-bold font-cairo text-xs flex items-center gap-1.5 transition-all shadow-xs shrink-0
+              ${isSaving ? 'bg-emerald-700 cursor-not-allowed' : 'bg-[#1E4D4D] hover:bg-[#153737] hover:shadow-md'}
             `}
           >
-            <Save size={18} className={isSaving ? 'animate-pulse' : ''} />
-            {isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}
+            <Save size={16} className={isSaving ? 'animate-pulse' : ''} />
+            <span>{isSaving ? 'جاري الحفظ...' : 'حفظ التغييرات'}</span>
           </button>
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-l border-slate-200 overflow-y-auto custom-scrollbar shrink-0 hidden md:block">
-          <div className="p-4 space-y-1">
-            {filteredTabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-cairo text-right
-                  ${activeTab === tab.id 
-                    ? 'bg-indigo-50 text-indigo-700 font-bold' 
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-medium'
-                  }
-                `}
-              >
-                <tab.icon size={18} className={activeTab === tab.id ? 'text-indigo-600' : 'text-slate-400'} />
-                {tab.label}
-              </button>
-            ))}
-            {filteredTabs.length === 0 && (
-              <div className="text-center p-4 text-slate-500 text-sm font-cairo">
-                لا توجد نتائج
-              </div>
-            )}
+      {/* Horizontal Scrollable Tabs */}
+      <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-2 overflow-x-auto flex items-center gap-1.5 custom-scrollbar box-border w-full">
+        {filteredTabs.map((tab) => {
+          const TabIcon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold font-cairo whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+                isActive 
+                  ? 'bg-[#1E4D4D] text-white shadow-xs' 
+                  : 'bg-slate-50 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <TabIcon size={15} className={isActive ? 'text-emerald-300' : 'text-slate-400'} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+        {filteredTabs.length === 0 && (
+          <div className="text-center p-2 text-slate-500 text-xs font-cairo w-full">
+            لا توجد إعدادات مطابقة لـ "{searchQuery}"
           </div>
-        </div>
+        )}
+      </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar">
-          <div className="max-w-4xl mx-auto">
-             <Suspense fallback={<LoadingSkeleton />}>
-                <ActiveComponent />
-             </Suspense>
-          </div>
-        </div>
+      {/* Content Area */}
+      <div className="w-full box-border">
+        {/* Active Tab Banner Header */}
+        {(() => {
+          const ActiveIcon = activeTabMeta.icon;
+          return (
+            <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs flex items-center gap-3 mb-4 box-border w-full">
+              <div className="w-9 h-9 rounded-xl bg-[#1E4D4D]/10 text-[#1E4D4D] dark:text-emerald-400 flex items-center justify-center shrink-0">
+                <ActiveIcon size={18} />
+              </div>
+              <div>
+                <h2 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100 font-cairo">
+                  {activeTabMeta.label}
+                </h2>
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 font-cairo">
+                  خيارات وتكوينات قسم {activeTabMeta.label}
+                </p>
+              </div>
+            </div>
+          );
+        })()}
+
+        <Suspense fallback={<LoadingSkeleton />}>
+          <ActiveComponent activeTab={activeTab} />
+        </Suspense>
       </div>
     </div>
   );

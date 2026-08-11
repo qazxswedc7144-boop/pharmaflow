@@ -208,23 +208,27 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = memo(({ isOpen, onClo
   return (
     <AnimatePresence>
       {isOpen && (
-        <>
+        <div className="fixed inset-0 z-[9998] pointer-events-auto flex justify-center items-end sm:items-center" dir="rtl" style={{ height: '100dvh' }}>
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[500]"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-[9999]"
           />
 
-          {/* Drawer Container */}
+          {/* Drawer Panel - Strictly constrained to 480px width matching the main dashboard layout */}
           <motion.div
-            initial={{ x: '100%' }}
-            animate={{ x: 0 }}
-            exit={{ x: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 220 }}
-            className="fixed top-0 right-0 bottom-0 w-full sm:w-[480px] md:w-[540px] bg-[#F8FAFA] z-[510] shadow-2xl flex flex-col border-l border-slate-200"
+            initial={{ y: '100%', opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: '100%', opacity: 0 }}
+            transition={{ type: 'spring', damping: 28, stiffness: 280 }}
+            className="relative z-[10000] w-full max-w-[480px] bg-[#F8FAFA] shadow-2xl flex flex-col border border-slate-200 h-[100dvh] max-h-[100dvh] sm:h-auto sm:max-h-[96dvh] sm:rounded-3xl overflow-hidden"
+            style={{
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+            }}
             dir="rtl"
           >
             {/* Drawer Header */}
@@ -393,7 +397,7 @@ export const CopilotDrawer: React.FC<CopilotDrawerProps> = memo(({ isOpen, onClo
               </div>
             </div>
           </motion.div>
-        </>
+        </div>
       )}
     </AnimatePresence>
   );

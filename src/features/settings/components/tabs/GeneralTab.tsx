@@ -7,7 +7,11 @@ import { useAdaptivePerformance, type EcoModeValue } from '../../../../hooks/use
 import { useUIStore } from '../../../../store/useUIStore';
 import { useSettingsStore } from '../../../../store/useSettingsStore';
 
-export default function GeneralTab() {
+interface GeneralTabProps {
+  activeTab?: string;
+}
+
+export default function GeneralTab({ activeTab }: GeneralTabProps = {}) {
   const [settings, setSettings] = useState<Record<string, SettingValue>>({});
   const { themeMode, setThemeMode } = useTheme();
   const currentCurrency = useSettingsStore((state) => state.currency);
@@ -72,7 +76,7 @@ export default function GeneralTab() {
         </div>
       </SettingsCard>
 
-      <Accordion title="المنطقة والعملة" defaultOpen>
+      <Accordion title="المنطقة والعملة" defaultOpen={activeTab === 'currency' || !activeTab}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SettingSelect
             label="العملة الرئسية"
@@ -99,7 +103,7 @@ export default function GeneralTab() {
         </div>
       </Accordion>
 
-      <Accordion title="التاريخ والوقت">
+      <Accordion title="التاريخ والوقت" defaultOpen={activeTab === 'datetime' || !activeTab}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <SettingSelect
             label="صيغة التاريخ"

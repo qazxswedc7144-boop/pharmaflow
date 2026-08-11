@@ -8,4 +8,5 @@ export * from './AIContextBuilder';
 export * from './PromptManager';
 export * from './AIResponseValidator';
 export * from './AIUsageTracker';
+export * from './SmartPharmacyIntelligenceEngine';
 export * from './context';

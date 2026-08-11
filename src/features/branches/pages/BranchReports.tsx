@@ -13,11 +13,23 @@ import {
   PieChart, Pie, Cell, Legend
 } from 'recharts';
 
-export const BranchReports: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
+interface BranchReportsProps {
+  onNavigate?: (view: string, params?: any) => void;
+  initialTab?: string;
+}
+
+export const BranchReports: React.FC<BranchReportsProps> = ({ onNavigate, initialTab = 'ALL' }) => {
   const { addToast, currency } = useUI();
   const [branches, setBranches] = useState<Branch[]>([]);
   const [selectedBranchId, setSelectedBranchId] = useState<string>("ALL");
+  const [activeTab, setActiveTab] = useState<string>(initialTab || 'ALL');
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Scoped metrics and AI predictions
   const [reportMetrics, setReportMetrics] = useState({
@@ -131,6 +143,39 @@ export const BranchReports: React.FC<{ onNavigate?: (view: string) => void }> = 
             </button>
           )}
         </div>
+      </div>
+
+      {/* Sub-tabs for Smart Branch Analytics */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+        {[
+          { id: 'ALL', label: 'التقرير الشامل', icon: PieChartIcon },
+          { id: 'PERFORMANCE', label: 'أداء الفروع', icon: TrendingUp },
+          { id: 'SALES', label: 'تحليل المبيعات حسب الفرع', icon: DollarSign },
+          { id: 'INVENTORY', label: 'تحليل المخزون حسب الفرع', icon: Package },
+          { id: 'COMPARISON', label: 'مقارنة الفروع', icon: Zap },
+          { id: 'KPI', label: 'مؤشرات الأداء', icon: Wallet2 },
+          { id: 'SMART_INSIGHTS', label: 'التنبيهات والتحليلات الذكية', icon: Sparkles }
+        ].map(tab => (
+          <button
+            key={tab.id}
+            type="button"
+            onClick={() => {
+              if (tab.id === 'COMPARISON' && onNavigate) {
+                onNavigate('consolidation');
+              } else {
+                setActiveTab(tab.id);
+              }
+            }}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black shrink-0 transition-all ${
+              activeTab === tab.id
+                ? 'bg-[#1E4D4D] text-white shadow-md'
+                : 'bg-white border border-slate-100 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            <tab.icon size={14} className={activeTab === tab.id ? 'text-emerald-400' : 'text-slate-400'} />
+            <span>{tab.label}</span>
+          </button>
+        ))}
       </div>
 
       {isLoading ? (

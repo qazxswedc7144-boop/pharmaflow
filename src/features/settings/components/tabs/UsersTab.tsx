@@ -20,7 +20,7 @@ export default function UsersTab() {
   return (
     <div className="space-y-6">
       <SettingsCard title="إدارة المستخدمين" description="هذه الصفحة حالياً تعرض إعدادات الصلاحيات العامة. سيتم توجيهك قريباً لصفحة إدارة المستخدمين التفصيلية." icon={Users}>
-        <div className="p-4 bg-indigo-50 text-indigo-700 rounded-xl font-cairo text-sm font-medium">
+        <div className="p-4 bg-[#1E4D4D]/10 text-[#1E4D4D] dark:text-emerald-400 rounded-xl font-cairo text-sm font-medium">
           لإضافة أو تعديل المستخدمين، يرجى استخدام "إدارة المستخدمين" من القائمة الرئيسية.
         </div>
       </SettingsCard>

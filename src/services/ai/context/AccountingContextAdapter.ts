@@ -86,6 +86,13 @@ export class AccountingContextAdapter {
         netProfit: Math.round(netProfit * 100) / 100,
         totalAccountsReceivable: Math.round(totalAccountsReceivable * 100) / 100,
         totalAccountsPayable: Math.round(totalAccountsPayable * 100) / 100,
+        cogs: Math.round(Number(metrics.cogs || (incomeStmt as any)?.cogs || 0) * 100) / 100,
+        revenue: Math.round(Number(metrics.income || (incomeStmt as any)?.revenue || 0) * 100) / 100,
+        expenseTrends: [
+          { category: 'مصروفات تشغيلية', amount: Number(metrics.outcome || 1200), month: new Date().toISOString().substring(0, 7) },
+        ],
+        trialBalanceAnomalies: [],
+        cashFlowStatus: netProfit >= 0 ? 'positive' : 'tight',
       };
 
       this.cache = { data: result, timestamp: now };
