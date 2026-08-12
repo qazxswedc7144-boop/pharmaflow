@@ -6,9 +6,10 @@ import { useUI } from '@/contexts/AppContext';
 import { Receipt, Payment, Supplier } from '@/types';
 import PrintMenu from '@/components/shared/PrintMenu';
 import { 
-  ArrowDownCircle, ArrowUpRight, Trash2, Calendar, CreditCard, Wallet, ArrowRight
+  ArrowDownCircle, ArrowUpRight, Trash2, Calendar, CreditCard, Wallet
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface VouchersModuleProps {
   onNavigate?: (view: string) => void;
@@ -194,18 +195,14 @@ const VouchersModule: React.FC<VouchersModuleProps> = ({ onNavigate, initialType
   }, [history, searchTerm, customers, suppliers]);
 
   return (
-    <div className="p-3 sm:p-6 md:p-8 max-w-7xl mx-auto space-y-6 sm:space-y-8 pb-24 font-cairo bg-[#F8FAFA] min-h-full w-full" dir="rtl">
+    <div className="p-2 sm:p-4 space-y-6 sm:space-y-8 pb-24 font-cairo bg-[#F8FAFA] min-h-full w-full" dir="rtl">
       {/* Modern Header */}
       <header className="bg-white p-4 sm:p-6 md:p-8 rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm relative z-20 w-full overflow-hidden">
         <div className="flex items-center justify-between gap-3 sm:gap-4 w-full">
           {/* Back Button */}
-          <button 
-            onClick={() => onNavigate?.('dashboard')}
-            className="w-10 h-10 sm:w-12 sm:h-12 bg-slate-50 border border-slate-200 text-[#1E4D4D] rounded-xl sm:rounded-2xl flex items-center justify-center shadow-xs active:scale-95 hover:bg-slate-100 transition-all shrink-0"
-            title="العودة للشاشة الرئيسية"
-          >
-            <ArrowRight size={22} className="stroke-[2.5]" />
-          </button>
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
           
           {/* Title & Icon */}
           <div className="flex-1 flex flex-col sm:flex-row items-center justify-center gap-2.5 sm:gap-4 text-center sm:text-right min-w-0 px-2 overflow-hidden">

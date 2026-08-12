@@ -105,7 +105,7 @@ async function startServer() {
     }, 100);
   }
 
-  const PORT = Number(process.env.PORT) || 3000;
+  const PORT = 3000;
   
   // Clean up any stale processes that might be holding onto the port or 24678 in development
   if (process.env.NODE_ENV !== "production") {

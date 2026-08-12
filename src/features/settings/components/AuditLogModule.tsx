@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { db } from '@/core/db';
 import { AuditLogEntry } from '@/types';
 import { FixedSizeList as List } from 'react-window';
-import { Home } from 'lucide-react';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface AuditLogModuleProps {
   onNavigate?: (view: any) => void;
@@ -85,16 +85,16 @@ const AuditLogModule: React.FC<AuditLogModuleProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="space-y-8 pb-20 text-right flex flex-col h-full overflow-hidden" dir="rtl">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 px-4 shrink-0">
+    <div className="space-y-6 pb-20 text-right flex flex-col h-full overflow-hidden w-full" dir="rtl">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 px-2 sm:px-4 shrink-0 w-full">
         <div className="flex items-center gap-4">
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
           <div>
-            <h2 className="text-3xl font-black text-[#1E4D4D]">سجل الرقابة والتدقيق</h2>
-            <p className="text-slate-400 font-bold text-sm">تتبع الأنشطة • عرض آخر 300 سجل للأداء</p>
+            <h2 className="text-2xl sm:text-3xl font-black text-[#1E4D4D]">سجل الرقابة والتدقيق</h2>
+            <p className="text-slate-400 font-bold text-xs sm:text-sm">تتبع الأنشطة • عرض آخر 300 سجل للأداء</p>
           </div>
-          <button onClick={() => onNavigate?.('dashboard')} className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-[#1E4D4D] shadow-sm hover:bg-slate-50 transition-colors">
-            <Home size={20} />
-          </button>
         </div>
         <div className="relative w-full md:w-80">
           <input 

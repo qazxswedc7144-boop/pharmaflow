@@ -5,10 +5,11 @@ import { BranchService } from '../services/BranchService';
 import { Branch, TransferStatus } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
-  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban, ArrowLeft,
+  ArrowRightLeft, Eye, Truck, Trash2, X, RotateCw, CheckCircle2, Ban,
   PlusCircle, Clock, History, PackageCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface BranchTransfersProps {
   onNavigate?: (view: string, params?: any) => void;
@@ -223,12 +224,15 @@ export const BranchTransfers: React.FC<BranchTransfersProps> = ({
   };
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6 w-full" dir="rtl">
       {/* Upper Banner & Navigation Switcher */}
-      <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-md">
+      <div className="bg-white rounded-[32px] p-5 sm:p-6 border border-slate-100 shadow-md w-full">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="p-3.5 bg-emerald-50 text-emerald-700 rounded-2xl shadow-inner">
+            {onNavigate && (
+              <BackButton onClick={() => onNavigate('dashboard')} />
+            )}
+            <div className="p-3.5 bg-emerald-50 text-emerald-700 rounded-2xl shadow-inner shrink-0">
               <ArrowRightLeft size={22} />
             </div>
             <div>
@@ -277,15 +281,6 @@ export const BranchTransfers: React.FC<BranchTransfersProps> = ({
               <span>سجل التحويلات</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] ${activeTab === 'LIST' && statusFilter === 'ALL' ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-700'}`}>{allCount}</span>
             </button>
-            {onNavigate && (
-              <button
-                onClick={() => onNavigate('dashboard')}
-                title="العودة"
-                className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-2xl transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
-              >
-                <ArrowLeft size={18} />
-              </button>
-            )}
           </div>
         </div>
       </div>

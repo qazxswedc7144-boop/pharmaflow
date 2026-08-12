@@ -142,12 +142,16 @@ const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, onNavigat
   }
 
   return (
-    <header className="w-full bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 pt-3.5 pb-3 flex items-center justify-between sticky top-0 z-50 shadow-sm min-h-[64px]" dir="rtl">
+    <header 
+      className="w-full w-[100vw] max-w-none bg-white dark:bg-slate-900 border-b border-gray-100 dark:border-slate-800 px-4 sm:px-6 sticky top-0 z-50 shadow-sm h-[64px] min-h-[64px] relative" 
+      style={{ width: '100vw', maxWidth: 'none', position: 'relative' }}
+      dir="rtl"
+    >
       
       <SidebarMenu isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} onNavigate={onNavigate} />
 
-      {/* الجهة اليمنى (بداية الصف في RTL): أيقونة الإعدادات وزر العودة متبوعاً بالعنوان */}
-      <div className="flex items-center gap-2 md:gap-3 z-10">
+      {/* الطرف الأيمن في RTL: زر القائمة الجانبية (Hamburger) */}
+      <div className="absolute right-4 sm:right-6 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2 md:gap-3">
         <button 
           onClick={() => {
             if (onMenuClick) {
@@ -161,7 +165,18 @@ const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, onNavigat
         >
           <Menu size={20} />
         </button>
+      </div>
 
+      {/* المنتصف تماماً: شعار PharmaFlow */}
+      {isHomePage && (
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-0 pointer-events-auto flex flex-col items-center">
+          <DynamicLogo />
+        </div>
+      )}
+
+      {/* الطرف الأيسر في RTL: زر التنبيهات وزر العودة والعنوان */}
+      <div className="absolute left-4 sm:left-6 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2 md:gap-3">
+        <NotificationCenter />
         {showBackButton && (
           <button 
             onClick={onBackClick}
@@ -171,23 +186,9 @@ const Header = ({ pageTitle, showBackButton, onBackClick, onMenuClick, onNavigat
             <span className="leading-none">➟</span>
           </button>
         )}
-        
-        {/* عنوان الصفحة الحالي */}
         <h1 className="text-base font-bold text-gray-800 dark:text-gray-100 hidden md:block">
           {pageTitle || "PharmaFlow"}
         </h1>
-      </div>
-
-      {/* المنتصف تماماً: الشعار وحاوية الاسم (يظهر حصرياً في الصفحة الرئيسية) */}
-      {isHomePage && (
-        <div className="flex flex-col items-center absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-0">
-          <DynamicLogo />
-        </div>
-      )}
-
-      {/* الجهة اليسرى (نهاية الصف في RTL): التنبيهات فقط */}
-      <div className="flex items-center gap-2 md:gap-3 z-10">
-        <NotificationCenter />
       </div>
     </header>
   );

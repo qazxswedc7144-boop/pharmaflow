@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   Settings, Building2, Users, ShoppingCart, Truck, 
   Package, RefreshCw, ShieldCheck, Code,
-  Search, Save, ArrowRight, CreditCard,
+  Search, Save, CreditCard,
   Globe, Clock, Cpu
 } from 'lucide-react';
+import { BackButton } from '@/components/shared/BackButton';
 import { LoadingSkeleton } from '../components/shared/SettingsUI';
 
 // Lazy load tabs for performance
@@ -21,13 +22,16 @@ const SubscriptionTab = lazy(() => import('../components/tabs/SubscriptionTab'))
 const DeveloperTab = lazy(() => import('../components/tabs/DeveloperTab'));
 const BackupTab = lazy(() => import('../components/tabs/BackupTab'));
 
-const TABS = [
+const SYSTEM_SETTINGS_GROUP = [
   { id: 'general', label: 'إعدادات النظام العامة', icon: Settings, component: GeneralTab },
   { id: 'users', label: 'المستخدمون والصلاحيات', icon: Users, component: UsersTab },
   { id: 'pharmacy', label: 'الفروع والإعدادات الخاصة بها', icon: Building2, component: PharmacyTab },
   { id: 'currency', label: 'العملة والمنطقة الزمنية', icon: Globe, component: GeneralTab },
   { id: 'datetime', label: 'التاريخ والوقت', icon: Clock, component: GeneralTab },
   { id: 'performance', label: 'إعدادات الأداء والأجهزة', icon: Cpu, component: DeveloperTab },
+];
+
+const OPERATIONAL_SETTINGS_GROUP = [
   { id: 'backup', label: 'إعدادات النسخ الاحتياطي والمزامنة', icon: RefreshCw, component: BackupTab },
   { id: 'sales', label: 'إعدادات المبيعات', icon: ShoppingCart, component: SalesTab },
   { id: 'purchases', label: 'إعدادات المشتريات', icon: Truck, component: PurchasesTab },
@@ -36,6 +40,8 @@ const TABS = [
   { id: 'security', label: 'سجل الأمان والتدقيق', icon: ShieldCheck, component: SecurityTab },
   { id: 'developer', label: 'أدوات المطور', icon: Code, component: DeveloperTab }
 ];
+
+const TABS = [...SYSTEM_SETTINGS_GROUP, ...OPERATIONAL_SETTINGS_GROUP];
 
 interface SettingsModuleProps {
   onNavigate?: (view: string, params?: any) => void;
@@ -100,13 +106,9 @@ export default function SettingsModule({ onNavigate, initialTab }: SettingsModul
       <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xs p-4 sm:p-5 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 box-border w-full">
         <div className="flex items-center justify-between w-full sm:w-auto">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => onNavigate?.('dashboard')}
-              title="رجوع للوحة التحكم"
-              className="w-9 h-9 bg-slate-100 dark:bg-slate-700 rounded-xl flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-[#1E4D4D] hover:text-white dark:hover:bg-[#1E4D4D] transition-colors shrink-0"
-            >
-              <ArrowRight size={18} />
-            </button>
+            {onNavigate && (
+              <BackButton onClick={() => onNavigate('dashboard')} />
+            )}
             <div className="w-10 h-10 bg-[#1E4D4D]/10 rounded-xl flex items-center justify-center text-[#1E4D4D] dark:text-emerald-400 shrink-0">
               <Settings size={20} />
             </div>

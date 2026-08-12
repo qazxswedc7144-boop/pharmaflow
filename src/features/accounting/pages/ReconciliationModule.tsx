@@ -4,6 +4,7 @@ import { useAccounting, useUI } from '@/contexts/AppContext';
 import { accountingService } from '@features/accounting/services/accountingService';
 import { IntegrityReport, ReconciliationPoint } from '@/types';
 import { Card, Button, Badge } from '@/components/shared/SharedUI';
+import { BackButton } from '@/components/shared/BackButton';
 
 const ReconciliationModule: React.FC<{ onNavigate?: (v: string) => void }> = ({ onNavigate }) => {
   const { refreshAccounting } = useAccounting();
@@ -40,18 +41,20 @@ const ReconciliationModule: React.FC<{ onNavigate?: (v: string) => void }> = ({ 
   };
 
   return (
-    <div className="space-y-8 p-6 md:p-10 pb-32 animate-in fade-in duration-500 text-right" dir="rtl">
-      <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-white p-8 rounded-[40px] shadow-sm border border-slate-100">
-        <div className="flex items-center gap-6">
-          <div className="w-16 h-16 bg-blue-600 text-white rounded-[24px] flex items-center justify-center text-4xl shadow-xl">⚖️</div>
+    <div className="space-y-6 p-2 sm:p-4 pb-32 animate-in fade-in duration-500 text-right w-full" dir="rtl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-[32px] shadow-sm border border-slate-100 w-full">
+        <div className="flex items-center gap-4">
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-blue-600 text-white rounded-[20px] flex items-center justify-center text-3xl shadow-xl shrink-0">⚖️</div>
           <div>
-            <h2 className="text-3xl font-black text-[#1E4D4D]">محرك المطابقة والتدقيق</h2>
-            <p className="text-slate-400 font-bold text-sm">التدقيق المتقاطع بين الأستاذ العام والسجلات الفرعية</p>
+            <h2 className="text-xl sm:text-2xl font-black text-[#1E4D4D]">محرك المطابقة والتدقيق</h2>
+            <p className="text-slate-400 font-bold text-xs">التدقيق المتقاطع بين الأستاذ العام والسجلات الفرعية</p>
           </div>
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 w-full sm:w-auto justify-end">
           <Button variant="primary" onClick={handleScan} isLoading={isScanning} icon="🔍">تحديث الفحص</Button>
-          <button onClick={() => onNavigate?.('dashboard')} className="w-12 h-12 bg-white border border-slate-100 rounded-2xl flex items-center justify-center text-[#1E4D4D] text-2xl font-black shadow-sm">➦</button>
         </div>
       </div>
 

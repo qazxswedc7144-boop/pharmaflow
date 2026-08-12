@@ -3,12 +3,12 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Settings, CreditCard, 
   ChevronDown, ChevronUp,
-  Printer, LogOut, PlusCircle,
+  Printer, LogOut,
   Upload, Phone, LifeBuoy, Users, Moon, Sun, Globe,
-  RotateCcw, PackageCheck, Sliders, Truck, Clock, History,
-  FileText, Scale, ArrowRightLeft, BarChart2, Layers,
-  DollarSign, Package, PieChart, Sparkles, Landmark, BookOpen, FileSpreadsheet, Building2, Cpu,
-  ShieldCheck, AlertTriangle, Lock
+  PackageCheck, Sliders, Truck, Clock,
+  FileText, Scale, ArrowRightLeft, BarChart2,
+  Landmark, FileSpreadsheet,
+  ShieldCheck
 } from 'lucide-react';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useUI } from '@/contexts/AppContext';
@@ -144,39 +144,11 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
               {/* 1️⃣ Operational Partners & Services */}
               <AccordionSection title="قسم إدارة العملاء والشركاء" icon={Users} defaultOpen={true}>
                 <button 
-                  onClick={() => handleNavClick('partners', { subType: 'supplier' })}
+                  onClick={() => handleNavClick('partners')}
                   className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
                 >
-                  <Truck size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>الموردون</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('partners', { subType: 'customer' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Users size={16} className="text-blue-600 dark:text-blue-400" />
-                  <span>العملاء</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('partners', { subType: 'partner' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Building2 size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>الشركاء / الجهات المرتبطة</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('partners', { subType: 'all' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <BookOpen size={16} className="text-teal-600 dark:text-teal-400" />
-                  <span>دليل جهات الاتصال</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('invoices-archive', { filter: 'returns' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <RotateCcw size={16} className="text-rose-600 dark:text-rose-400" />
-                  <span>مرتجعات الفواتير</span>
+                  <Users size={16} className="text-emerald-600 dark:text-emerald-400" />
+                  <span>العملاء والموردون والشركاء</span>
                 </button>
               </AccordionSection>
 
@@ -195,13 +167,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
                 >
                   <Sliders size={16} className="text-indigo-600 dark:text-indigo-400" />
                   <span>تسوية المخزون</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('inventory')}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Truck size={16} className="text-cyan-600 dark:text-cyan-400" />
-                  <span>حركة المخزون واللوجستيات</span>
                 </button>
               </AccordionSection>
 
@@ -234,7 +199,7 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
                 </button>
               </AccordionSection>
 
-              {/* قسم التكامل المالي الموحد */}
+              {/* قسم والتكامل المالي الموحد */}
               <AccordionSection title="قسم التكامل المالي الموحد" icon={Landmark}>
                 <button 
                   onClick={() => handleNavClick('consolidation')}
@@ -242,13 +207,6 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
                 >
                   <Landmark size={16} className="text-emerald-600 dark:text-emerald-400" />
                   <span>المركز المالي الموحد</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('reconciliation')}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Sliders size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>التسويات</span>
                 </button>
                 <button 
                   onClick={() => handleNavClick('reports/financial-engine')}
@@ -262,170 +220,33 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
               {/* 5️⃣ Smart Branch Analytics */}
               <AccordionSection title="قسم تحليلات الفروع الذكية" icon={BarChart2}>
                 <button 
-                  onClick={() => handleNavClick('branch-reports', { tab: 'PERFORMANCE' })}
+                  onClick={() => handleNavClick('branch-reports')}
                   className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
                 >
                   <BarChart2 size={16} className="text-indigo-600 dark:text-indigo-400" />
-                  <span>أداء الفروع</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-reports', { tab: 'SALES' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <DollarSign size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>تحليل المبيعات حسب الفرع</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-reports', { tab: 'INVENTORY' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Package size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>تحليل المخزون حسب الفرع</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('consolidation')}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Layers size={16} className="text-blue-600 dark:text-blue-400" />
-                  <span>مقارنة الفروع</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-reports', { tab: 'KPI' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <PieChart size={16} className="text-teal-600 dark:text-teal-400" />
-                  <span>مؤشرات الأداء</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-reports', { tab: 'SMART_INSIGHTS' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Sparkles size={16} className="text-purple-600 dark:text-purple-400" />
-                  <span>التنبيهات والتحليلات الذكية</span>
+                  <span>تقارير وتحليلات الفروع</span>
                 </button>
               </AccordionSection>
 
               {/* 5️⃣ Drug Transfers Section */}
               <AccordionSection title="قسم التحويل الدوائي بين الفروع" icon={ArrowRightLeft}>
                 <button 
-                  onClick={() => handleNavClick('branch-transfers', { tab: 'CREATE' })}
+                  onClick={() => handleNavClick('branch-transfers')}
                   className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
                 >
-                  <PlusCircle size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>إنشاء تحويل جديد</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-transfers', { tab: 'LIST', status: 'PENDING' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Clock size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>التحويلات المعلقة</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-transfers', { tab: 'LIST', status: 'IN_TRANSIT' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Truck size={16} className="text-blue-600 dark:text-blue-400" />
-                  <span>التحويلات قيد الشحن / النقل</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-transfers', { tab: 'LIST', status: 'RECEIVED' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <PackageCheck size={16} className="text-teal-600 dark:text-teal-400" />
-                  <span>التحويلات المستلمة</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('branch-transfers', { tab: 'LIST', status: 'ALL' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <History size={16} className="text-slate-600 dark:text-slate-400" />
-                  <span>سجل التحويلات</span>
-                </button>
-              </AccordionSection>
-
-              {/* 6️⃣ System Settings */}
-              <AccordionSection title="قسم إعدادات النظام" icon={Settings}>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'general' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Settings size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>إعدادات النظام العامة</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'users' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Users size={16} className="text-blue-600 dark:text-blue-400" />
-                  <span>المستخدمون والصلاحيات</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'pharmacy' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Building2 size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>الفروع والإعدادات الخاصة بها</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'currency' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Globe size={16} className="text-teal-600 dark:text-teal-400" />
-                  <span>العملة والمنطقة الزمنية</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'datetime' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Clock size={16} className="text-indigo-600 dark:text-indigo-400" />
-                  <span>التاريخ والوقت</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('settings', { tab: 'performance' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Cpu size={16} className="text-purple-600 dark:text-purple-400" />
-                  <span>إعدادات الأداء والأجهزة</span>
+                  <ArrowRightLeft size={16} className="text-blue-600 dark:text-blue-400" />
+                  <span>التحويلات بين الفروع</span>
                 </button>
               </AccordionSection>
 
               {/* 7️⃣ Security & Audit Log */}
               <AccordionSection title="قسم سجل الأمان والتدقيق" icon={ShieldCheck}>
                 <button 
-                  onClick={() => handleNavClick('audit-history', { filter: 'ALL' })}
+                  onClick={() => handleNavClick('audit-history')}
                   className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
                 >
                   <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>سجل التدقيق</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('audit-history', { filter: 'DELETE' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400" />
-                  <span>العمليات الحساسة</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('audit-history', { tableName: 'settings' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Sliders size={16} className="text-blue-600 dark:text-blue-400" />
-                  <span>تغييرات الإعدادات</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('security-audit', { tab: 'logs' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Users size={16} className="text-purple-600 dark:text-purple-400" />
-                  <span>نشاط المستخدمين</span>
-                </button>
-                <button 
-                  onClick={() => handleNavClick('security-audit', { tab: 'pentest' })}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <Lock size={16} className="text-rose-600 dark:text-rose-400" />
-                  <span>أحداث الأمان</span>
+                  <span>سجل الأمان والتدقيق</span>
                 </button>
               </AccordionSection>
 

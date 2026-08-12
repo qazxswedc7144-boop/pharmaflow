@@ -6,8 +6,9 @@ import { Branch } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { 
   PieChart as PieChartIcon, TrendingUp, Sparkles, AlertTriangle, 
-  Package, DollarSign, Wallet2, RefreshCw, Zap, ArrowLeft
+  Package, DollarSign, Wallet2, RefreshCw, Zap
 } from 'lucide-react';
+import { BackButton } from '@/components/shared/BackButton';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
@@ -104,12 +105,17 @@ export const BranchReports: React.FC<BranchReportsProps> = ({ onNavigate, initia
   const COLORS = ['#1E4D4D', '#10B981', '#3B82F6', '#F59E0B'];
 
   return (
-    <div className="space-y-6" dir="rtl">
+    <div className="space-y-6 w-full" dir="rtl">
       {/* Scope Filtering header action row */}
-      <div className="bg-white rounded-[32px] p-6 border border-slate-100 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-xl font-black text-[#1E4D4D]">لوحة تحليلات وتقارير الفروع</h1>
-          <p className="text-xs text-slate-400 font-bold mt-0.5">تقارير إحصائية، قوائم تقييم المخازن، وتنبؤات كفاءة الطلب على الأدوية</p>
+      <div className="bg-white rounded-[32px] p-5 sm:p-6 border border-slate-100 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 w-full">
+        <div className="flex items-center gap-3">
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
+          <div>
+            <h1 className="text-xl font-black text-[#1E4D4D]">لوحة تحليلات وتقارير الفروع</h1>
+            <p className="text-xs text-slate-400 font-bold mt-0.5">تقارير إحصائية، قوائم تقييم المخازن، وتنبؤات كفاءة الطلب على الأدوية</p>
+          </div>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -128,20 +134,10 @@ export const BranchReports: React.FC<BranchReportsProps> = ({ onNavigate, initia
             type="button"
             onClick={calculateReportData}
             title="تحديث البيانات"
-            className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition-all"
+            className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-500 rounded-xl transition-all cursor-pointer"
           >
             <RefreshCw size={14} className={isLoading ? "animate-spin" : ""} />
           </button>
-          {onNavigate && (
-            <button 
-              type="button"
-              onClick={() => onNavigate('dashboard')}
-              title="العودة"
-              className="p-3 bg-slate-50 hover:bg-slate-100 text-slate-600 rounded-full transition-all border border-slate-200 flex items-center justify-center shrink-0 hover:scale-105 active:scale-95"
-            >
-              <ArrowLeft size={16} />
-            </button>
-          )}
         </div>
       </div>
 

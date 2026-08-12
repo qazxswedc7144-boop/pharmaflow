@@ -13,6 +13,7 @@ import { useAuthStore } from '@/store/authStore';
 import { db } from '@/core/db';
 import { BackupService } from '@/services/backupService';
 import { NotificationService } from '@/context/NotificationContext';
+import { BackButton } from '@/components/shared/BackButton';
 
 // Real Firebase / Firestore Integrations
 import { 
@@ -515,23 +516,25 @@ const SystemHealthModule: React.FC<{ onNavigate?: (v: any) => void }> = ({ onNav
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-6 animate-in fade-in duration-500 font-sans text-right" dir="rtl">
+    <div className="p-2 sm:p-4 space-y-6 animate-in fade-in duration-500 font-sans text-right w-full" dir="rtl">
       
       {/* HEADER SECTION */}
-      <div className="flex flex-col md:flex-row items-center justify-between bg-white p-6 rounded-[24px] shadow-sm border border-slate-100 gap-4">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between bg-white p-5 sm:p-6 rounded-[24px] shadow-sm border border-slate-100 gap-4 w-full">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-[#1E4D4D] text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg">
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
+          <div className="w-12 h-12 sm:w-14 sm:h-14 bg-[#1E4D4D] text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shrink-0">
             <ShieldCheck size={28} />
           </div>
           <div>
-            <h2 className="text-2xl font-black text-[#1E4D4D]">مركز صحة وفحص النظام المتقدم</h2>
+            <h2 className="text-xl sm:text-2xl font-black text-[#1E4D4D]">مركز صحة وفحص النظام المتقدم</h2>
             <p className="text-slate-400 font-bold text-xs mt-1">تتبع الأداء والنزاهة، تسجيل الأجهزة، والحلول الاحتياطية السحابية الشاملة</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <Button variant="neutral" onClick={runIntegritySweep} isLoading={isSweeping} icon={<RefreshCw size={14} />}>فحص النزاهة الشامل</Button>
           <Button variant="neutral" onClick={runTests} isLoading={isRunning} icon="🧪">تشغيل وحدات الفحص</Button>
-          <button onClick={() => onNavigate?.('dashboard')} className="w-10 h-10 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-center text-[#1E4D4D] text-lg font-black hover:bg-slate-100 transition-all">➦</button>
         </div>
       </div>
 

@@ -29,27 +29,13 @@
             -webkit-tap-highlight-color: transparent;
             overscroll-behavior-y: contain;
             padding-top: var(--safe-area-inset-top);
-            display: flex;
-            justify-content: center;
         }
 
         #root {
             width: 100%;
-            max-width: 480px;
-            background-color: white;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-            margin: 0 auto;
-            position: relative;
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-        }
-
-        @media (max-width: 480px) {
-            #root {
-                box-shadow: none;
-                max-width: 100% !important;
-            }
         }
         
         .safe-area-pb {

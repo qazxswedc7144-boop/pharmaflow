@@ -6,9 +6,10 @@ import { SalesRepository } from '@/database/repositories/SalesRepository';
 import { UnifiedBusinessWorkflowOrchestrator } from '@/services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 import { Card, Button, Badge } from '@/components/shared/SharedUI';
 import { 
-  ArrowRight, History, ListChecks,
+  History, ListChecks,
   Banknote, User, CheckSquare, Square, ArrowDownCircle, Calendar
 } from 'lucide-react';
+import { BackButton } from '@/components/shared/BackButton';
 
 const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> = ({ onNavigate }) => {
   const { customers } = useAccounting();
@@ -133,9 +134,11 @@ const CustomerReceiptModule: React.FC<{ onNavigate?: (view: string) => void }> =
 
   return (
     <div className="flex flex-col min-h-full h-full bg-[#F8FAFA] font-cairo w-full relative overflow-x-hidden" dir="rtl">
-      <div className="bg-white px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between shadow-sm shrink-0 h-20">
+      <div className="bg-white px-4 sm:px-6 py-4 border-b border-slate-100 flex items-center justify-between shadow-sm shrink-0 h-20 w-full">
         <div className="flex items-center gap-4">
-          <button onClick={() => onNavigate?.('dashboard')} className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 hover:text-[#1E4D4D] transition-colors"><ArrowRight size={20} /></button>
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
           <div>
             <h2 className="text-lg font-black text-[#1E4D4D]">سند قبض من عميل</h2>
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Paid Amount Control Center</p>

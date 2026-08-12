@@ -25,9 +25,9 @@ import { Permission } from '@/types';
 import RoleGuard from '@/components/shared/RoleGuard';
 import { IS_PREVIEW } from '@/constants';
 import { 
-  X, AlertTriangle, RefreshCw, LogOut, ShieldCheck, Building2, Sparkles,
-  Users, Settings, PlusCircle, Clock, Truck, PackageCheck, History, DollarSign, Package, Layers, PieChart, BarChart2,
-  Landmark, BookOpen, Sliders, FileSpreadsheet, Globe, Cpu, Lock
+  X, AlertTriangle, RefreshCw, LogOut, ShieldCheck, Building2,
+  Users, BarChart2, ArrowRightLeft,
+  Landmark, Sliders, FileSpreadsheet
 } from 'lucide-react';
 
 import {
@@ -748,60 +748,21 @@ function MainLayout() {
               </p>
               <div className="space-y-1">
                 {can(profile?.role, 'MANAGE_PARTNERS') && (
-                  <>
-                    {/* 1. الموردون */}
-                    <button 
-                      onClick={() => handleNav('partners', { subType: 'supplier' })}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' && (viewParams?.subType === 'supplier' || viewParams?.subType === 'suppliers') ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`${currentView === 'partners' && (viewParams?.subType === 'supplier' || viewParams?.subType === 'suppliers') ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Truck size={15} /></span>
-                        <span>الموردون</span>
-                      </div>
-                      {currentView === 'partners' && (viewParams?.subType === 'supplier' || viewParams?.subType === 'suppliers') && <motion.div layoutId="active-nav-part1" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                    </button>
-
-                    {/* 2. العملاء */}
-                    <button 
-                      onClick={() => handleNav('partners', { subType: 'customer' })}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' && (viewParams?.subType === 'customer' || viewParams?.subType === 'customers' || (!viewParams?.subType && !viewParams?.type)) ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`${currentView === 'partners' && (viewParams?.subType === 'customer' || viewParams?.subType === 'customers' || (!viewParams?.subType && !viewParams?.type)) ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Users size={15} /></span>
-                        <span>العملاء</span>
-                      </div>
-                      {currentView === 'partners' && (viewParams?.subType === 'customer' || viewParams?.subType === 'customers' || (!viewParams?.subType && !viewParams?.type)) && <motion.div layoutId="active-nav-part2" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                    </button>
-
-                    {/* 3. الشركاء / الجهات المرتبطة */}
-                    <button 
-                      onClick={() => handleNav('partners', { subType: 'partner' })}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' && (viewParams?.subType === 'partner' || viewParams?.subType === 'partners') ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`${currentView === 'partners' && (viewParams?.subType === 'partner' || viewParams?.subType === 'partners') ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Building2 size={15} /></span>
-                        <span>الشركاء / الجهات المرتبطة</span>
-                      </div>
-                      {currentView === 'partners' && (viewParams?.subType === 'partner' || viewParams?.subType === 'partners') && <motion.div layoutId="active-nav-part3" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                    </button>
-
-                    {/* 4. دليل جهات الاتصال */}
-                    <button 
-                      onClick={() => handleNav('partners', { subType: 'all' })}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' && (viewParams?.subType === 'all' || viewParams?.subType === 'directory') ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className={`${currentView === 'partners' && (viewParams?.subType === 'all' || viewParams?.subType === 'directory') ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><BookOpen size={15} /></span>
-                        <span>دليل جهات الاتصال</span>
-                      </div>
-                      {currentView === 'partners' && (viewParams?.subType === 'all' || viewParams?.subType === 'directory') && <motion.div layoutId="active-nav-part4" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                    </button>
-                  </>
+                  <button 
+                    onClick={() => handleNav('partners')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'partners' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'partners' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Users size={15} /></span>
+                      <span>العملاء والموردون والشركاء</span>
+                    </div>
+                    {currentView === 'partners' && <motion.div layoutId="active-nav-part" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
                 )}
               </div>
             </div>
 
-            {/* 3. قسم إدارة الفروع والإمداد */}
+            {/* 2. قسم إدارة الفروع والإمداد */}
             <div>
               <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
                 قسم إدارة الفروع والإمداد
@@ -822,11 +783,11 @@ function MainLayout() {
               </div>
             </div>
 
-            {/* قسم التكامل المالي الموحد */}
+            {/* 3. قسم والتكامل المالي الموحد */}
             {can(profile?.role, 'FINANCIAL_ACCESS') && (
               <div>
                 <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
-                  قسم التكامل المالي الموحد
+                  قسم والتكامل المالي الموحد
                 </p>
                 <div className="space-y-1">
                   {/* 1. المركز المالي الموحد */}
@@ -875,298 +836,57 @@ function MainLayout() {
                   قسم تحليلات الفروع الذكية
                 </p>
                 <div className="space-y-1">
-                  {/* 1. أداء الفروع */}
                   <button 
-                    onClick={() => handleNav('branch-reports', { tab: 'PERFORMANCE' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' && (viewParams?.tab === 'PERFORMANCE' || !viewParams?.tab) ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('branch-reports')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-reports' && (viewParams?.tab === 'PERFORMANCE' || !viewParams?.tab) ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><BarChart2 size={15} /></span>
-                      <span>أداء الفروع</span>
+                      <span className={`${currentView === 'branch-reports' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><BarChart2 size={15} /></span>
+                      <span>تقارير وتحليلات الفروع</span>
                     </div>
-                    {currentView === 'branch-reports' && (viewParams?.tab === 'PERFORMANCE' || !viewParams?.tab) && <motion.div layoutId="active-nav-ba1" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 2. تحليل المبيعات حسب الفرع */}
-                  <button 
-                    onClick={() => handleNav('branch-reports', { tab: 'SALES' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' && viewParams?.tab === 'SALES' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-reports' && viewParams?.tab === 'SALES' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><DollarSign size={15} /></span>
-                      <span>تحليل المبيعات حسب الفرع</span>
-                    </div>
-                    {currentView === 'branch-reports' && viewParams?.tab === 'SALES' && <motion.div layoutId="active-nav-ba2" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 3. تحليل المخزون حسب الفرع */}
-                  <button 
-                    onClick={() => handleNav('branch-reports', { tab: 'INVENTORY' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' && viewParams?.tab === 'INVENTORY' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-reports' && viewParams?.tab === 'INVENTORY' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Package size={15} /></span>
-                      <span>تحليل المخزون حسب الفرع</span>
-                    </div>
-                    {currentView === 'branch-reports' && viewParams?.tab === 'INVENTORY' && <motion.div layoutId="active-nav-ba3" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 4. مقارنة الفروع */}
-                  <button 
-                    onClick={() => handleNav('consolidation')}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'consolidation' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'consolidation' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Layers size={15} /></span>
-                      <span>مقارنة الفروع</span>
-                    </div>
-                    {currentView === 'consolidation' && <motion.div layoutId="active-nav-ba4" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 5. مؤشرات الأداء */}
-                  <button 
-                    onClick={() => handleNav('branch-reports', { tab: 'KPI' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' && viewParams?.tab === 'KPI' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-reports' && viewParams?.tab === 'KPI' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><PieChart size={15} /></span>
-                      <span>مؤشرات الأداء</span>
-                    </div>
-                    {currentView === 'branch-reports' && viewParams?.tab === 'KPI' && <motion.div layoutId="active-nav-ba5" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 6. التنبيهات والتحليلات الذكية */}
-                  <button 
-                    onClick={() => handleNav('branch-reports', { tab: 'SMART_INSIGHTS' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-reports' && viewParams?.tab === 'SMART_INSIGHTS' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-reports' && viewParams?.tab === 'SMART_INSIGHTS' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Sparkles size={15} /></span>
-                      <span>التنبيهات والتحليلات الذكية</span>
-                    </div>
-                    {currentView === 'branch-reports' && viewParams?.tab === 'SMART_INSIGHTS' && <motion.div layoutId="active-nav-ba6" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                    {currentView === 'branch-reports' && <motion.div layoutId="active-nav-ba" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* 4. قسم التحويل الدوائي بين الفروع */}
+            {/* 5. قسم التحويل الدوائي بين الفروع */}
             {can(profile?.role, 'BRANCH_TRANSFER') && (
               <div>
                 <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
                   قسم التحويل الدوائي بين الفروع
                 </p>
                 <div className="space-y-1">
-                  {/* 1. إنشاء تحويل جديد */}
                   <button 
-                    onClick={() => handleNav('branch-transfers', { tab: 'CREATE' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' && viewParams?.tab === 'CREATE' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('branch-transfers')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-transfers' && viewParams?.tab === 'CREATE' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><PlusCircle size={15} /></span>
-                      <span>إنشاء تحويل جديد</span>
+                      <span className={`${currentView === 'branch-transfers' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><ArrowRightLeft size={15} /></span>
+                      <span>التحويلات بين الفروع</span>
                     </div>
-                    {currentView === 'branch-transfers' && viewParams?.tab === 'CREATE' && <motion.div layoutId="active-nav-tr1" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 2. التحويلات المعلقة */}
-                  <button 
-                    onClick={() => handleNav('branch-transfers', { tab: 'LIST', status: 'PENDING' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'PENDING' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'PENDING' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Clock size={15} /></span>
-                      <span>التحويلات المعلقة</span>
-                    </div>
-                    {currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'PENDING' && <motion.div layoutId="active-nav-tr2" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 3. التحويلات قيد الشحن / النقل */}
-                  <button 
-                    onClick={() => handleNav('branch-transfers', { tab: 'LIST', status: 'IN_TRANSIT' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'IN_TRANSIT' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'IN_TRANSIT' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Truck size={15} /></span>
-                      <span>التحويلات قيد الشحن / النقل</span>
-                    </div>
-                    {currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'IN_TRANSIT' && <motion.div layoutId="active-nav-tr3" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 4. التحويلات المستلمة */}
-                  <button 
-                    onClick={() => handleNav('branch-transfers', { tab: 'LIST', status: 'RECEIVED' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'RECEIVED' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'RECEIVED' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><PackageCheck size={15} /></span>
-                      <span>التحويلات المستلمة</span>
-                    </div>
-                    {currentView === 'branch-transfers' && viewParams?.tab === 'LIST' && viewParams?.status === 'RECEIVED' && <motion.div layoutId="active-nav-tr4" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 5. سجل التحويلات */}
-                  <button 
-                    onClick={() => handleNav('branch-transfers', { tab: 'LIST', status: 'ALL' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'branch-transfers' && viewParams?.tab !== 'CREATE' && (!viewParams?.status || viewParams?.status === 'ALL') ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-950/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'branch-transfers' && viewParams?.tab !== 'CREATE' && (!viewParams?.status || viewParams?.status === 'ALL') ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><History size={15} /></span>
-                      <span>سجل التحويلات</span>
-                    </div>
-                    {currentView === 'branch-transfers' && viewParams?.tab !== 'CREATE' && (!viewParams?.status || viewParams?.status === 'ALL') && <motion.div layoutId="active-nav-tr5" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                    {currentView === 'branch-transfers' && <motion.div layoutId="active-nav-tr" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
                 </div>
               </div>
             )}
 
-            {/* 6. قسم إعدادات النظام */}
-            {can(profile?.role, 'MANAGE_SYSTEM') && (
-              <div>
-                <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
-                  قسم إعدادات النظام
-                </p>
-                <div className="space-y-1">
-                  {/* 1. إعدادات النظام العامة */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'general' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && (!viewParams?.tab || viewParams?.tab === 'general') ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && (!viewParams?.tab || viewParams?.tab === 'general') ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Settings size={15} /></span>
-                      <span>إعدادات النظام العامة</span>
-                    </div>
-                    {currentView === 'settings' && (!viewParams?.tab || viewParams?.tab === 'general') && <motion.div layoutId="active-nav-sys1" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 2. المستخدمون والصلاحيات */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'users' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && viewParams?.tab === 'users' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && viewParams?.tab === 'users' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Users size={15} /></span>
-                      <span>المستخدمون والصلاحيات</span>
-                    </div>
-                    {currentView === 'settings' && viewParams?.tab === 'users' && <motion.div layoutId="active-nav-sys2" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 3. الفروع والإعدادات الخاصة بها */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'pharmacy' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && viewParams?.tab === 'pharmacy' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && viewParams?.tab === 'pharmacy' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Building2 size={15} /></span>
-                      <span>الفروع والإعدادات الخاصة بها</span>
-                    </div>
-                    {currentView === 'settings' && viewParams?.tab === 'pharmacy' && <motion.div layoutId="active-nav-sys3" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 4. العملة والمنطقة الزمنية */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'currency' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && viewParams?.tab === 'currency' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && viewParams?.tab === 'currency' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Globe size={15} /></span>
-                      <span>العملة والمنطقة الزمنية</span>
-                    </div>
-                    {currentView === 'settings' && viewParams?.tab === 'currency' && <motion.div layoutId="active-nav-sys4" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 5. التاريخ والوقت */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'datetime' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && viewParams?.tab === 'datetime' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && viewParams?.tab === 'datetime' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Clock size={15} /></span>
-                      <span>التاريخ والوقت</span>
-                    </div>
-                    {currentView === 'settings' && viewParams?.tab === 'datetime' && <motion.div layoutId="active-nav-sys5" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 6. إعدادات الأداء والأجهزة */}
-                  <button 
-                    onClick={() => handleNav('settings', { tab: 'performance' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' && viewParams?.tab === 'performance' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'settings' && viewParams?.tab === 'performance' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Cpu size={15} /></span>
-                      <span>إعدادات الأداء والأجهزة</span>
-                    </div>
-                    {currentView === 'settings' && viewParams?.tab === 'performance' && <motion.div layoutId="active-nav-sys6" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* 7. قسم سجل الأمان والتدقيق */}
+            {/* 6. قسم سجل الأمان والتدقيق */}
             {can(profile?.role, 'MANAGE_SYSTEM') && (
               <div>
                 <p className="px-4 text-[11px] font-black text-slate-400 uppercase tracking-[2px] mb-3">
                   قسم سجل الأمان والتدقيق
                 </p>
                 <div className="space-y-1">
-                  {/* 1. سجل التدقيق */}
                   <button 
-                    onClick={() => handleNav('audit-history', { filter: 'ALL' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'audit-history' && (!viewParams?.filter || viewParams?.filter === 'ALL') && !viewParams?.tableName ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                    onClick={() => handleNav('audit-history')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'audit-history' || currentView === 'security-audit' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
                   >
                     <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'audit-history' && (!viewParams?.filter || viewParams?.filter === 'ALL') && !viewParams?.tableName ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><ShieldCheck size={15} /></span>
-                      <span>سجل التدقيق</span>
+                      <span className={`${currentView === 'audit-history' || currentView === 'security-audit' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><ShieldCheck size={15} /></span>
+                      <span>سجل الأمان والتدقيق</span>
                     </div>
-                    {currentView === 'audit-history' && (!viewParams?.filter || viewParams?.filter === 'ALL') && !viewParams?.tableName && <motion.div layoutId="active-nav-sec1" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 2. العمليات الحساسة */}
-                  <button 
-                    onClick={() => handleNav('audit-history', { filter: 'DELETE' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'audit-history' && viewParams?.filter === 'DELETE' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'audit-history' && viewParams?.filter === 'DELETE' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><AlertTriangle size={15} /></span>
-                      <span>العمليات الحساسة</span>
-                    </div>
-                    {currentView === 'audit-history' && viewParams?.filter === 'DELETE' && <motion.div layoutId="active-nav-sec2" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 3. تغييرات الإعدادات */}
-                  <button 
-                    onClick={() => handleNav('audit-history', { tableName: 'settings' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'audit-history' && viewParams?.tableName === 'settings' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'audit-history' && viewParams?.tableName === 'settings' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Sliders size={15} /></span>
-                      <span>تغييرات الإعدادات</span>
-                    </div>
-                    {currentView === 'audit-history' && viewParams?.tableName === 'settings' && <motion.div layoutId="active-nav-sec3" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 4. نشاط المستخدمين */}
-                  <button 
-                    onClick={() => handleNav('security-audit', { tab: 'logs' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'security-audit' && viewParams?.tab === 'logs' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'security-audit' && viewParams?.tab === 'logs' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Users size={15} /></span>
-                      <span>نشاط المستخدمين</span>
-                    </div>
-                    {currentView === 'security-audit' && viewParams?.tab === 'logs' && <motion.div layoutId="active-nav-sec4" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
-                  </button>
-
-                  {/* 5. أحداث الأمان */}
-                  <button 
-                    onClick={() => handleNav('security-audit', { tab: 'pentest' })}
-                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'security-audit' && (viewParams?.tab === 'pentest' || !viewParams?.tab) ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className={`${currentView === 'security-audit' && (viewParams?.tab === 'pentest' || !viewParams?.tab) ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Lock size={15} /></span>
-                      <span>أحداث الأمان</span>
-                    </div>
-                    {currentView === 'security-audit' && (viewParams?.tab === 'pentest' || !viewParams?.tab) && <motion.div layoutId="active-nav-sec5" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                    {(currentView === 'audit-history' || currentView === 'security-audit') && <motion.div layoutId="active-nav-sec" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
                   </button>
                 </div>
               </div>
@@ -1216,7 +936,7 @@ function MainLayout() {
           currentView={currentView}
         />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F8FAFA] custom-scrollbar min-h-0 w-full max-w-[480px] mx-auto px-4 py-4 relative">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F8FAFA] custom-scrollbar min-h-0 w-full max-w-[480px] mx-auto px-2 sm:px-4 py-2 sm:py-4 relative">
           <div className="w-full max-w-[480px] mx-auto min-h-full box-border overflow-x-hidden">
             <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[400px]"><div className="w-10 h-10 border-4 border-[#10B981] border-t-transparent rounded-full animate-spin"></div></div>}>
               {(() => {

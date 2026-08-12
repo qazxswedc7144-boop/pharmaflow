@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Card, Badge } from '@/components/shared/SharedUI';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface HelpModuleProps {
   onNavigate?: (view: any) => void;
@@ -21,16 +22,18 @@ const HelpModule: React.FC<HelpModuleProps> = ({ onNavigate }) => {
   const [activeTab, setActiveTab] = useState<'user' | 'dev' | 'errors'>('user');
 
   return (
-    <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500 pb-32" dir="rtl">
-      <div className="flex items-center justify-between">
+    <div className="p-2 sm:p-4 space-y-8 animate-in fade-in duration-500 pb-32 w-full" dir="rtl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white p-5 sm:p-6 rounded-[28px] border border-slate-100 shadow-sm w-full">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg">📖</div>
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
+          <div className="w-12 h-12 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shrink-0">📖</div>
           <div>
-            <h2 className="text-3xl font-black text-[#1E4D4D]">الدليل التقني والتوثيق</h2>
-            <p className="text-slate-400 font-bold text-sm">مرجع شامل لاستخدام وتطوير نظام PharmaFlow</p>
+            <h2 className="text-2xl font-black text-[#1E4D4D]">الدليل التقني والتوثيق</h2>
+            <p className="text-slate-400 font-bold text-xs sm:text-sm">مرجع شامل لاستخدام وتطوير نظام PharmaFlow</p>
           </div>
         </div>
-        <button onClick={() => onNavigate?.('dashboard')} className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-[#1E4D4D] text-xl font-black shadow-sm hover:bg-slate-50 transition-colors">➦</button>
       </div>
 
       <div className="flex p-1.5 bg-white border border-slate-100 rounded-[28px] shadow-sm w-fit overflow-x-auto no-scrollbar">

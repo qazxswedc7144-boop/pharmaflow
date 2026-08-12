@@ -5,10 +5,11 @@ import { AccountingEntry } from '@/types';
 import { FixedSizeList as List } from 'react-window';
 import { Button, Modal } from '@/components/shared/SharedUI';
 import { 
-  FileText, ArrowRight, Filter,
+  FileText, Filter,
   ArrowUpRight, ArrowDownLeft, Layers, CheckCircle2, TrendingUp
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface AccountingModuleProps {
   onNavigate?: (view: string) => void;
@@ -157,19 +158,15 @@ const AccountingModule: React.FC<AccountingModuleProps> = ({ onNavigate }) => {
   };
 
   return (
-    <div className="flex flex-col min-h-full w-full max-w-7xl mx-auto px-2 sm:px-4 py-2 sm:py-4 font-cairo space-y-4" dir="rtl">
+    <div className="flex flex-col min-h-full w-full px-2 sm:px-4 py-2 sm:py-4 font-cairo space-y-4" dir="rtl">
       {/* Modern Header Section */}
-      <header className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden shrink-0">
+      <header className="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden shrink-0 w-full">
         {/* Row 1: Back Button & Title */}
         <div className="px-4 sm:px-6 py-4 flex items-center justify-between border-b border-slate-100">
           <div className="flex items-center gap-3">
-            <button 
-              onClick={() => onNavigate?.('dashboard')}
-              className="w-10 h-10 bg-slate-50 text-[#1E4D4D] rounded-xl flex items-center justify-center border border-slate-200/80 hover:bg-slate-100 transition-all shadow-xs"
-              title="العودة للشاشة الرئيسية"
-            >
-              <ArrowRight size={20} />
-            </button>
+            {onNavigate && (
+              <BackButton onClick={() => onNavigate('dashboard')} />
+            )}
             <div>
               <h2 className="text-xl sm:text-2xl font-black text-[#1E4D4D] tracking-tight">دفتر الأستاذ العام</h2>
               <p className="text-[11px] text-slate-400 font-bold uppercase tracking-wider mt-0.5">General Ledger & Journal Entries</p>

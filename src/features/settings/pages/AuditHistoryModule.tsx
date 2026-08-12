@@ -5,12 +5,13 @@ import { FinancialAuditEntry } from '@/types';
 import { useUI } from '@/contexts/AppContext';
 import { Card } from '@/components/shared/SharedUI';
 import { 
-  History, Search, ArrowRight, 
+  History, Search, 
   Clock, Database, ChevronRight,
   ShieldCheck, FileText, Trash2, Plus,
   Lock
 } from 'lucide-react';
 import { EncryptedAuditExportModal } from '@/components/shared/EncryptedAuditExportModal';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface AuditHistoryModuleProps {
   onNavigate?: (view: any, params?: any) => void;
@@ -87,13 +88,16 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({
   };
 
   return (
-    <div className="p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-5 bg-[#F8FAFA] min-h-full pb-32 animate-in fade-in" dir="rtl">
+    <div className="p-2 sm:p-4 space-y-4 sm:space-y-5 bg-[#F8FAFA] min-h-full pb-32 animate-in fade-in w-full" dir="rtl">
       {/* Top Header Card */}
-      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm transition-all">
+      <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-slate-200/80 shadow-sm transition-all w-full">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           
           {/* Main Title & Group */}
           <div className="flex items-center gap-3.5 sm:gap-4">
+            {onNavigate && (
+              <BackButton onClick={() => onNavigate('dashboard')} />
+            )}
             <div className="w-12 h-12 sm:w-14 sm:h-14 bg-slate-900 text-white rounded-2xl flex items-center justify-center text-2xl shadow-md border-2 border-emerald-950 shrink-0">
               <ShieldCheck className="w-6 h-6 sm:w-7 sm:h-7 text-emerald-400" />
             </div>
@@ -126,16 +130,6 @@ const AuditHistoryModule: React.FC<AuditHistoryModuleProps> = ({
               <Lock size={15} className="text-emerald-400" />
               <span>تصدير PDF مشفر</span>
             </button>
-            
-            {!recordId && (
-              <button 
-                onClick={() => onNavigate?.('dashboard')} 
-                className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[#1E4D4D] px-4 sm:px-5 py-2.5 sm:py-3 rounded-xl sm:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all active:scale-95 cursor-pointer"
-              >
-                <ArrowRight size={16} />
-                <span>الرئيسية</span>
-              </button>
-            )}
           </div>
 
         </div>

@@ -4,28 +4,13 @@ import {
   X, 
   Users, 
   Building2, 
-  Layers, 
-  Settings, 
   ShieldCheck,
-  AlertTriangle,
-  Lock,
   PlusCircle,
-  Clock,
-  Truck,
-  PackageCheck,
-  History,
   LogOut,
   BarChart2,
-  DollarSign,
-  Package,
-  PieChart,
-  Sparkles,
   Landmark,
-  BookOpen,
   Sliders,
-  FileSpreadsheet,
-  Globe,
-  Cpu
+  FileSpreadsheet
 } from 'lucide-react';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 
@@ -39,15 +24,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const location = useLocation();
   const { signOut, user } = useAuth();
 
-  // قائمة المجموعات والعناصر بعد حذف المكرر
+  // قائمة المجموعات والعناصر بعد المبسّطة بدون تكرار
   const menuGroups = [
     {
       title: 'قسم إدارة العملاء والشركاء',
       items: [
-        { label: 'الموردون', path: '/partners?subType=supplier', icon: Truck },
-        { label: 'العملاء', path: '/partners?subType=customer', icon: Users },
-        { label: 'الشركاء / الجهات المرتبطة', path: '/partners?subType=partner', icon: Building2 },
-        { label: 'دليل جهات الاتصال', path: '/partners?subType=all', icon: BookOpen },
+        { label: 'العملاء والموردون والشركاء', path: '/partners', icon: Users },
       ],
     },
     {
@@ -67,43 +49,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
     {
       title: 'قسم تحليلات الفروع الذكية',
       items: [
-        { label: 'أداء الفروع', path: '/branch-analytics', icon: BarChart2 },
-        { label: 'تحليل المبيعات حسب الفرع', path: '/branch-analytics', icon: DollarSign },
-        { label: 'تحليل المخزون حسب الفرع', path: '/branch-analytics', icon: Package },
-        { label: 'مقارنة الفروع', path: '/consolidation', icon: Layers },
-        { label: 'مؤشرات الأداء', path: '/branch-analytics', icon: PieChart },
-        { label: 'التنبيهات والتحليلات الذكية', path: '/branch-analytics', icon: Sparkles },
+        { label: 'تقارير وتحليلات الفروع', path: '/branch-reports', icon: BarChart2 },
       ],
     },
     {
       title: 'قسم التحويل الدوائي بين الفروع',
       items: [
-        { label: 'إنشاء تحويل جديد', path: '/branch-transfers', icon: PlusCircle },
-        { label: 'التحويلات المعلقة', path: '/branch-transfers', icon: Clock },
-        { label: 'التحويلات قيد الشحن / النقل', path: '/branch-transfers', icon: Truck },
-        { label: 'التحويلات المستلمة', path: '/branch-transfers', icon: PackageCheck },
-        { label: 'سجل التحويلات', path: '/branch-transfers', icon: History },
-      ],
-    },
-    {
-      title: 'قسم إعدادات النظام',
-      items: [
-        { label: 'إعدادات النظام العامة', path: '/settings?tab=general', icon: Settings },
-        { label: 'المستخدمون والصلاحيات', path: '/settings?tab=users', icon: Users },
-        { label: 'الفروع والإعدادات الخاصة بها', path: '/settings?tab=pharmacy', icon: Building2 },
-        { label: 'العملة والمنطقة الزمنية', path: '/settings?tab=currency', icon: Globe },
-        { label: 'التاريخ والوقت', path: '/settings?tab=datetime', icon: Clock },
-        { label: 'إعدادات الأداء والأجهزة', path: '/settings?tab=performance', icon: Cpu },
+        { label: 'التحويلات بين الفروع', path: '/branch-transfers', icon: PlusCircle },
       ],
     },
     {
       title: 'قسم سجل الأمان والتدقيق',
       items: [
-        { label: 'سجل التدقيق', path: '/audit-history?filter=ALL', icon: ShieldCheck },
-        { label: 'العمليات الحساسة', path: '/audit-history?filter=DELETE', icon: AlertTriangle },
-        { label: 'تغييرات الإعدادات', path: '/audit-history?tableName=settings', icon: Sliders },
-        { label: 'نشاط المستخدمين', path: '/security-audit?tab=logs', icon: Users },
-        { label: 'أحداث الأمان', path: '/security-audit?tab=pentest', icon: Lock },
+        { label: 'سجل الأمان والتدقيق', path: '/audit-history', icon: ShieldCheck },
       ],
     },
   ];

@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { db } from '@/core/db';
 import { Account, AccountType } from '@/types';
+import { BackButton } from '@/components/shared/BackButton';
 
 interface AccountManagementProps {
   onNavigate?: (view: string) => void;
@@ -67,18 +68,20 @@ const AccountManagement: React.FC<AccountManagementProps> = ({ onNavigate }) => 
   };
 
   return (
-    <div className="p-4 md:p-8 space-y-8 animate-in fade-in duration-500" dir="rtl">
-      <div className="flex items-center justify-between bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm">
+    <div className="p-2 sm:p-4 space-y-8 animate-in fade-in duration-500 w-full" dir="rtl">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-5 sm:p-6 rounded-[32px] border border-slate-100 shadow-sm gap-4 w-full">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-[#1E4D4D] text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg">⚖️</div>
+          {onNavigate && (
+            <BackButton onClick={() => onNavigate('dashboard')} />
+          )}
+          <div className="w-12 h-12 bg-[#1E4D4D] text-white rounded-2xl flex items-center justify-center text-2xl shadow-lg shrink-0">⚖️</div>
           <div>
             <h2 className="text-2xl font-black text-[#1E4D4D]">الدليل المحاسبي</h2>
             <p className="text-xs font-bold text-slate-400">إدارة شجرة الحسابات العامة للصيدلية</p>
           </div>
         </div>
-        <div className="flex gap-2">
-           <button onClick={() => { setEditingAccount({ type: 'EXPENSE', isActive: true }); setIsModalOpen(true); }} className="bg-[#1E4D4D] text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all">➕ إضافة حساب</button>
-           <button onClick={() => onNavigate?.('dashboard')} className="w-10 h-10 bg-white border border-slate-100 rounded-xl flex items-center justify-center text-[#1E4D4D] text-xl font-black shadow-sm hover:bg-slate-50 transition-colors">➦</button>
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+           <button onClick={() => { setEditingAccount({ type: 'EXPENSE', isActive: true }); setIsModalOpen(true); }} className="flex-1 sm:flex-initial bg-[#1E4D4D] text-white px-6 py-3 rounded-2xl font-black text-xs shadow-lg hover:scale-105 transition-all cursor-pointer">➕ إضافة حساب</button>
         </div>
       </div>
 
