@@ -179,7 +179,7 @@ export const ItemEntryModal: React.FC<ItemEntryModalProps> = ({
         Is_Active: 1,
         created_at: new Date().toISOString()
       };
-      await db.products.add(newProd); 
+      await db.products.put(newProd); 
       finalProductId = newProd.id;
     }
 
@@ -216,7 +216,7 @@ export const ItemEntryModal: React.FC<ItemEntryModalProps> = ({
       Is_Active: 1, 
       created_at: new Date().toISOString() 
     };
-    await db.products.add(newProd);
+    await db.products.put(newProd);
     
     onAdd({ 
       id: initialData?.id || Date.now().toString(), 

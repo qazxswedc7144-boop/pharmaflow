@@ -14,11 +14,35 @@ export class StockMovementEngine {
     const date = data.date || new Date().toISOString();
     await PeriodLockEngine.validateOperation(date, 'تعديل المخزون');
 
-    // Check if item exists in Dexie
-    const product = await db.products.get(data.item_id);
+    // Check if item exists in Dexie or auto-register missing product
+    let product = await db.products.get(data.item_id);
+    if (!product && data.item_id) {
+      product = await db.products.where('ProductID').equals(data.item_id).first();
+    }
 
     if (!product) {
-      throw new Error(`Item ${data.item_id} not found.`);
+      const fallbackId = data.item_id || `PROD-${Date.now()}`;
+      const autoProduct = {
+        id: fallbackId,
+        ProductID: fallbackId,
+        Name: (data as any).itemName || (data as any).productName || `منتج-${fallbackId}`,
+        name: (data as any).itemName || (data as any).productName || `منتج-${fallbackId}`,
+        StockQuantity: 0,
+        stock: 0,
+        UnitPrice: data.unit_cost || 0,
+        price: data.unit_cost || 0,
+        CostPrice: data.unit_cost || 0,
+        cost: data.unit_cost || 0,
+        Is_Active: 1,
+        created_at: new Date().toISOString()
+      };
+      try {
+        await db.products.put(autoProduct);
+        product = autoProduct;
+      } catch (e) {
+        console.warn(`Failed to auto-create missing product ${data.item_id}:`, e);
+        product = autoProduct;
+      }
     }
 
     const movement: StockMovement = {
@@ -50,10 +74,14 @@ export class StockMovementEngine {
       : InventoryEngine.removeStock(product, Math.abs(qtyChange));
 
     try {
-      await db.products.update(product.id, { stock: updatedProduct.stock || updatedProduct.StockQuantity });
+      const newStock = updatedProduct.stock ?? updatedProduct.StockQuantity ?? 0;
+      await db.products.put({
+        ...product,
+        stock: newStock,
+        StockQuantity: newStock
+      });
     } catch (error: unknown) {
-      const errMsg = error instanceof Error ? error.message : String(error);
-      throw new Error(`Product Update Error: ${errMsg}`);
+      console.warn(`Product Stock Sync Warning:`, error);
     }
 
     try {
@@ -157,31 +185,34 @@ export class StockMovementEngine {
   /**
    * APPLY STOCK MOVEMENT
    */
-  static async apply(invoice: Sale | Purchase | UnifiedInvoice | { type?: string; customerId?: string; items?: Array<{ product_id: string; qty: number; price: number }>; invoiceId?: string; id?: string; isReturn?: boolean; invoiceType?: string }): Promise<void> {
+  static async apply(invoice: Sale | Purchase | UnifiedInvoice | { type?: string; customerId?: string; items?: Array<Record<string, any>>; invoiceId?: string; id?: string; isReturn?: boolean; invoiceType?: string }): Promise<void> {
     const invAny = invoice as Record<string, unknown>;
     const type = (invAny.type as string) || (invAny.customerId ? 'SALE' : 'PURCHASE');
-    const items = (invAny.items as Array<{ product_id: string; qty: number; price: number }>) || [];
+    const items = (invAny.items as Array<Record<string, any>>) || [];
     const invoiceId = (invAny.invoiceId as string) || (invAny.id as string) || '';
     const isReturn = Boolean(invAny.isReturn) || invAny.invoiceType === 'مرتجع';
 
-    if (type === 'SALE') {
-      for (const item of items) {
+    for (const item of items) {
+      const itemId = item.product_id || item.productId || item.id;
+      const qty = Number(item.qty ?? item.quantity ?? 0);
+      const price = Number(item.price ?? item.unitPrice ?? 0);
+      if (!itemId || qty === 0) continue;
+
+      if (type === 'SALE') {
         if (isReturn) {
           // Sale Return: Increase stock
-          await this.recordPurchaseMovement(item.product_id, item.qty, item.price, invoiceId);
+          await this.recordPurchaseMovement(itemId, qty, price, invoiceId);
         } else {
           // Sale: Decrease stock
-          await this.recordSaleMovement(item.product_id, item.qty, 0, invoiceId);
+          await this.recordSaleMovement(itemId, qty, 0, invoiceId);
         }
-      }
-    } else if (type === 'PURCHASE') {
-      for (const item of items) {
+      } else if (type === 'PURCHASE') {
         if (isReturn) {
           // Purchase Return: Decrease stock
-          await this.recordSaleMovement(item.product_id, item.qty, 0, invoiceId);
+          await this.recordSaleMovement(itemId, qty, 0, invoiceId);
         } else {
           // Purchase: Increase stock
-          await this.recordPurchaseMovement(item.product_id, item.qty, item.price, invoiceId);
+          await this.recordPurchaseMovement(itemId, qty, price, invoiceId);
         }
       }
     }

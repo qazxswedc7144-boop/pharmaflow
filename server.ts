@@ -430,6 +430,7 @@ async function startServer() {
     });
   });
 
+  // In production / Cloud Run environments, the server listens exclusively on the configured PORT (e.g. 8080 or 3000)
   const gracefulShutdown = (signal: string) => {
     console.log(`[SERVER] Received ${signal} signal. Shutting down server gracefully...`);
     server.close(() => {

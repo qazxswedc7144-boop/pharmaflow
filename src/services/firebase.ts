@@ -4,18 +4,20 @@ import { getFirestore } from "firebase/firestore";
 import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import firebaseAppletConfig from "../../firebase-applet-config.json";
 
+const envDbUrl = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_FIREBASE_DATABASE_URL : undefined;
+
 const firebaseConfig = {
   apiKey: firebaseAppletConfig.apiKey,
   authDomain: firebaseAppletConfig.authDomain,
   projectId: firebaseAppletConfig.projectId,
   storageBucket: firebaseAppletConfig.storageBucket,
-  ...(import.meta.env.VITE_FIREBASE_DATABASE_URL && { databaseURL: import.meta.env.VITE_FIREBASE_DATABASE_URL })
+  ...(envDbUrl && { databaseURL: envDbUrl })
 };
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0]!;
 let rtdbInstance: any = null;
 try {
-  const dbUrl = import.meta.env.VITE_FIREBASE_DATABASE_URL || (firebaseAppletConfig.projectId ? `https://${firebaseAppletConfig.projectId}-default-rtdb.firebaseio.com` : undefined);
+  const dbUrl = envDbUrl || (firebaseAppletConfig.projectId ? `https://${firebaseAppletConfig.projectId}-default-rtdb.firebaseio.com` : undefined);
   if (dbUrl) {
     rtdbInstance = getDatabase(app, dbUrl);
   } else {

@@ -13,6 +13,7 @@ import {
 import { useTheme } from '@/contexts/ThemeContext';
 import { useUI } from '@/contexts/AppContext';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { can } from '@/utils/permissions';
 
 interface SidebarMenuProps {
   isOpen: boolean;
@@ -53,7 +54,7 @@ const AccordionSection = ({ title, icon: Icon, children, defaultOpen = false }: 
 export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNavigate }) => {
   const { resolvedTheme, setThemeMode } = useTheme();
   const { currency, setCurrency } = useUI();
-  const { signOut } = useAuth();
+  const { signOut, profile } = useAuth();
   const isDarkMode = resolvedTheme === 'dark';
 
   const handleNavClick = (view: string, params?: any) => {
@@ -239,16 +240,27 @@ export const SidebarMenu: React.FC<SidebarMenuProps> = ({ isOpen, onClose, onNav
                 </button>
               </AccordionSection>
 
-              {/* 7️⃣ Security & Audit Log */}
-              <AccordionSection title="قسم سجل الأمان والتدقيق" icon={ShieldCheck}>
-                <button 
-                  onClick={() => handleNavClick('audit-history')}
-                  className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
-                >
-                  <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
-                  <span>سجل الأمان والتدقيق</span>
-                </button>
-              </AccordionSection>
+              {/* 7️⃣ Security & Audit Log + Settings */}
+              {(!profile?.role || can(profile?.role, 'MANAGE_SYSTEM')) && (
+                <AccordionSection title="قسم سجل الأمان والتدقيق" icon={ShieldCheck}>
+                  <div className="space-y-1">
+                    <button 
+                      onClick={() => handleNavClick('settings')}
+                      className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <Settings size={16} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>الإعدادات</span>
+                    </button>
+                    <button 
+                      onClick={() => handleNavClick('audit-history')}
+                      className="w-full text-right text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-800 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-2.5 rounded-lg border border-gray-100 dark:border-gray-700/60 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <ShieldCheck size={16} className="text-emerald-600 dark:text-emerald-400" />
+                      <span>سجل الأمان والتدقيق</span>
+                    </button>
+                  </div>
+                </AccordionSection>
+              )}
 
               {/* Pharmacy Info & Printing Config */}
               <AccordionSection title="بيانات الصيدلية والطباعة" icon={Printer}>

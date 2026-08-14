@@ -27,7 +27,7 @@ import { IS_PREVIEW } from '@/constants';
 import { 
   X, AlertTriangle, RefreshCw, LogOut, ShieldCheck, Building2,
   Users, BarChart2, ArrowRightLeft,
-  Landmark, Sliders, FileSpreadsheet
+  Landmark, Sliders, FileSpreadsheet, Settings
 } from 'lucide-react';
 
 import {
@@ -878,6 +878,17 @@ function MainLayout() {
                   قسم سجل الأمان والتدقيق
                 </p>
                 <div className="space-y-1">
+                  <button 
+                    onClick={() => handleNav('settings')}
+                    className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'settings' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className={`${currentView === 'settings' ? 'text-emerald-400' : 'text-slate-400 group-hover:text-[#1E4D4D]'}`}><Settings size={15} /></span>
+                      <span>الإعدادات</span>
+                    </div>
+                    {currentView === 'settings' && <motion.div layoutId="active-nav-settings" className="w-1.5 h-1.5 bg-emerald-400 rounded-full" />}
+                  </button>
+
                   <button 
                     onClick={() => handleNav('audit-history')}
                     className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-[11px] font-black transition-all group ${currentView === 'audit-history' || currentView === 'security-audit' ? 'bg-[#1E4D4D] text-white shadow-lg shadow-emerald-900/10' : 'text-slate-500 hover:bg-slate-50 hover:text-[#1E4D4D]'}`}

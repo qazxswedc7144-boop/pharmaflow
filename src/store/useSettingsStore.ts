@@ -42,6 +42,15 @@ export const useSettingsStore = create<SettingsState>((set) => ({
           set({ currency: 'YER' });
         }
       }
+      const autoBackupRecord = await db.db.settings.get('autoBackupEnabled');
+      if (autoBackupRecord && typeof autoBackupRecord.value === 'boolean') {
+        set({ autoBackupEnabled: autoBackupRecord.value });
+      }
+
+      const backupPasswordRecord = await db.db.settings.get('backupPassword');
+      if (backupPasswordRecord && typeof backupPasswordRecord.value === 'string') {
+        set({ backupPassword: backupPasswordRecord.value });
+      }
     } catch (e) {
       console.error("[useSettingsStore] Failed to load settings:", e);
       set({ currency: 'YER' });
