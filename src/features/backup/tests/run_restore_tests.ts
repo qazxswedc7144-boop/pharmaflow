@@ -1,6 +1,7 @@
 import 'fake-indexeddb/auto';
 import JSZip from 'jszip';
 import CryptoJS from 'crypto-js';
+import { db } from '@/core/db';
 import { BackupService } from '../services/BackupService';
 import { CryptoService } from '../../../services/security/CryptoService';
 
@@ -13,6 +14,7 @@ interface TestResult {
 }
 
 async function runRestoreTestSuite() {
+  await db.open();
   const results: TestResult[] = [];
   const backupService = new BackupService();
 

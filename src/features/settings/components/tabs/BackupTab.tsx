@@ -17,7 +17,7 @@ export default function BackupTab() {
     setSuccessMsg(null);
 
     if (!backupPassword || !backupPassword.trim()) {
-      setErrorMsg("يرجى إدخال كلمة مرور النسخة الاحتياطية أولاً");
+      setErrorMsg("يرجى إدخال كلمة مرور النسخة الاحتياطية");
       return;
     }
 
@@ -67,7 +67,7 @@ export default function BackupTab() {
     setSuccessMsg(null);
 
     if (!backupPassword || !backupPassword.trim()) {
-      setErrorMsg("يرجى إدخال كلمة مرور النسخة الاحتياطية أولاً");
+      setErrorMsg("يرجى إدخال كلمة مرور النسخة الاحتياطية");
       e.target.value = '';
       return;
     }

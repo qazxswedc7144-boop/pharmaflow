@@ -8,8 +8,8 @@ import {
   BackupValidationResult, 
   RestorePlan 
 } from '../backup.types';
-import { BackupStorageAdapter, UploadProgressCallback } from '../storage/BackupStorageAdapter';
-import { firebaseStorageAdapter } from '../storage/FirebaseStorageAdapter';
+import { BackupStorageAdapter, UploadProgressCallback } from './storage/BackupStorageAdapter';
+import { firebaseStorageAdapter } from './storage/FirebaseStorageAdapter';
 import { db } from '@/core/db';
 import { CryptoService, EncryptedPayload } from '@/services/security/CryptoService';
 
@@ -47,7 +47,7 @@ export class BackupService {
    */
   async createLocalBackup(data: any, password: string, type: 'full' | 'fast' = 'full'): Promise<BackupEntry> {
     if (!password || !password.trim()) {
-      throw new Error("يرجى إدخال كلمة مرور النسخة الاحتياطية أولاً");
+      throw new Error("يرجى إدخال كلمة مرور النسخة الاحتياطية");
     }
     const serializedData = JSON.stringify(data);
     const encryptedPayload = CryptoService.encrypt(serializedData, password);
@@ -79,7 +79,14 @@ export class BackupService {
         id: metadata.id,
         backupName: metadata.name,
         createdAt: metadata.date.toISOString(),
-        backupType: metadata.type
+        backupType: metadata.type as any,
+        createdBy: 'system',
+        systemVersion: metadata.version,
+        dataSnapshot: '',
+        checksumHash: metadata.checksum,
+        sizeInKB: Math.max(1, Math.round((metadata.size || 0) / 1024)),
+        status: 'SUCCESS',
+        restoreTested: false
       });
     } catch {
       // Non-blocking fallback if systemBackups table is busy
@@ -102,13 +109,16 @@ export class BackupService {
         recordCounts: parsed.plan.recordCounts,
         totalRecords: parsed.plan.totalRecords,
         warnings: parsed.plan.warnings,
-        plan: parsed.plan
+        plan: parsed.plan,
+        checksumStatus: parsed.metadata?.checksum ? 'matched' : 'unknown',
+        encryptionStatus: 'encrypted'
       };
     } catch (err: any) {
       return {
         valid: false,
         error: err?.message || 'فشل التحقق من صحة النسخة الاحتياطية',
-        errorCode: err?.name || 'VALIDATION_FAILED'
+        errorCode: err?.name || 'VALIDATION_FAILED',
+        encryptionStatus: 'invalid'
       };
     }
   }
@@ -175,7 +185,7 @@ export class BackupService {
   private async parseAndValidateBackupPayload(file: File | Blob, password: string): Promise<InternalParsedBackup> {
     // 1. Password validation
     if (!password || !password.trim()) {
-      throw new Error("يرجى إدخال كلمة مرور النسخة الاحتياطية أولاً");
+      throw new Error("يرجى إدخال كلمة مرور النسخة الاحتياطية");
     }
 
     // 2. File / Blob validation & size check
@@ -264,7 +274,7 @@ export class BackupService {
         iv: payload.iv
       }, password);
     } catch {
-      throw new Error("كلمة مرور النسخة الاحتياطية غير صحيحة أو أن الملف تالف.");
+      throw new Error("كلمة المرور غير صحيحة أو النسخة غير صالحة");
     }
 
     // 10. Parse decrypted JSON
