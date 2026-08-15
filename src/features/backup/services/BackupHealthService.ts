@@ -86,7 +86,7 @@ export class BackupHealthService {
     const failedBackupsCount = failedBackups.length;
     const unsyncedCount = localBackups.filter(b => b.status === 'local').length;
 
-    const latestBackupDate = inventory.length > 0 ? inventory[0].createdAt : undefined;
+    const latestBackupDate = inventory.length > 0 ? inventory[0]?.createdAt : undefined;
     const latestSuccessfulBackup = successfulBackups.length > 0 ? successfulBackups[0] : undefined;
     const latestSuccessfulBackupDate = latestSuccessfulBackup?.createdAt;
     const latestLocalBackup = localBackups.length > 0 ? localBackups[0] : undefined;

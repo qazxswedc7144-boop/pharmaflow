@@ -54,6 +54,7 @@ class FailingStorageAdapter implements BackupStorageAdapter {
 }
 
 async function runPhase2TestSuite() {
+  CryptoService.setIterations(1000);
   await db.open();
   const results: TestResult[] = [];
 

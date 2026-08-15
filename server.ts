@@ -118,16 +118,8 @@ async function startServer() {
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
 
   // Top-level endpoints to support load balancer and ingress orchestrator health and readiness probes (First priority, unthrottled)
-  app.get("/api/health", (_req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV });
-  });
-
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", mode: process.env.NODE_ENV });
-  });
-
-  app.get("/ready", (_req, res) => {
-    res.json({ status: "ok", db_host: process.env.DATABASE_URL ? "configured" : "fallback" });
+  app.get(["/api/health", "/health", "/healthz", "/ready", "/_ah/health", "/_health"], (_req, res) => {
+    res.status(200).json({ status: "ok", mode: process.env.NODE_ENV || "development", db_host: process.env.DATABASE_URL ? "configured" : "fallback" });
   });
 
   // Production and Preview HTTP Traffic Logger Diagnostics
@@ -352,9 +344,12 @@ async function startServer() {
     const possibleDistPaths = [
       path.resolve(process.cwd(), 'dist'),
       path.resolve(__dirnameResolved),
+      path.resolve(__dirnameResolved, 'dist'),
       path.resolve(__dirnameResolved, '..', 'dist'),
+      path.resolve(process.cwd(), 'client', 'dist'),
       '/app/applet/dist',
-      '/app/dist'
+      '/app/dist',
+      '/workspace/dist'
     ];
     for (const cand of possibleDistPaths) {
       if (fs.existsSync(path.resolve(cand, 'index.html'))) {
@@ -430,7 +425,7 @@ async function startServer() {
     });
   });
 
-  // In production / Cloud Run environments, the server listens exclusively on the configured PORT (e.g. 8080 or 3000)
+  // In production / Cloud Run environments, the server listens exclusively on port 3000
   const gracefulShutdown = (signal: string) => {
     console.log(`[SERVER] Received ${signal} signal. Shutting down server gracefully...`);
     server.close(() => {

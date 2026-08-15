@@ -14,6 +14,7 @@ interface TestResult {
 }
 
 async function runRestoreTestSuite() {
+  CryptoService.setIterations(1000);
   await db.open();
   const results: TestResult[] = [];
   const backupService = new BackupService();

@@ -265,14 +265,10 @@ export class BackupService {
       throw new Error("حزمة التشفير غير مكتملة أو مفقودة الحقول الأساسية (ciphertext, salt, iv).");
     }
 
-    // 9. Decrypt via CryptoService (AES-256-CBC + PBKDF2)
+    // 9. Decrypt via CryptoService (V2 Authenticated Encrypt-then-MAC or V1 Legacy)
     let decryptedText: string;
     try {
-      decryptedText = CryptoService.decrypt({
-        ciphertext: payload.ciphertext,
-        salt: payload.salt,
-        iv: payload.iv
-      }, password);
+      decryptedText = CryptoService.decrypt(payload, password);
     } catch {
       throw new Error("كلمة المرور غير صحيحة أو النسخة غير صالحة");
     }

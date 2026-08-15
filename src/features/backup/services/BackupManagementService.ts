@@ -221,14 +221,14 @@ export class BackupManagementService {
     const validBackups = backups.filter(b => b.status !== 'failed');
     const protectedIds = new Set<string>();
 
-    if (validBackups.length > 0) {
+    if (validBackups.length > 0 && validBackups[0]?.id) {
       // Protect the newest valid/recoverable backup
       protectedIds.add(validBackups[0].id);
     }
 
     // Protect single local recoverable backup if it's the only one
-    const localBackups = backups.filter(b => (b.status === 'local' || b.status === 'both') && b.status !== 'failed');
-    if (localBackups.length === 1) {
+    const localBackups = backups.filter(b => b.status === 'local' || b.status === 'both');
+    if (localBackups.length === 1 && localBackups[0]?.id) {
       protectedIds.add(localBackups[0].id);
     }
 

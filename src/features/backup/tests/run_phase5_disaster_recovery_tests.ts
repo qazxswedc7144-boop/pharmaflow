@@ -8,7 +8,7 @@ import { BackupManagementService } from '../services/BackupManagementService';
 import { BackupOrchestrator } from '../services/BackupOrchestrator';
 import { BackupHealthService } from '../services/BackupHealthService';
 import { CryptoService } from '@/services/security/CryptoService';
-import { BackupEvent, BackupInventoryItem } from '../backup.types';
+import { BackupInventoryItem } from '../backup.types';
 
 interface TestResult {
   number: number;
@@ -19,6 +19,7 @@ interface TestResult {
 }
 
 async function runPhase5DisasterRecoveryTestSuite() {
+  CryptoService.setIterations(1000);
   await db.open();
   const results: TestResult[] = [];
   let testIndex = 1;

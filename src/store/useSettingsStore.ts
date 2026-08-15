@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { db } from '@/core/db';
 import { CurrencyService } from '@/services/localization/CurrencyService';
+import { BackupCredentialVault } from '@/features/backup/services/BackupCredentialVault';
 
 interface SettingsState {
   currency: string;
@@ -47,9 +48,13 @@ export const useSettingsStore = create<SettingsState>((set) => ({
         set({ autoBackupEnabled: autoBackupRecord.value });
       }
 
-      const backupPasswordRecord = await db.db.settings.get('backupPassword');
-      if (backupPasswordRecord && typeof backupPasswordRecord.value === 'string') {
-        set({ backupPassword: backupPasswordRecord.value });
+      // Safe migration of legacy plaintext password if present
+      await BackupCredentialVault.migrateLegacyPlaintextCredential();
+
+      // Load protected credential from vault
+      const vaultPassword = await BackupCredentialVault.getCredential();
+      if (vaultPassword) {
+        set({ backupPassword: vaultPassword });
       }
     } catch (e) {
       console.error("[useSettingsStore] Failed to load settings:", e);
@@ -85,8 +90,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
     set({ autoBackupEnabled: enabled });
   },
   setBackupPassword: async (password) => {
-    await db.db.settings.put({ key: 'backupPassword', value: password });
+    await BackupCredentialVault.saveCredential(password);
     set({ backupPassword: password });
   },
 }));
+
 

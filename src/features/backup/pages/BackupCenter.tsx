@@ -356,10 +356,10 @@ export const BackupCenter = () => {
             <span>حالة التشفير والسلامة</span>
           </div>
           <div className="text-sm font-bold text-slate-800 dark:text-slate-200">
-            AES-256-CBC
+            AES-256 + HMAC
           </div>
           <div className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
-            PBKDF2 (100k) + SHA-256
+            PBKDF2 (100k) + Authenticated MAC
           </div>
         </div>
       </div>
@@ -377,9 +377,9 @@ export const BackupCenter = () => {
               <span className="font-bold text-slate-800 dark:text-slate-100">.pfb (data.enc + metadata.json)</span>
             </div>
             <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl">
-              <span className="text-slate-600 dark:text-slate-300">كلمة المرور الحالية:</span>
+              <span className="text-slate-600 dark:text-slate-300">حماية كلمة المرور:</span>
               <span className={`font-bold ${backupPassword ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'}`}>
-                {backupPassword ? 'مُحددة في الإعدادات' : 'غير مُحددة (مطلوبة للنسخ/الاستعادة)'}
+                {backupPassword ? 'خزنة مشفرة (Protected Vault)' : 'غير مُحددة (مطلوبة للنسخ/الاستعادة)'}
               </span>
             </div>
           </div>

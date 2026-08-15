@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { db } from '@/core/db';
+import { CryptoService } from '@/services/security/CryptoService';
 import { backupService } from '../services/BackupService';
 import { BackupManagementService } from '../services/BackupManagementService';
 import { RetentionPolicy } from '../backup.types';
@@ -12,6 +13,7 @@ interface TestResult {
 }
 
 async function runPhase3TestSuite() {
+  CryptoService.setIterations(1000);
   await db.open();
   const results: TestResult[] = [];
   const managementService = new BackupManagementService(backupService);

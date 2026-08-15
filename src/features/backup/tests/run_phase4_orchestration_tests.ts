@@ -1,5 +1,6 @@
 import 'fake-indexeddb/auto';
 import { db } from '@/core/db';
+import { CryptoService } from '@/services/security/CryptoService';
 import { useSettingsStore } from '@/store/useSettingsStore';
 import { BackupService } from '../services/BackupService';
 import { BackupStorageAdapter } from '../services/storage/BackupStorageAdapter';
@@ -36,6 +37,7 @@ class MockStorageAdapter implements BackupStorageAdapter {
 }
 
 async function runPhase4TestSuite() {
+  CryptoService.setIterations(1000);
   await db.open();
   const results: TestResult[] = [];
 

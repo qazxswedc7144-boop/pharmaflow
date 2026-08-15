@@ -1,5 +1,6 @@
 import { db } from '@/core/db';
 import { useSettingsStore } from '@/store/useSettingsStore';
+import { BackupCredentialVault } from './BackupCredentialVault';
 import { 
   BackupEntry, 
   BackupEvent, 
@@ -150,11 +151,16 @@ export class BackupOrchestrator {
     }
 
     if (!password || !password.trim()) {
-      // Try fallback from DB
+      // Try fallback from Vault or DB
       try {
-        const passRecord = await db.db.settings.get('backupPassword');
-        if (passRecord?.value && typeof passRecord.value === 'string') {
-          password = passRecord.value;
+        const vaultPass = await BackupCredentialVault.getCredential();
+        if (vaultPass) {
+          password = vaultPass;
+        } else {
+          const passRecord = await db.db.settings.get('backupPassword');
+          if (passRecord?.value && typeof passRecord.value === 'string') {
+            password = passRecord.value;
+          }
         }
       } catch {
         // Ignore
