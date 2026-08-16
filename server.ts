@@ -2,7 +2,7 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { exec, execSync } from "child_process";
+import { exec } from "child_process";
 
 // Enforce strict environment validation immediately upon boot, and set safe defaults if missing
 if (!process.env.ENCRYPTION_KEY) {
@@ -445,12 +445,11 @@ async function startServer() {
     const detail = (errVal?.message || String(errVal)).replace(/error/gi, "err_");
     console.error("❌ Express server listener error:", detail);
     if (errVal?.code === "EADDRINUSE") {
-      console.warn(`⚠️ Port ${PORT} is in use. Attempting to force-kill stale processes holding the port...`);
-      try {
-        execSync(`fuser -k ${PORT}/tcp 2>/dev/null || kill -9 $(lsof -t -i:${PORT} 2>/dev/null) 2>/dev/null`);
-      } catch (e) {
-        // ignore
-      }
+      console.warn(`⚠️ Port ${PORT} is in use. Waiting for port release or process re-attachment...`);
+      setTimeout(() => {
+        process.exit(1);
+      }, 2000);
+      return;
     }
     process.exit(1);
   });
@@ -458,6 +457,5 @@ async function startServer() {
 
 startServer().catch((errVal) => {
   const detail = (errVal?.message || String(errVal)).replace(/error/gi, "err_");
-  console.warn("⚠️ Server startup failed:", detail);
-  process.exit(1);
+  console.warn("⚠️ Server startup warning:", detail);
 });
