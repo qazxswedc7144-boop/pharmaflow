@@ -168,9 +168,9 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
   }, [setItems]);
 
   return (
-    <div className="flex flex-col min-h-full h-full bg-white font-cairo w-full relative overflow-x-hidden" dir="rtl">
+    <div className="flex flex-col h-full max-h-full bg-white font-cairo w-full relative overflow-hidden select-none" dir="rtl">
       {/* HEADER SECTION - FLAT & FULL WIDTH */}
-      <div className="shrink-0 z-[100] border-b border-slate-100 bg-white">
+      <div className="shrink-0 z-30 border-b border-slate-100 bg-white">
         <div className="py-2 px-2 flex items-center justify-between gap-[4px] w-full overflow-hidden">
           {/* Main Toolbar Row */}
           <div className="flex items-center gap-[4px] flex-1">
@@ -333,61 +333,61 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
         />
       )}
 
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        {/* ITEM ENTRY AREA - FLATTENED */}
-        <div className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 flex-nowrap">
-          <div className="relative flex-1">
-            <input 
-              ref={itemNameInputRef}
-              disabled={isLocked || isRecovery}
-              className="w-full h-10 bg-slate-50 border border-slate-100 rounded-lg px-3 text-[6px] font-black text-[#1E4D4D] focus:bg-white focus:ring-1 focus:ring-[#1E4D4D]/20 transition-all outline-none text-right" 
-              placeholder="ابحث عن صنف..." 
-              value={manualItemName ?? ''} 
-              onChange={e => { setManualItemName(e.target.value); setShowSearchDropdown(true); setSelectedIndex(-1); }} 
-              onFocus={() => setShowSearchDropdown(true)}
-              onKeyDown={handleSearchKeyDown}
-            />
-            
-            <AnimatePresence>
-              {showSearchDropdown && filteredProducts.length > 0 && (
-                <motion.div 
-                  initial={{ opacity: 0, y: 5 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 5 }}
-                  className="absolute top-full left-0 right-0 bg-white border border-slate-100 rounded-xl shadow-xl z-[100] mt-1 overflow-hidden"
-                >
-                  {filteredProducts.map((p, idx) => (
-                    <button 
-                      key={p.id} 
-                      onClick={() => selectProduct(p)}
-                      className={`w-full px-4 py-3 text-right flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors ${selectedIndex === idx ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
-                    >
-                      <div>
-                        <p className="text-[11px] font-black text-[#1E4D4D]">{p.Name}</p>
-                        <p className="text-[11px] font-bold text-slate-400">{p.categoryName || 'عام'}</p>
-                      </div>
-                      <div className="text-left">
-                        <p className="text-[11px] font-black text-emerald-600">{p.UnitPrice} {currency}</p>
-                      </div>
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <button 
-            disabled={isLocked || isRecovery} 
-            onClick={() => setIsDetailModalOpen(true)}
-            className="h-10 px-4 bg-[#10B981] text-white rounded-lg flex items-center gap-1 text-[11px] font-black hover:bg-emerald-600 transition-all shrink-0 shadow-sm"
-          >
-            <Plus size={16} />
-            <span>إضافة</span>
-          </button>
+      {/* ITEM ENTRY AREA - FLATTENED & FIXED */}
+      <div className="p-3 border-b border-slate-100 flex items-center justify-between gap-2 shrink-0 bg-white z-20 flex-nowrap">
+        <div className="relative flex-1">
+          <input 
+            ref={itemNameInputRef}
+            disabled={isLocked || isRecovery}
+            className="w-full h-10 bg-slate-50 border border-slate-100 rounded-lg px-3 text-[6px] font-black text-[#1E4D4D] focus:bg-white focus:ring-1 focus:ring-[#1E4D4D]/20 transition-all outline-none text-right" 
+            placeholder="ابحث عن صنف..." 
+            value={manualItemName ?? ''} 
+            onChange={e => { setManualItemName(e.target.value); setShowSearchDropdown(true); setSelectedIndex(-1); }} 
+            onFocus={() => setShowSearchDropdown(true)}
+            onKeyDown={handleSearchKeyDown}
+          />
+          
+          <AnimatePresence>
+            {showSearchDropdown && filteredProducts.length > 0 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 5 }}
+                className="absolute top-full left-0 right-0 bg-white border border-slate-100 rounded-xl shadow-xl z-[100] mt-1 overflow-hidden"
+              >
+                {filteredProducts.map((p, idx) => (
+                  <button 
+                    key={p.id} 
+                    onClick={() => selectProduct(p)}
+                    className={`w-full px-4 py-3 text-right flex justify-between items-center border-b border-slate-50 last:border-0 transition-colors ${selectedIndex === idx ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
+                  >
+                    <div>
+                      <p className="text-[11px] font-black text-[#1E4D4D]">{p.Name}</p>
+                      <p className="text-[11px] font-bold text-slate-400">{p.categoryName || 'عام'}</p>
+                    </div>
+                    <div className="text-left">
+                      <p className="text-[11px] font-black text-emerald-600">{p.UnitPrice} {currency}</p>
+                    </div>
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
+        <button 
+          disabled={isLocked || isRecovery} 
+          onClick={() => setIsDetailModalOpen(true)}
+          className="h-10 px-4 bg-[#10B981] text-white rounded-lg flex items-center gap-1 text-[11px] font-black hover:bg-emerald-600 transition-all shrink-0 shadow-sm"
+        >
+          <Plus size={16} />
+          <span>إضافة</span>
+        </button>
+      </div>
 
-        {/* ITEMS LIST SECTION - SIMPLE LIST MATCHING PURCHASES */}
-        <PullToRefresh onRefresh={async () => { await refreshGlobal(); }} className="flex-1 overflow-y-auto bg-white custom-scrollbar pb-6">
-          <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 border-b border-slate-50 flex items-center px-2 py-2 w-full flex-nowrap">
+      {/* ITEMS LIST SECTION - ONLY SCROLLABLE AREA */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-white">
+        <PullToRefresh onRefresh={async () => { await refreshGlobal(); }} className="flex-1 min-h-0 overflow-y-auto bg-white custom-scrollbar flex flex-col">
+          <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-100 flex items-center px-2 py-2 w-full shrink-0 flex-nowrap">
             <span className="flex-[2] text-[11px] font-black text-slate-400 uppercase tracking-widest text-right">الصنف</span>
             <span className="flex-1 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">الكمية</span>
             <span className="flex-1 text-[11px] font-black text-slate-400 uppercase tracking-widest text-center">السعر</span>
@@ -395,31 +395,33 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
             <span className="w-10"></span>
           </div>
           
-          <AnimatePresence initial={false}>
-            {items.length === 0 ? (
-              <div className="py-20 flex flex-col items-center justify-center text-center opacity-20">
-                <Package size={40} className="mb-2" />
-                <p className="text-[11px] font-black">قائمة الأصناف فارغة</p>
-              </div>
-            ) : (
-              items.map((item, idx) => (
-                <SaleItemRow 
-                  key={item.id || idx}
-                  item={item}
-                  idx={idx}
-                  isLocked={isLocked}
-                  isRecovery={isRecovery}
-                  onDelete={handleDeleteItem}
-                  onClick={() => handleRowClick(item)}
-                />
-              ))
-            )}
-          </AnimatePresence>
+          <div className="flex-1 min-h-0 divide-y divide-slate-50">
+            <AnimatePresence initial={false}>
+              {items.length === 0 ? (
+                <div className="py-16 flex flex-col items-center justify-center text-center opacity-25 select-none">
+                  <Package size={40} className="mb-2 text-slate-400" />
+                  <p className="text-[11px] font-black text-slate-500">قائمة الأصناف فارغة</p>
+                </div>
+              ) : (
+                items.map((item, idx) => (
+                  <SaleItemRow 
+                    key={item.id || idx}
+                    item={item}
+                    idx={idx}
+                    isLocked={isLocked}
+                    isRecovery={isRecovery}
+                    onDelete={handleDeleteItem}
+                    onClick={() => handleRowClick(item)}
+                  />
+                ))
+              )}
+            </AnimatePresence>
+          </div>
         </PullToRefresh>
       </div>
 
-      {/* PERFECTLY ALIGNED STICKY FOOTER SECTION - MATCHING PURCHASES DESIGN */}
-      <div className="sticky bottom-0 w-full z-50 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(14px+env(safe-area-inset-bottom))] px-4 rounded-b-2xl">
+      {/* PERFECTLY ALIGNED STICKY FOOTER SECTION - FIXED AT BOTTOM */}
+      <div className="shrink-0 sticky bottom-0 w-full z-40 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(14px+env(safe-area-inset-bottom))] px-4">
         <div className="flex items-center justify-between flex-nowrap px-2">
           <div className="flex flex-col items-center">
             <span className="text-[11px] font-black text-slate-400 uppercase">الخصم</span>
@@ -442,13 +444,13 @@ const SalesModule: React.FC<{ onNavigate?: (view: string, params?: Record<string
           <button 
             type="button"
             onClick={() => setIsAdjustmentsOpen(true)}
-            className="flex-1 h-11 bg-slate-100 text-[#1E4D4D] rounded-xl font-black text-[11px] flex items-center justify-center gap-2"
+            className="flex-1 h-11 bg-slate-100 text-[#1E4D4D] rounded-xl font-black text-[11px] flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
           >
             <div className="flex items-center -space-x-1 rtl:space-x-reverse text-emerald-600">
               <Percent size={15} />
               <Plus size={11} className="mb-0.5" />
             </div>
-            التسويات
+            <span>التسويات</span>
           </button>
           <button 
             type="button"

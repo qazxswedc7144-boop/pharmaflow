@@ -279,9 +279,9 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
   }, [setItems]);
 
   return (
-    <div className="flex flex-col min-h-full h-full bg-white font-cairo w-full relative overflow-x-hidden" dir="rtl">
+    <div className="flex flex-col h-full max-h-full bg-white font-cairo w-full relative overflow-hidden select-none" dir="rtl">
       {/* HEADER SECTION - FLAT & FULL WIDTH */}
-      <div className="shrink-0 z-[100] border-b border-slate-100 bg-white">
+      <div className="shrink-0 z-30 border-b border-slate-100 bg-white">
         <div className="py-2 px-3 flex items-center justify-between gap-2.5 w-full overflow-hidden bg-white">
           {/* Main Toolbar Row: Back -> Smart Import -> Return */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -480,7 +480,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
       )}
 
       {/* SEARCH BAR SECTION - CENTRAL */}
-      <div className="shrink-0 p-3 bg-white border-b border-slate-100">
+      <div className="shrink-0 p-3 bg-white border-b border-slate-100 z-20">
         <div className="relative flex items-center gap-2">
           <div className="flex-1 relative">
             <Search className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-300" size={18} />
@@ -510,7 +510,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
                 >
                   {filteredProducts.map((p, idx) => (
                     <button 
-                      key={p.id}
+                      key={p.id} 
                       onClick={() => handleSelectProduct(p)}
                       className={`w-full p-4 flex items-center justify-between transition-colors border-b border-slate-50 last:border-0 ${selectedIndex === idx ? 'bg-emerald-50' : 'hover:bg-slate-50'}`}
                     >
@@ -539,54 +539,56 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
         </div>
       </div>
 
-      {/* ITEMS LIST SECTION - SIMPLE LIST */}
-      <PullToRefresh onRefresh={async () => { await refreshGlobal(); }} className="flex-1 overflow-y-auto bg-white pb-6">
-        {hasUnsavedAI && (
-          <div className="bg-amber-50/80 border-r-4 border-amber-500 p-3 mx-4 my-2 rounded-xl flex items-start gap-2.5 shadow-sm select-none" id="ai-review-banner">
-            <span className="text-amber-600 mt-0.5"><Sparkles size={16} className="animate-pulse" /></span>
-            <div className="flex-1">
-              <h4 className="text-[10px] font-black text-amber-900">شاشة المراجعة الوسيطة (تدقيق يدوي مطلوب)</h4>
-              <p className="text-[9px] font-bold text-amber-700 leading-relaxed mt-0.5">
-                تظهر هنا الأصناف والبيانات المستخرجة وتعديلاتها. يمنع النظام الترحيل التلقائي لضمان المراجعة؛ يرجى مراجعة وتعديل أي حقول (رقم الفاتورة، المورد، الأصناف)، ثم الضغط على "حفظ الفاتورة" للموافقة اليدوية وحفظها كفاتورة مشتريات محاسبية مسودة.
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="sticky top-0 bg-white/90 backdrop-blur-sm z-10 border-b border-slate-50 flex items-center px-4 py-2">
-          <span className="flex-[2] text-[11px] font-black text-slate-400 uppercase tracking-widest">الصنف</span>
-          <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">الكمية</span>
-          <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">السعر</span>
-          <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">الإجمالي</span>
-          <span className="w-10"></span>
-        </div>
-        
-        <div className="divide-y divide-slate-50 relative overflow-hidden">
-          <AnimatePresence initial={false}>
-            {items.map((item, idx) => (
-              <InvoiceItemRow 
-                key={item.id || idx}
-                item={item}
-                idx={idx}
-                onDelete={handleDeleteItem}
-                onClick={() => handleRowClick(item)}
-                isExpirySoon={isExpirySoon}
-                isPriceHigher={isPriceHigher}
-              />
-            ))}
-          </AnimatePresence>
-
-          {items.length === 0 && (
-            <div className="p-20 text-center opacity-20 grayscale">
-              <ShoppingBag className="mx-auto mb-4" size={48} />
-              <p className="text-[9px] font-black">لا توجد أصناف مضافة</p>
+      {/* ITEMS LIST SECTION - ONLY SCROLLABLE AREA */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col bg-white">
+        <PullToRefresh onRefresh={async () => { await refreshGlobal(); }} className="flex-1 min-h-0 overflow-y-auto bg-white custom-scrollbar flex flex-col">
+          {hasUnsavedAI && (
+            <div className="bg-amber-50/80 border-r-4 border-amber-500 p-3 mx-4 my-2 rounded-xl flex items-start gap-2.5 shadow-sm select-none" id="ai-review-banner">
+              <span className="text-amber-600 mt-0.5"><Sparkles size={16} className="animate-pulse" /></span>
+              <div className="flex-1">
+                <h4 className="text-[10px] font-black text-amber-900">شاشة المراجعة الوسيطة (تدقيق يدوي مطلوب)</h4>
+                <p className="text-[9px] font-bold text-amber-700 leading-relaxed mt-0.5">
+                  تظهر هنا الأصناف والبيانات المستخرجة وتعديلاتها. يمنع النظام الترحيل التلقائي لضمان المراجعة؛ يرجى مراجعة وتعديل أي حقول (رقم الفاتورة، المورد، الأصناف)، ثم الضغط على "حفظ الفاتورة" للموافقة اليدوية وحفظها كفاتورة مشتريات محاسبية مسودة.
+                </p>
+              </div>
             </div>
           )}
-        </div>
-      </PullToRefresh>
 
-      {/* PERFECTLY ALIGNED STICKY FOOTER SECTION */}
-      <div className="sticky bottom-0 w-full z-50 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(14px+env(safe-area-inset-bottom))] px-4 rounded-b-2xl">
+          <div className="sticky top-0 bg-white/95 backdrop-blur-sm z-10 border-b border-slate-50 flex items-center px-4 py-2 shrink-0">
+            <span className="flex-[2] text-[11px] font-black text-slate-400 uppercase tracking-widest">الصنف</span>
+            <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">الكمية</span>
+            <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">السعر</span>
+            <span className="flex-1 text-[9px] font-black text-slate-400 uppercase tracking-widest text-center">الإجمالي</span>
+            <span className="w-10"></span>
+          </div>
+          
+          <div className="flex-1 min-h-0 divide-y divide-slate-50 relative">
+            <AnimatePresence initial={false}>
+              {items.map((item, idx) => (
+                <InvoiceItemRow 
+                  key={item.id || idx}
+                  item={item}
+                  idx={idx}
+                  onDelete={handleDeleteItem}
+                  onClick={() => handleRowClick(item)}
+                  isExpirySoon={isExpirySoon}
+                  isPriceHigher={isPriceHigher}
+                />
+              ))}
+            </AnimatePresence>
+
+            {items.length === 0 && (
+              <div className="py-16 text-center opacity-25 grayscale select-none flex flex-col items-center justify-center">
+                <ShoppingBag className="mx-auto mb-2 text-slate-400" size={40} />
+                <p className="text-[10px] font-black text-slate-500">لا توجد أصناف مضافة</p>
+              </div>
+            )}
+          </div>
+        </PullToRefresh>
+      </div>
+
+      {/* PERFECTLY ALIGNED STICKY FOOTER SECTION - FIXED AT BOTTOM */}
+      <div className="shrink-0 sticky bottom-0 w-full z-40 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(14px+env(safe-area-inset-bottom))] px-4">
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col items-center">
             <span className="text-[9px] font-black text-slate-400 uppercase">الخصم</span>
@@ -609,19 +611,19 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
           <button 
             type="button"
             onClick={() => setIsAdjustmentsOpen(true)}
-            className="flex-1 h-11 bg-slate-100 text-[#1E4D4D] rounded-xl font-black text-[9px] flex items-center justify-center gap-2"
+            className="flex-1 h-11 bg-slate-100 text-[#1E4D4D] rounded-xl font-black text-[9px] flex items-center justify-center gap-2 hover:bg-slate-200 active:scale-95 transition-all"
           >
             <div className="flex items-center -space-x-1 rtl:space-x-reverse text-emerald-600">
               <Percent size={15} />
               <Plus size={11} className="mb-0.5" />
             </div>
-            التسويات
+            <span>التسويات</span>
           </button>
           <button 
             type="button"
             disabled={isSaving || items.length === 0 || isProcessingAI}
             onClick={handlePost}
-            className="flex-[2] h-11 bg-[#1E4D4D] text-white rounded-xl font-black text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 disabled:opacity-50"
+            className="flex-[2] h-11 bg-[#1E4D4D] text-white rounded-xl font-black text-[11px] flex items-center justify-center gap-2 shadow-lg shadow-emerald-900/20 disabled:opacity-50 active:scale-95 transition-all"
           >
             {isSaving ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />

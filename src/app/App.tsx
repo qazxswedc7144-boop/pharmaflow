@@ -947,8 +947,16 @@ function MainLayout() {
           currentView={currentView}
         />
 
-        <main className="flex-1 overflow-y-auto overflow-x-hidden bg-[#F8FAFA] custom-scrollbar min-h-0 w-full max-w-[480px] mx-auto px-2 sm:px-4 py-2 sm:py-4 relative">
-          <div className="w-full max-w-[480px] mx-auto min-h-full box-border overflow-x-hidden">
+        <main className={`flex-1 min-h-0 relative ${
+          ['sales', 'purchases'].includes(currentView)
+            ? 'h-full overflow-hidden p-0 w-full max-w-[540px] md:max-w-xl mx-auto flex flex-col bg-white'
+            : 'overflow-y-auto overflow-x-hidden bg-[#F8FAFA] custom-scrollbar w-full max-w-[480px] mx-auto px-2 sm:px-4 py-2 sm:py-4'
+        }`}>
+          <div className={`w-full mx-auto ${
+            ['sales', 'purchases'].includes(currentView)
+              ? 'h-full flex-1 flex flex-col overflow-hidden box-border'
+              : 'max-w-[480px] min-h-full box-border overflow-x-hidden'
+          }`}>
             <Suspense fallback={<div className="flex items-center justify-center h-full min-h-[400px]"><div className="w-10 h-10 border-4 border-[#10B981] border-t-transparent rounded-full animate-spin"></div></div>}>
               {(() => {
                 switch (currentView) {
