@@ -50,12 +50,12 @@ export const SETTINGS_GROUPS: SettingsGroup[] = [
 ];
 
 export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
-  // Group 1: النظام والأمان
+  // Group 1: النظام والأمان (System & Security)
   {
     id: 'general',
     groupId: 'system',
     title: 'إعدادات النظام العامة',
-    description: 'تخصيص الهوية واللغة والمظهر العام للتطبيق',
+    description: 'تخصيص الهوية واللغة والمظهر العام وتفضيلات الواجهة',
     keywords: ['نظام', 'عام', 'مظهر', 'لغة', 'هوية', 'ليلي', 'نهاري', 'اسم', 'ثيم', 'system', 'general', 'theme', 'language'],
     icon: Settings,
     component: GeneralTab
@@ -64,7 +64,7 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
     id: 'users',
     groupId: 'system',
     title: 'المستخدمون والصلاحيات',
-    description: 'إدارة حسابات الموظفين، الأدوار، ومستويات الوصول',
+    description: 'إدارة حسابات الموظفين، الأدوار، ومستويات الوصول والأذونات',
     keywords: ['مستخدم', 'مستخدمين', 'صلاحيات', 'أدوار', 'وصول', 'موظفين', 'أمان', 'users', 'roles', 'permissions'],
     icon: Users,
     component: UsersTab
@@ -72,8 +72,8 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'pharmacy',
     groupId: 'system',
-    title: 'الفروع والإعدادات الخاصة بها',
-    description: 'بيانات الصيدلية، الفروع، الشعار، وإعدادات الطباعة',
+    title: 'الفروع وبيانات الصيدلية',
+    description: 'بيانات الصيدلية، الفروع، الشعار، وإعدادات الطباعة والترويسة',
     keywords: ['صيدلية', 'فرع', 'فروع', 'شعار', 'طباعة', 'عنوان', 'هاتف', 'سجل', 'ضريبة', 'لوجو', 'pharmacy', 'branch', 'logo'],
     icon: Building2,
     component: PharmacyTab
@@ -82,7 +82,7 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
     id: 'security',
     groupId: 'system',
     title: 'سجل الأمان والتدقيق',
-    description: 'مراقبة الأنشطة وسجلات الدخول والعمليات الحساسة',
+    description: 'مراقبة الأنشطة وسجلات الدخول والعمليات الحساسة وتدقيق الأذونات',
     keywords: ['أمان', 'تدقيق', 'سجلات', 'دخول', 'حماية', 'مراقبة', 'audit', 'security', 'log', 'activity'],
     icon: ShieldCheck,
     component: SecurityTab
@@ -90,19 +90,19 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'developer',
     groupId: 'system',
-    title: 'أدوات المطور',
-    description: 'أدوات تشخيص المشاكل ومفاتيح الربط البرمجي',
+    title: 'أدوات المطور والتشخيص',
+    description: 'أدوات تشخيص الأداء، سجلات النظام، ومفاتيح الربط البرمجي',
     keywords: ['مطور', 'تشخيص', 'أخطاء', 'فحص', 'واجهات', 'برمجة', 'api', 'developer', 'debug', 'flags'],
     icon: Code,
     component: DeveloperTab
   },
 
-  // Group 2: التدويل والوقت
+  // Group 2: التدويل والوقت (Internationalization & Time)
   {
     id: 'currency',
     groupId: 'i18n',
     title: 'العملة والمنطقة الزمنية',
-    description: 'تحديد العملة الأساسية وفرق التوقيت الإقليمي',
+    description: 'تحديد العملة الأساسية، أسعار الصرف، وفروق التوقيت الإقليمي',
     keywords: ['عملة', 'منطقة زمنية', 'دولار', 'ريال', 'جنيه', 'توقيت', 'فروق توقيت', 'currency', 'timezone', 'money'],
     icon: Landmark,
     component: GeneralTab
@@ -110,19 +110,19 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'datetime',
     groupId: 'i18n',
-    title: 'التاريخ والوقت',
-    description: 'صيغ عرض التواريخ ونظام التوقيت 12/24 ساعة',
+    title: 'التاريخ وصيغ الوقت',
+    description: 'صيغ عرض التواريخ، التقويم الهجري/الميلادي، ونظام 12/24 ساعة',
     keywords: ['تاريخ', 'وقت', 'ساعة', 'تقويم', 'تنسيق', 'صيغة', 'date', 'time', 'calendar'],
     icon: Clock,
     component: GeneralTab
   },
 
-  // Group 3: العمليات التجارية
+  // Group 3: العمليات التجارية (Business Operations)
   {
     id: 'sales',
     groupId: 'business',
-    title: 'إعدادات المبيعات',
-    description: 'تكوين فواتير البيع، الضرائب، والخصومات ونقاط البيع',
+    title: 'إعدادات المبيعات ونقاط البيع',
+    description: 'تكوين فواتير البيع، الضرائب، الخصومات، والطباعة الفورية',
     keywords: ['مبيعات', 'فواتير', 'ضرائب', 'خصم', 'دفع', 'كاش', 'نقاط بيع', 'sales', 'invoice', 'tax', 'discount'],
     icon: ShoppingCart,
     component: SalesTab
@@ -130,8 +130,8 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'purchases',
     groupId: 'business',
-    title: 'إعدادات المشتريات',
-    description: 'إدارة الموردين، طلبات الشراء، وسياسات التوريد',
+    title: 'إعدادات المشتريات والموردين',
+    description: 'إدارة الموردين، طلبات الشراء، وسياسات التوريد والاعتمادات',
     keywords: ['مشتريات', 'موردين', 'طلبات شراء', 'فواتير شراء', 'توريد', 'purchases', 'suppliers', 'vendor'],
     icon: Truck,
     component: PurchasesTab
@@ -139,19 +139,19 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'inventory',
     groupId: 'business',
-    title: 'إعدادات المخزون',
-    description: 'مستويات التنبيه، وحدات القياس، وسياسات الصرف',
+    title: 'إعدادات المخزون والتنبيهات',
+    description: 'مستويات التنبيه، سياسات الصرف (FEFO)، ووحدات القياس الدوائية',
     keywords: ['مخزون', 'أصناف', 'تنبيه', 'نواقص', 'وحدات قياس', 'صلاحية', 'inventory', 'stock', 'alert'],
     icon: Package,
     component: InventoryTab
   },
 
-  // Group 4: الصيانة والحساب
+  // Group 4: الصيانة والحساب (Maintenance & Subscription)
   {
     id: 'performance',
     groupId: 'maintenance',
-    title: 'إعدادات الأداء والأجهزة',
-    description: 'وضع التوفير الاقتصادي (Eco Mode) وتوافق الأجهزة',
+    title: 'الأداء وتوفير الموارد (Eco Mode)',
+    description: 'وضع التوفير الاقتصادي للطاقة والذاكرة وسرعة استجابة الأجهزة',
     keywords: ['أداء', 'أجهزة', 'طابعات', 'سرعة', 'توفير', 'بطارية', 'ذاكرة', 'eco', 'performance', 'hardware'],
     icon: Cpu,
     component: DeveloperTab
@@ -159,8 +159,8 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'backup',
     groupId: 'maintenance',
-    title: 'إعدادات النسخ الاحتياطي والمزامنة',
-    description: 'النسخ المحلي والسحابي، الاستعادة، وجاهزية التعافي',
+    title: 'النسخ الاحتياطي والتعافي',
+    description: 'النسخ المحلي المشفر والسحابي، الاستعادة، وجاهزية التعافي من الكوارث',
     keywords: ['نسخ', 'احتياطي', 'سحابي', 'محلي', 'استعادة', 'مزامنة', 'طوارئ', 'backup', 'cloud', 'sync', 'restore'],
     icon: RefreshCw,
     component: BackupTab
@@ -168,10 +168,11 @@ export const SETTINGS_SECTIONS: SettingsSectionItem[] = [
   {
     id: 'subscription',
     groupId: 'maintenance',
-    title: 'الاشتراك والدعم',
-    description: 'إدارة الترخيص، باقة الاشتراك، والدعم الفني المباشر',
+    title: 'إدارة الاشتراك والترخيص',
+    description: 'إدارة باقة الاشتراك السحابي، التراخيص، والدعم الفني المباشر',
     keywords: ['اشتراك', 'ترخيص', 'باقة', 'دعم', 'ترقية', 'فواتير', 'تجديد', 'subscription', 'license', 'billing', 'support'],
     icon: CreditCard,
     component: SubscriptionTab
   }
 ];
+

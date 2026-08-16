@@ -1,4 +1,5 @@
 import React from 'react';
+import { motion } from 'motion/react';
 import { ChevronLeft } from 'lucide-react';
 import { SettingsGroup, SettingsSectionItem } from '../../types/settingsNavigation.types';
 
@@ -22,77 +23,86 @@ export const SettingsGroupCard: React.FC<SettingsGroupCardProps> = ({
   const GroupIcon = group.icon;
 
   return (
-    <section className="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700/80 rounded-2xl shadow-xs p-4 sm:p-5 transition-all w-full">
-      {/* Group Header */}
-      <div className="flex items-center justify-between gap-3 mb-3.5 pb-3 border-b border-slate-100 dark:border-slate-750">
-        <div className="flex items-center gap-2.5">
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${group.colorClass}`}>
-            <GroupIcon size={16} />
+    <section 
+      className="bg-white dark:bg-slate-850 border border-slate-200/90 dark:border-slate-700/80 rounded-2xl shadow-xs p-3.5 sm:p-5 transition-all w-full box-border"
+      aria-labelledby={`group-title-${group.id}`}
+    >
+      {/* Group Header Badge & Info */}
+      <div className="flex items-center justify-between gap-3 mb-3.5 pb-2.5 border-b border-slate-100 dark:border-slate-800">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center shrink-0 border ${group.colorClass}`}>
+            <GroupIcon size={17} />
           </div>
-          <div>
-            <h2 className="text-sm sm:text-base font-black text-slate-800 dark:text-slate-100 font-cairo leading-none">
+          <div className="min-w-0">
+            <h2 
+              id={`group-title-${group.id}`} 
+              className="text-sm sm:text-base font-black text-slate-850 dark:text-slate-100 font-cairo leading-tight truncate"
+            >
               {group.title}
             </h2>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-cairo mt-1">
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 font-cairo truncate mt-0.5">
               {group.description}
             </p>
           </div>
         </div>
 
-        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-cairo shrink-0">
+        <span className="text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-cairo shrink-0 border border-slate-200/50 dark:border-slate-700">
           {items.length} {items.length === 1 ? 'قسم' : 'أقسام'}
         </span>
       </div>
 
-      {/* Group Cards Grid */}
-      <div className={`grid gap-2.5 ${isCompact ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'}`}>
+      {/* Vertical Grouped Cards List (1 column on mobile, responsive grid if specified) */}
+      <div className={`flex flex-col gap-2.5 w-full ${isCompact ? '' : 'sm:grid sm:grid-cols-2'}`}>
         {items.map((item) => {
           const ItemIcon = item.icon;
           const isActive = activeSectionId === item.id;
 
           return (
-            <button
+            <motion.button
               key={item.id}
               onClick={() => onSelectSection(item.id)}
-              className={`w-full text-right p-3.5 sm:p-4 rounded-xl border transition-all flex items-center justify-between gap-3 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1E4D4D]/30
+              whileTap={{ scale: 0.99 }}
+              className={`w-full text-right p-3.5 sm:p-4 rounded-xl border transition-all flex items-center justify-between gap-3 group cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#1E4D4D]/25 min-h-[56px]
                 ${
                   isActive
                     ? 'bg-[#1E4D4D]/5 dark:bg-emerald-950/20 border-[#1E4D4D] dark:border-emerald-500 shadow-xs'
-                    : 'bg-slate-50/70 dark:bg-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                    : 'bg-slate-50/80 dark:bg-slate-800/60 hover:bg-slate-100/90 dark:hover:bg-slate-800 border-slate-200/80 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
                 }
               `}
               aria-label={`الدخول إلى قسم ${item.title}`}
             >
-              <div className="flex items-center gap-3 min-w-0">
+              {/* Right content in RTL: Icon + Title + Description */}
+              <div className="flex items-center gap-3 min-w-0 flex-1">
                 <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-transform group-hover:scale-105
+                  className={`w-10 h-10 sm:w-11 sm:h-11 rounded-xl flex items-center justify-center shrink-0 transition-transform duration-200 group-hover:scale-105
                     ${
                       isActive
-                        ? 'bg-[#1E4D4D] text-white'
-                        : 'bg-white dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-600 group-hover:text-[#1E4D4D] dark:group-hover:text-emerald-400'
+                        ? 'bg-[#1E4D4D] text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-700/80 text-slate-700 dark:text-slate-200 border border-slate-200/70 dark:border-slate-600 group-hover:text-[#1E4D4D] dark:group-hover:text-emerald-400 group-hover:border-[#1E4D4D]/30'
                     }
                   `}
                 >
-                  <ItemIcon size={19} />
+                  <ItemIcon size={20} />
                 </div>
-                <div className="min-w-0">
+                <div className="min-w-0 flex-1">
                   <h3 className="text-xs sm:text-sm font-bold text-slate-850 dark:text-slate-100 font-cairo leading-tight truncate group-hover:text-[#1E4D4D] dark:group-hover:text-emerald-400 transition-colors">
                     {item.title}
                   </h3>
-                  <p className="text-[11px] text-slate-500 dark:text-slate-400 font-cairo mt-0.5 line-clamp-1 leading-snug">
+                  <p className="text-[11px] sm:text-xs text-slate-500 dark:text-slate-400 font-cairo mt-0.5 line-clamp-1 leading-relaxed">
                     {item.description}
                   </p>
                 </div>
               </div>
 
-              {/* Navigation Chevron Indicator in RTL (pointing left) */}
-              <div className="shrink-0 w-7 h-7 rounded-lg bg-white/80 dark:bg-slate-700/60 flex items-center justify-center text-slate-400 group-hover:text-[#1E4D4D] dark:group-hover:text-emerald-400 group-hover:-translate-x-0.5 transition-all">
-                <ChevronLeft size={16} />
+              {/* Left indicator in RTL: Chevron Arrow pointing left */}
+              <div className="shrink-0 w-8 h-8 rounded-lg bg-white dark:bg-slate-700/70 flex items-center justify-center text-slate-400 group-hover:text-[#1E4D4D] dark:group-hover:text-emerald-400 group-hover:-translate-x-1 transition-all border border-slate-200/60 dark:border-slate-650">
+                <ChevronLeft size={18} />
               </div>
-            </button>
+            </motion.button>
           );
         })}
       </div>
     </section>
   );
 };
+

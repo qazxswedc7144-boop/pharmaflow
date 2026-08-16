@@ -15,7 +15,7 @@ export const MobilePageLayout: React.FC<MobilePageLayoutProps> = ({
 }) => {
   return (
     <div 
-      className="flex flex-col min-h-screen h-screen bg-[#F8FAFA] font-cairo w-full relative overflow-hidden" 
+      className="flex flex-col h-dvh min-h-dvh max-h-dvh h-[100dvh] bg-[#F8FAFA] font-cairo w-full relative overflow-hidden" 
       dir={dir}
     >
       {header && (
@@ -24,14 +24,14 @@ export const MobilePageLayout: React.FC<MobilePageLayoutProps> = ({
         </header>
       )}
       
-      <main className="flex-1 overflow-y-auto bg-[#F8FAFA] custom-scrollbar px-4 py-3 md:p-6 pb-28 md:pb-24">
+      <main className="flex-1 min-h-0 overflow-y-auto bg-[#F8FAFA] custom-scrollbar px-4 py-3 md:p-6 pb-28 md:pb-24">
         <div className="max-w-7xl mx-auto space-y-4">
           {children}
         </div>
       </main>
 
       {bottomBar && (
-        <div className="sticky bottom-0 w-full z-50 bg-white border-t border-slate-200 px-4 py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] md:static md:shadow-none md:border-t-0 md:bg-transparent md:px-0 md:py-0">
+        <div className="shrink-0 sticky bottom-0 w-full z-50 bg-white border-t border-slate-200 px-4 py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] shadow-[0_-4px_12px_rgba(0,0,0,0.05)] md:static md:shadow-none md:border-t-0 md:bg-transparent md:px-0 md:py-0">
           <div className="max-w-7xl mx-auto">
             {bottomBar}
           </div>

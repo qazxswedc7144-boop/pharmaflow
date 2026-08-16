@@ -279,7 +279,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
   }, [setItems]);
 
   return (
-    <div className="flex flex-col h-full max-h-full bg-white font-cairo w-full relative overflow-hidden select-none" dir="rtl">
+    <div className="flex flex-col h-[100dvh] h-dvh min-h-dvh max-h-dvh bg-white font-cairo w-full relative overflow-hidden select-none" dir="rtl">
       {/* HEADER SECTION - FLAT & FULL WIDTH */}
       <div className="shrink-0 z-30 border-b border-slate-100 bg-white">
         <div className="py-2 px-3 flex items-center justify-between gap-2.5 w-full overflow-hidden bg-white">
@@ -588,7 +588,7 @@ const PurchasesInvoice: React.FC<{ onNavigate?: (view: string, params?: Record<s
       </div>
 
       {/* PERFECTLY ALIGNED STICKY FOOTER SECTION - FIXED AT BOTTOM */}
-      <div className="shrink-0 sticky bottom-0 w-full z-40 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(14px+env(safe-area-inset-bottom))] px-4">
+      <div className="shrink-0 sticky bottom-0 w-full z-40 bg-white border-t border-gray-200 p-3 shadow-lg space-y-2 pb-[calc(12px+env(safe-area-inset-bottom,0px))] px-4">
         <div className="flex items-center justify-between px-2">
           <div className="flex flex-col items-center">
             <span className="text-[9px] font-black text-slate-400 uppercase">الخصم</span>

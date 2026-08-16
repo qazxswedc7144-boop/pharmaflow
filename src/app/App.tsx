@@ -702,7 +702,7 @@ function MainLayout() {
 
   return (
     <MotionConfig reducedMotion={animationsEnabled ? "never" : "always"}>
-      <div className="flex h-[100dvh] min-h-screen w-full mx-auto bg-[#F8FAFA] overflow-hidden font-sans relative text-slate-800 shadow-sm" dir="rtl">
+      <div className="flex h-dvh min-h-dvh max-h-dvh h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full mx-auto bg-[#F8FAFA] overflow-hidden font-sans relative text-slate-800 shadow-sm" dir="rtl">
       {/* SaaS Trial & Onboarding Gateways */}
       <SubscriptionOnboardingModal isOpen={onboardingOpen} onClose={handleCloseOnboarding} />
       <SubscriptionWarningInterceptor />

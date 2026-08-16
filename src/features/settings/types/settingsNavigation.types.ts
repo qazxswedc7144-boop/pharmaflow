@@ -19,3 +19,4 @@ export interface SettingsGroup {
   icon: React.ElementType;
   colorClass: string;
 }
+

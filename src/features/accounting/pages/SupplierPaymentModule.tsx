@@ -328,7 +328,7 @@ const SupplierPaymentModule: React.FC<{ onNavigate?: (view: string) => void }> =
         </div>
       </div>
 
-      <div className="sticky bottom-0 w-full z-50 bg-white border-t border-slate-200 p-3 shadow-lg rounded-b-2xl pb-[calc(14px+env(safe-area-inset-bottom))] px-4">
+      <div className="shrink-0 sticky bottom-0 w-full z-50 bg-white border-t border-slate-200 p-3 shadow-lg rounded-b-2xl pb-[calc(12px+env(safe-area-inset-bottom,0px))] px-4">
          <div className="max-w-6xl mx-auto flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 px-2">
             <div className="flex justify-around sm:justify-start gap-6 sm:gap-10">
                <div className="text-center">

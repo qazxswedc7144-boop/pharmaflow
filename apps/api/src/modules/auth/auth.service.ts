@@ -4,8 +4,8 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../../../../../server/database/prisma";
 import { Role } from "@prisma/client";
 
-const JWT_SECRET = process.env.JWT_SECRET!;
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+const getJwtSecret = () => process.env.JWT_SECRET || 'pharmaflow-local-development-jwt-secure-secret-2026';
+const getJwtRefreshSecret = () => process.env.JWT_REFRESH_SECRET || 'pharmaflow-local-development-jwt-refresh-secure-secret-2026';
 
 export interface DecodedAccessToken {
   userId: string;
@@ -39,7 +39,7 @@ export class AuthService {
   static generateAccessToken(user: { id: string; username: string; role: Role }): string {
     return jwt.sign(
       { userId: user.id, username: user.username, role: user.role },
-      JWT_SECRET,
+      getJwtSecret(),
       { expiresIn: "4h" }
     );
   }
@@ -50,7 +50,7 @@ export class AuthService {
   static generateRefreshToken(user: { id: string }): string {
     return jwt.sign(
       { userId: user.id },
-      JWT_REFRESH_SECRET,
+      getJwtRefreshSecret(),
       { expiresIn: "7d" }
     );
   }
@@ -59,14 +59,14 @@ export class AuthService {
    * Safe payload parsing for verification of access signatures.
    */
   static verifyAccessToken(token: string): DecodedAccessToken {
-    return jwt.verify(token, JWT_SECRET) as DecodedAccessToken;
+    return jwt.verify(token, getJwtSecret()) as DecodedAccessToken;
   }
 
   /**
    * Safe payload parsing for verification of refresh signatures.
    */
   static verifyRefreshToken(token: string): DecodedRefreshToken {
-    return jwt.verify(token, JWT_REFRESH_SECRET) as DecodedRefreshToken;
+    return jwt.verify(token, getJwtRefreshSecret()) as DecodedRefreshToken;
   }
 
   /**
