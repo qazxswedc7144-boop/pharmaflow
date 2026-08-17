@@ -15,9 +15,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",
     "prisma:studio": "prisma studio",
-    "prisma:deploy": "prisma migrate deploy",
-    "audit:fix": "npm audit fix --production",
-    "ci:check": "npm run lint && npx tsc --noEmit && npm audit --audit-level=moderate"
+    "prisma:deploy": "prisma migrate deploy"
   },
   "dependencies": {
     "@google/genai": "^1.50.1",
@@ -75,7 +73,7 @@
     "@types/multer": "^2.1.0",
     "@types/node": "^22.14.0",
     "@types/pg": "^8.20.0",
-    "@types/react-dom": "^18.0.11",
+    "@types/react-dom": "^18.3.1",
     "@types/react-window": "^1.8.8",
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.60.0",
@@ -86,8 +84,5 @@
     "fake-indexeddb": "^6.2.5",
     "rollup-plugin-visualizer": "^7.0.1",
     "vite-plugin-compression": "^0.5.1"
-  },
-  "overrides": {
-    "minimatch": "^3.1.3"
   }
 }
