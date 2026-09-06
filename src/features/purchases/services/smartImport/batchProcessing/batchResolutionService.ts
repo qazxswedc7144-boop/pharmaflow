@@ -245,6 +245,12 @@ export class BatchResolutionService {
         if (barcodeToUse) {
           (invoiceItem as any).barcode = barcodeToUse;
         }
+        if (prod.batchNumber) {
+          (invoiceItem as any).batchNumber = prod.batchNumber;
+        }
+        if (prod.supplierProductCode) {
+          (invoiceItem as any).productCode = prod.supplierProductCode;
+        }
         if (prod.bonusQty) {
           (invoiceItem as any).bonusQty = prod.bonusQty;
         }

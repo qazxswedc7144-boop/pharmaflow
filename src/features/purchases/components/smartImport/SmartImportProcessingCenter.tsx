@@ -8,6 +8,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   BatchProcessingSession,
   SupplierDecision,
+  SupplierResolutionAction,
   ProductDecision,
   ProductResolutionAction,
   CanonicalResolutionResult
@@ -18,6 +19,7 @@ import { Product, Supplier } from '@/types';
 import { SmartImportBatchSummary, ProductFilterTab } from './SmartImportBatchSummary';
 import { SmartImportBulkActions } from './SmartImportBulkActions';
 import { SmartImportProductResolution } from './SmartImportProductResolution';
+import { SmartImportSupplierResolution } from './SmartImportSupplierResolution';
 import {
   Sparkles,
   CheckCircle2,
@@ -66,7 +68,9 @@ interface CanonicalInvoiceItem {
   price?: number | string;
   sum?: number | string;
   barcode?: string;
+  productCode?: string;
   expiryDate?: string;
+  batchNumber?: string;
   discountPercent?: number;
   bonusQty?: number;
   notes?: string;
@@ -83,7 +87,7 @@ export const SmartImportProcessingCenter: React.FC<SmartImportProcessingCenterPr
   onApply,
   onApplyAndSaveImmediately,
   availableProducts = [],
-  availableSuppliers: _availableSuppliers = []
+  availableSuppliers = []
 }) => {
   const [session, setSession] = useState<BatchProcessingSession | null>(null);
   const [activeFilterTab, setActiveFilterTab] = useState<ProductFilterTab>('ALL');
@@ -183,14 +187,12 @@ export const SmartImportProcessingCenter: React.FC<SmartImportProcessingCenterPr
     setSelectedRowIds(newSet);
   };
 
-  const _handleUpdateSupplier = (update: Partial<SupplierDecision>) => {
+  const handleUpdateSupplier = (update: Partial<SupplierDecision>) => {
     if (!session) return;
     const updatedSession = BatchProcessingOrchestrator.updateSupplier(session, update);
     setSession(updatedSession);
     setValidationErrorMsg(null);
   };
-  void _handleUpdateSupplier;
-  void _availableSuppliers;
   void _progressMessage;
 
   const handleUpdateProduct = (sourceRowId: number, update: Partial<ProductDecision>) => {
@@ -265,7 +267,9 @@ export const SmartImportProcessingCenter: React.FC<SmartImportProcessingCenterPr
           total: sum,
           expectedTotal: sum,
           barcode: item.barcode,
+          productCode: item.productCode,
           expiryDate: item.expiryDate,
+          batchNumber: item.batchNumber,
           discountPercent: item.discountPercent,
           bonusQty: item.bonusQty,
           notes: item.notes,
@@ -277,7 +281,14 @@ export const SmartImportProcessingCenter: React.FC<SmartImportProcessingCenterPr
         return row;
       });
 
-      const finalSupplierName = canonicalResult.appliedSupplierName ?? session.summary.detectedSupplier;
+      const finalSupplierName =
+        session.supplierDecision?.action === SupplierResolutionAction.LINK_EXISTING
+          ? (session.supplierDecision.matchedSupplierName || canonicalResult.appliedSupplierName)
+          : session.supplierDecision?.action === SupplierResolutionAction.CREATE_NEW
+          ? (session.supplierDecision.newSupplierData?.name || session.supplierDecision.importedSupplierName || canonicalResult.appliedSupplierName)
+          : session.supplierDecision?.action === SupplierResolutionAction.SKIP
+          ? ''
+          : (canonicalResult.appliedSupplierName ?? session.summary.detectedSupplier ?? session.supplierDecision?.matchedSupplierName ?? session.supplierDecision?.importedSupplierName);
       const finalInvoiceNumber = customInvoiceNumber || canonicalResult.appliedInvoiceNumber || session.summary.detectedInvoiceNumber;
       const finalDate = customInvoiceDate || canonicalResult.appliedDate || session.summary.detectedDate;
 
@@ -401,28 +412,18 @@ export const SmartImportProcessingCenter: React.FC<SmartImportProcessingCenterPr
           </div>
         )}
 
-        {/* Invoice meta row (compact) */}
+        {/* Invoice metadata & Supplier Resolution Center */}
         {!isLoading && session && (
-          <div className="px-3 py-2 bg-slate-50 border-b border-slate-100 flex items-center gap-3 text-sm">
-            <div className="flex items-center gap-2 min-w-0">
-              <div className="text-[13px] font-bold">فاتورة:</div>
-              <div className="text-[13px] text-slate-700 truncate max-w-[160px]">{customInvoiceNumber || session.summary.detectedInvoiceNumber || 'غير معروف'}</div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <div className="text-[13px] font-bold">التاريخ:</div>
-              <div className="text-[13px] text-slate-700">{customInvoiceDate || session.summary.detectedDate || 'غير معروف'}</div>
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <div className="text-[13px] font-bold">المورد:</div>
-              <div className="text-[13px] text-slate-700 truncate max-w-[160px]">
-                {session.summary.detectedSupplier ||
-                  session.supplierDecision?.matchedSupplierName ||
-                  session.supplierDecision?.importedSupplierName ||
-                  'غير مكتشف'}
-              </div>
-            </div>
+          <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+            <SmartImportSupplierResolution
+              supplierDecision={session.supplierDecision}
+              availableSuppliers={availableSuppliers}
+              onChange={handleUpdateSupplier}
+              detectedInvoiceNumber={customInvoiceNumber || session.summary.detectedInvoiceNumber}
+              detectedDate={customInvoiceDate || session.summary.detectedDate}
+              onUpdateInvoiceNumber={setCustomInvoiceNumber}
+              onUpdateInvoiceDate={setCustomInvoiceDate}
+            />
           </div>
         )}
 

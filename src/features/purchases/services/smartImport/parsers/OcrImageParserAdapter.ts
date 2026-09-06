@@ -67,6 +67,7 @@ export class OcrImageParserAdapter implements ImportSourceParser {
         discount: row.discountPercent,
         barcode: row.barcode,
         bonusQty: row.bonusQty,
+        productCode: row.productCode,
         unit: row.unit,
         notes: row.notes
       },

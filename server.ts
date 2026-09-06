@@ -1,4 +1,5 @@
 import express from "express";
+import http from "http";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
@@ -424,6 +425,8 @@ async function startServer() {
     setupStaticServing(app);
   }
 
+  let secondaryServer: http.Server | null = null;
+
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`Server running on http://0.0.0.0:${PORT}`);
     registerIdempotencyCleanupCron();
@@ -442,9 +445,35 @@ async function startServer() {
     });
   });
 
+  // Support Google Cloud Run standalone deployment where Cloud Run expects the app
+  // to listen on process.env.PORT (e.g. 8080), while always retaining port 3000 for AI Studio's nginx proxy.
+  const envPort = process.env.PORT ? parseInt(process.env.PORT, 10) : undefined;
+  if (envPort && envPort !== PORT && !isNaN(envPort)) {
+    try {
+      secondaryServer = http.createServer(app);
+      secondaryServer.on("error", (err: any) => {
+        if (err?.code === "EADDRINUSE") {
+          console.log(`[NET] Port ${envPort} is bound by infrastructure proxy; primary app is actively serving on port ${PORT}.`);
+        } else {
+          console.warn(`[NET] Secondary port ${envPort} listener notice:`, err?.message || err);
+        }
+      });
+      secondaryServer.listen(envPort, "0.0.0.0", () => {
+        console.log(`[NET] Cloud Run service listener also active on http://0.0.0.0:${envPort}`);
+      });
+    } catch (e: any) {
+      console.warn(`[NET] Could not bind secondary port ${envPort}:`, e?.message || e);
+    }
+  }
+
   // Graceful shutdown handling for active listener
   const gracefulShutdown = (signal: string) => {
     console.log(`[SERVER] Received ${signal} signal. Shutting down server gracefully...`);
+    if (secondaryServer) {
+      try {
+        secondaryServer.close();
+      } catch {}
+    }
     server.close(() => {
       console.log("[SERVER] HTTP server closed cleanly.");
       process.exit(0);

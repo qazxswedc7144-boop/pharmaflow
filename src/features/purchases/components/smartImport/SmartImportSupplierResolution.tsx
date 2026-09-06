@@ -75,23 +75,56 @@ export const SmartImportSupplierResolution: React.FC<SmartImportSupplierResoluti
           </span>
         );
       case SupplierResolutionStatus.POSSIBLE_MATCH:
+        return (
+          <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-black flex items-center gap-1">
+            <AlertCircle size={12} />
+            يحتاج مراجعة (مطابقة تقريبية {Math.round(supplierDecision.confidence * 100)}%)
+          </span>
+        );
       case SupplierResolutionStatus.AMBIGUOUS:
         return (
           <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-black flex items-center gap-1">
             <AlertCircle size={12} />
-            مورد مقترح (يتطلب تأكيد)
+            يحتاج مراجعة (تشابه مع عدة موردين)
+          </span>
+        );
+      case SupplierResolutionStatus.UNRESOLVED:
+        return (
+          <span className="px-2 py-0.5 rounded-lg bg-red-100 text-red-900 text-[10px] font-black flex items-center gap-1">
+            <AlertCircle size={12} />
+            يحتاج مراجعة (غير مكتشف)
           </span>
         );
       case SupplierResolutionStatus.NEW_SUPPLIER:
-      default:
         return (
           <span className="px-2 py-0.5 rounded-lg bg-blue-100 text-blue-800 text-[10px] font-black flex items-center gap-1">
             <UserPlus size={12} />
             مورد جديد غير مسجل
           </span>
         );
+      default:
+        if (supplierDecision.confidence < 0.70) {
+          return (
+            <span className="px-2 py-0.5 rounded-lg bg-amber-100 text-amber-900 text-[10px] font-black flex items-center gap-1">
+              <AlertCircle size={12} />
+              يحتاج مراجعة
+            </span>
+          );
+        }
+        return (
+          <span className="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-700 text-[10px] font-black flex items-center gap-1">
+            غير محدد
+          </span>
+        );
     }
   };
+
+  const isUncertain = 
+    supplierDecision.status === SupplierResolutionStatus.AMBIGUOUS ||
+    supplierDecision.status === SupplierResolutionStatus.POSSIBLE_MATCH ||
+    supplierDecision.status === SupplierResolutionStatus.UNRESOLVED ||
+    supplierDecision.action === SupplierResolutionAction.UNRESOLVED ||
+    (supplierDecision.confidence < 0.70 && !supplierDecision.matchedSupplierId && supplierDecision.action !== SupplierResolutionAction.CREATE_NEW && !supplierDecision.isSkipped);
 
   const handleSelectExisting = (supplier: Supplier) => {
     onChange({
@@ -212,6 +245,13 @@ export const SmartImportSupplierResolution: React.FC<SmartImportSupplierResoluti
                 المورد المطابق: <strong className="underline">{supplierDecision.matchedSupplierName}</strong>
               </p>
             )}
+            {supplierDecision.reason && (
+              <p className={`text-[10px] font-medium mt-0.5 truncate ${
+                isUncertain ? 'text-amber-800 font-bold' : 'text-slate-500'
+              }`}>
+                <span className="font-bold">السبب:</span> {supplierDecision.reason}
+              </p>
+            )}
           </div>
         </div>
 
@@ -259,6 +299,19 @@ export const SmartImportSupplierResolution: React.FC<SmartImportSupplierResoluti
           </button>
         </div>
       </div>
+
+      {/* UNCERTAIN SUPPLIER WARNING BANNER */}
+      {isUncertain && (
+        <div className="p-2.5 bg-amber-50 border border-amber-200/90 rounded-xl text-xs font-bold text-amber-900 flex items-start gap-2">
+          <AlertCircle size={15} className="text-amber-600 shrink-0 mt-0.5" />
+          <div className="flex-1 space-y-0.5">
+            <div className="font-black text-amber-950">تنبيه: المورد غير مؤكد ويتطلب مراجعة وتأكيد يدوي</div>
+            <p className="text-[11px] text-amber-800 leading-relaxed">
+              {supplierDecision.reason || 'لم يتم التأكد من هوية المورد تلقائيًا. يرجى تأكيد المورد من الاقتراحات أدناه، أو البحث في الدليل وربطه يدويًا لمنع تسجيل الفاتورة على مورد خاطئ.'}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Suggested Supplier Match Cards (if any) */}
       {!isSearching && !showNewSupplierForm && supplierDecision.suggestedSuppliers?.length > 0 && (

@@ -141,6 +141,92 @@ assert(rows[0].unitPrice === 12.5, 'Row 1 has correct price 12.50');
 assert(rows[3].productName.includes('Omega 3 Fish Oil 1000mg'), 'Row 4 preserves 1000mg in name');
 assert(rows[3].quantity === 5, 'Row 4 has quantity 5');
 
+// 9. Token De-Gluing & Glued Codes (OCR-FIX 5/5 Part 2/3)
+console.log('\n▶ Group 9: Token De-Gluing & Glued Codes');
+
+// Case 9.1: Cataflam50mg glued
+const gluedRow1 = parseRow('Cataflam50mg 20 4.50 90.00');
+assert(gluedRow1 !== null, 'Parses Cataflam50mg row');
+assert(gluedRow1?.productName === 'Cataflam 50mg', `De-glues Cataflam50mg -> Cataflam 50mg (got: "${gluedRow1?.productName}")`);
+assert(gluedRow1?.quantity === 20, 'Quantity is 20');
+assert(gluedRow1?.unitPrice === 4.5, 'Unit price is 4.50');
+assert(gluedRow1?.total === 90, 'Total is 90.00');
+
+// Case 9.2: Augmentin1g glued
+const gluedRow2 = parseRow('Augmentin1g 10 5 50');
+assert(gluedRow2 !== null, 'Parses Augmentin1g row');
+assert(gluedRow2?.productName === 'Augmentin 1g', `De-glues Augmentin1g -> Augmentin 1g (got: "${gluedRow2?.productName}")`);
+assert(gluedRow2?.quantity === 10, 'Quantity is 10');
+assert(gluedRow2?.unitPrice === 5, 'Unit price is 5');
+assert(gluedRow2?.total === 50, 'Total is 50');
+
+// Case 9.3: 10042Panadol glued product code
+const gluedRow3 = parseRow('10042Panadol 10 15 150');
+assert(gluedRow3 !== null, 'Parses 10042Panadol row');
+assert(gluedRow3?.productCode === '10042', `Extracts productCode 10042 (got: "${gluedRow3?.productCode}")`);
+assert(gluedRow3?.productName === 'Panadol', `Extracts clean productName Panadol (got: "${gluedRow3?.productName}")`);
+assert(gluedRow3?.quantity === 10, 'Quantity is 10');
+assert(gluedRow3?.unitPrice === 15, 'Unit price is 15');
+assert(gluedRow3?.total === 150, 'Total is 150');
+
+// Case 9.4: PanadolExtra500mg CamelCase and Strength
+const gluedRow4 = parseRow('PanadolExtra500mg 15 12.00 180.00');
+assert(gluedRow4 !== null, 'Parses PanadolExtra500mg row');
+assert(gluedRow4?.productName === 'Panadol Extra 500mg', `De-glues PanadolExtra500mg -> Panadol Extra 500mg (got: "${gluedRow4?.productName}")`);
+assert(gluedRow4?.quantity === 15, 'Quantity is 15');
+assert(gluedRow4?.unitPrice === 12, 'Unit price is 12.00');
+assert(gluedRow4?.total === 180, 'Total is 180.00');
+
+// 10. Multi-Number Resolution (Bonus, Discounts, Positional weighting)
+console.log('\n▶ Group 10: Multi-Number Resolution (Bonus & Discounts)');
+
+// Case 10.1: Row with Quantity + Bonus + Price + Total
+const bonusRow = parseRow('Panadol Extra 500mg 10 2 15.00 150.00');
+assert(bonusRow !== null, 'Parses row with bonus quantity');
+assert(bonusRow?.quantity === 10, `Extracts purchased quantity 10 (got: ${bonusRow?.quantity})`);
+assert(bonusRow?.bonusQty === 2, `Extracts bonus quantity 2 (got: ${bonusRow?.bonusQty})`);
+assert(bonusRow?.unitPrice === 15, 'Extracts unit price 15.00');
+assert(bonusRow?.total === 150, 'Extracts total 150.00');
+
+// Case 10.2: Row with Quantity + Price + Discount % + Total
+const discountRow = parseRow('Amoxil 500mg 20 10.00 10 180.00');
+assert(discountRow !== null, 'Parses row with discount percentage');
+assert(discountRow?.quantity === 20, `Extracts quantity 20 (got: ${discountRow?.quantity})`);
+assert(discountRow?.unitPrice === 10, 'Extracts unit price 10.00');
+assert(discountRow?.discountPercent === 10, `Extracts discount 10% (got: ${discountRow?.discountPercent})`);
+assert(discountRow?.total === 180, 'Extracts net total 180.00');
+
+// 11. Multi-Page Document & Repeated Header Filtering
+console.log('\n▶ Group 11: Multi-Page Document & Repeated Header Filtering');
+const multiPageInvoice = `
+شركة القدس للأدوية
+فاتورة مبيعات
+رقم الفاتورة: 77889
+التاريخ: 2026/05/12
+
+م | اسم الصنف | الكمية | السعر | الإجمالي
+1 | Panadol Advance 500mg | 10 | 15.00 | 150.00
+المجموع المنقول: 150.00
+صفحة 1 من 2
+
+شركة القدس للأدوية
+فاتورة مبيعات
+رقم الفاتورة: 77889
+التاريخ: 2026/05/12
+
+م | اسم الصنف | الكمية | السعر | الإجمالي
+2 | Augmentin 1g 14 Tab | 5 | 50.00 | 250.00
+المجموع الكلي: 400.00
+صفحة 2 من 2
+`;
+
+const multiPageRows = extractRowsFromOCRText(multiPageInvoice);
+assert(multiPageRows.length === 2, `Extracted exactly 2 product rows across pages (got: ${multiPageRows.length})`);
+assert(multiPageRows[0].productName.includes('Panadol Advance 500mg'), 'Page 1 item extracted correctly');
+assert(multiPageRows[0].quantity === 10, 'Page 1 quantity correct');
+assert(multiPageRows[1].productName.includes('Augmentin 1g 14 Tab'), 'Page 2 item extracted correctly without repeated header corruption');
+assert(multiPageRows[1].quantity === 5, 'Page 2 quantity correct');
+
 console.log('\n======================================================');
 console.log(`📊 Test Results: ${passed} PASSED, ${failed} FAILED`);
 console.log('======================================================');

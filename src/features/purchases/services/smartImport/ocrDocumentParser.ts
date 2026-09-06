@@ -295,6 +295,7 @@ export function extractSupplierDetails(
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
+    if (!line) continue;
     if (explicitPattern.test(line)) {
       const parts = line.split(/[:：\-\/]/);
       if (parts.length >= 2) {
@@ -310,14 +311,17 @@ export function extractSupplierDetails(
       }
       // Check next line if current line only had the label
       if (i + 1 < lines.length) {
-        const nextLine = cleanValue(lines[i + 1]);
-        if (nextLine.length >= 3 && !looksLikeHeader(nextLine) && !isBlacklisted(nextLine)) {
-          return {
-            supplierName: nextLine,
-            strategy: 'EXPLICIT_LABEL',
-            confidence: 0.92,
-            reason: `تم التعرف على المورد في السطر التالي لدلالة التوريد: "${nextLine}"`
-          };
+        const rawNext = lines[i + 1];
+        if (rawNext) {
+          const nextLine = cleanValue(rawNext);
+          if (nextLine.length >= 3 && !looksLikeHeader(nextLine) && !isBlacklisted(nextLine)) {
+            return {
+              supplierName: nextLine,
+              strategy: 'EXPLICIT_LABEL',
+              confidence: 0.92,
+              reason: `تم التعرف على المورد في السطر التالي لدلالة التوريد: "${nextLine}"`
+            };
+          }
         }
       }
     }
@@ -397,6 +401,7 @@ export function extractSupplierDetails(
   const metaAnchorRegex = /(?:رقم الفاتورة|فاتورة رقم|فاتورة\s*#|invoice\s*no|bill\s*no|التاريخ|تاريخ الفاتورة|date)/i;
   for (let i = 0; i < Math.min(lines.length, 15); i++) {
     const line = lines[i];
+    if (!line) continue;
     if (metaAnchorRegex.test(line)) {
       // 3a. Check if the line itself contains a supplier separated by delimiter
       if (line.includes('|') || line.includes(' - ') || line.includes('//')) {
@@ -415,7 +420,9 @@ export function extractSupplierDetails(
 
       // 3b. Check the preceding lines (1 or 2 lines above the metadata anchor)
       for (let prev = i - 1; prev >= Math.max(0, i - 2); prev--) {
-        const prevLine = cleanValue(lines[prev]);
+        const rawPrev = lines[prev];
+        if (!rawPrev) continue;
+        const prevLine = cleanValue(rawPrev);
         if (prevLine.length >= 4 && prevLine.length <= 60 && !isBlacklisted(prevLine) && !looksLikeHeader(prevLine) && !metaAnchorRegex.test(prevLine)) {
           // Reject if it's purely digits or dates
           if (/^[\d\s\-\/.:]+$/.test(prevLine)) continue;
@@ -534,6 +541,10 @@ export function looksLikeFooter(line: string): boolean {
     'صافي القيمة',
     'المجموع الكلي',
     'المجموع النهائي',
+    'المجموع المنقول',
+    'مجموع منقول',
+    'مجموع الصفحة',
+    'المنقول',
     'المبلغ المطلوب',
     'المسدد',
     'المدفوع',
@@ -558,6 +569,9 @@ export function looksLikeFooter(line: string): boolean {
     'total discount',
     'balance due',
     'amount due',
+    'carried forward',
+    'brought forward',
+    'page total',
     'signature'
   ];
 
@@ -579,32 +593,115 @@ function getPharmaNameProtectedRegex(): RegExp {
   return /\b(?:Omega|أوميجا|اوميجا)\s*\d+\b|\b(?:Vit(?:amin)?|فيتامين)\s*[A-Za-z0-9]+\b|\b\d+(?:\.\d+)?\s*%/gi;
 }
 const EXPIRY_PATTERN = /\b(20\d{2}[-/.]\d{1,2}(?:[-/.]\d{1,2})?|\d{1,2}[-/.]20\d{2}|\d{1,2}[-/.]\d{2})\b/;
-const BATCH_PATTERN = /\b(?:BN|LOT|BATCH|B\.N\.|تشغيلة|دفعة)[:\s#]*([A-Za-z0-9/-]{3,15})\b/i;
+const BATCH_PATTERN = /\b(?:BN|LOT|BATCH|B\.N\.|تشغيلة|دفعة)[:\s#-]*([A-Za-z0-9/]{2,15})\b/i;
 
-interface ExtractedTokens {
+export interface ExtractedTokens {
   productName: string;
   numbers: number[];
+  productCode?: string;
   expiryDate?: string;
   batchNumber?: string;
   barcode?: string;
 }
 
+export interface ResolvedNumbers {
+  quantity: number;
+  unitPrice: number;
+  total?: number;
+  bonusQty?: number;
+  discountPercent?: number;
+  isHeuristic: boolean;
+}
+
 /**
- * Cleans tokens and extracts name, numbers, expiry, batch, and barcode while protecting drug strengths.
+ * De-glues concatenated tokens produced by OCR where whitespace was omitted.
+ * Handles:
+ * - Leading product code or barcode attached to word (e.g. "10042Panadol" -> "10042 Panadol")
+ * - Lowercase followed by uppercase (CamelCase, e.g. "PanadolExtra" -> "Panadol Extra")
+ * - Word followed by pharmaceutical strength (e.g. "Cataflam50mg" -> "Cataflam 50mg", "Augmentin1g" -> "Augmentin 1g")
+ * - Word followed by pack count (e.g. "Brufen400mg 30Tab" -> "Brufen 400mg 30 Tab")
  */
-function extractRowComponents(line: string): ExtractedTokens | null {
+export function deGlueTokens(line: string): string {
+  if (!line) return '';
+  let text = line;
+
+  // 1. Separate code / barcode at start or boundary:
+  // e.g. "10042Panadol" -> "10042 Panadol", "6221234Panadol" -> "6221234 Panadol"
+  text = text.replace(/(^|[\s|;,؛\t])(\d{3,14})([a-zA-Z\u0621-\u064A]{2,})/g, (match, prefix, digits, word) => {
+    // If the letters are purely a pharma unit (e.g. 500mg, 10tab, 1g), don't split here
+    if (/^(?:mg|g|gm|ml|mcg|iu|l|tab|tabs|cap|caps|sachet|amp|vial|مجم|مل|جم|جرام|ملغ|قرص|كبسوله|كبسولة|امبول|فيال|حبه|حبة|باكت|شريط)$/i.test(word)) {
+      return match;
+    }
+    return `${prefix}${digits} ${word}`;
+  });
+
+  // 2. Separate lowercase followed by uppercase (CamelCase words, e.g. "PanadolExtra" -> "Panadol Extra")
+  text = text.replace(/([a-z\u0621-\u064A])([A-Z])/g, '$1 $2');
+
+  // 3. Separate word followed by pharmaceutical strength
+  // e.g. "Cataflam50mg" -> "Cataflam 50mg", "Augmentin1g" -> "Augmentin 1g", "كتافلام50مجم" -> "كتافلام 50مجم"
+  text = text.replace(
+    /([a-zA-Z\u0621-\u064A])(\d+(?:\.\d+)?\s*(?:mg|g|gm|ml|mcg|iu|l|tab|tabs|cap|caps|sachet|amp|vial|مجم|مل|جم|جرام|ملغ|قرص|كبسوله|كبسولة|امبول|فيال|حبه|حبة|باكت|شريط)\b)/gi,
+    '$1 $2'
+  );
+
+  // 4. Separate word followed by pack count (e.g. "14Tab" -> "14 Tab", "20Caps" -> "20 Caps")
+  text = text.replace(
+    /(\d+)(tab|tabs|cap|caps|sachet|amp|vial|قرص|كبسوله|كبسولة|امبول|فيال|حبه|حبة|باكت|شريط)\b/gi,
+    '$1 $2'
+  );
+
+  return text;
+}
+
+/**
+ * Cleans tokens and extracts name, numbers, expiry, batch, barcode, and product code while protecting drug strengths.
+ */
+export function extractRowComponents(line: string): ExtractedTokens | null {
   let text = normalizeArabicDigits(line).trim();
   if (text.length < 2) return null;
+
+  // Apply intelligent OCR token de-gluing
+  text = deGlueTokens(text);
 
   // 1. Check for Expiry Date
   let expiryDate: string | undefined;
   const expMatch = text.match(EXPIRY_PATTERN);
   if (expMatch && expMatch[0]) {
     const rawExp = expMatch[0];
-    const parsedExp = extractDate(rawExp);
-    if (parsedExp) {
-      expiryDate = parsedExp;
-      text = text.replace(rawExp, ' ');
+    const parts = rawExp.split(/[-/.\\]/);
+    if (parts.length === 2 && parts[0] && parts[1]) {
+      if (parts[0].length === 4) {
+        // YYYY-MM
+        const y = Number(parts[0]);
+        const m = Number(parts[1]);
+        if (m >= 1 && m <= 12 && y >= 2000 && y <= 2050) {
+          expiryDate = `${y}-${String(m).padStart(2, '0')}-01`;
+          text = text.replace(rawExp, ' ');
+        }
+      } else if (parts[1].length === 4) {
+        // MM-YYYY
+        const m = Number(parts[0]);
+        const y = Number(parts[1]);
+        if (m >= 1 && m <= 12 && y >= 2000 && y <= 2050) {
+          expiryDate = `${y}-${String(m).padStart(2, '0')}-01`;
+          text = text.replace(rawExp, ' ');
+        }
+      } else if (parts[1].length === 2) {
+        // MM-YY
+        const m = Number(parts[0]);
+        const y = 2000 + Number(parts[1]);
+        if (m >= 1 && m <= 12 && y >= 2000 && y <= 2050) {
+          expiryDate = `${y}-${String(m).padStart(2, '0')}-01`;
+          text = text.replace(rawExp, ' ');
+        }
+      }
+    } else if (parts.length === 3) {
+      const parsedExp = extractDate(rawExp);
+      if (parsedExp) {
+        expiryDate = parsedExp;
+        text = text.replace(rawExp, ' ');
+      }
     }
   }
 
@@ -612,7 +709,8 @@ function extractRowComponents(line: string): ExtractedTokens | null {
   let batchNumber: string | undefined;
   const batchMatch = text.match(BATCH_PATTERN);
   if (batchMatch && batchMatch[0]) {
-    batchNumber = batchMatch[1] || batchMatch[0];
+    const rawVal = batchMatch[1] || batchMatch[0];
+    batchNumber = rawVal.replace(/^[-_:/#\s]+|[-_:/#\s]+$/g, '');
     text = text.replace(batchMatch[0], ' ');
   }
 
@@ -658,10 +756,32 @@ function extractRowComponents(line: string): ExtractedTokens | null {
     }
   }
 
-  const tokens = rawTokens.slice(startIndex);
+  let tokens = rawTokens.slice(startIndex);
+  let productCode: string | undefined;
+  let barcode: string | undefined;
+
+  // 7. Check if leading token before product name is a Product Code or Barcode
+  const candidateCode = tokens[0];
+  const nextToken = tokens[1];
+  if (tokens.length > 1 && candidateCode && nextToken) {
+    // Check barcode (8-14 consecutive digits)
+    if (/^\d{8,14}$/.test(candidateCode)) {
+      barcode = candidateCode;
+      tokens = tokens.slice(1);
+    }
+    // Check product code (3-7 digits or alphanumeric code like ITM-12, A100, P-01)
+    else if (
+      (/^\d{3,7}$/.test(candidateCode) || /^[A-Za-z]{1,4}[-#/]?\d{2,8}$/.test(candidateCode)) &&
+      // Must be followed by product name part (not another number)
+      !/^\d+(?:\.\d+)?$/.test(nextToken)
+    ) {
+      productCode = candidateCode;
+      tokens = tokens.slice(1);
+    }
+  }
+
   const nameParts: string[] = [];
   const numbers: number[] = [];
-  let barcode: string | undefined;
 
   for (const token of tokens) {
     if (!token) continue;
@@ -672,7 +792,7 @@ function extractRowComponents(line: string): ExtractedTokens | null {
       continue;
     }
 
-    // Check for barcode (8-14 consecutive digits without decimal)
+    // Check for barcode (8-14 consecutive digits without decimal) if not already set
     if (!barcode && /^\d{8,14}$/.test(token)) {
       barcode = token;
       continue;
@@ -707,6 +827,7 @@ function extractRowComponents(line: string): ExtractedTokens | null {
   return {
     productName,
     numbers,
+    productCode,
     expiryDate,
     batchNumber,
     barcode
@@ -714,14 +835,11 @@ function extractRowComponents(line: string): ExtractedTokens | null {
 }
 
 /**
- * Resolves quantity, unit price, and total from extracted numbers based on mathematical correlation.
+ * Resolves quantity, unit price, total, bonus quantity, and discount from extracted numbers.
+ * Supports 4-5 numbers (Bonus Quantity, Discounts, Subtotal, Total).
+ * Uses mathematical correlation as a weighting factor rather than discarding valid OCR data.
  */
-function resolveNumbers(numbers: number[]): {
-  quantity: number;
-  unitPrice: number;
-  total?: number;
-  isHeuristic: boolean;
-} {
+export function resolveNumbers(numbers: number[]): ResolvedNumbers {
   if (numbers.length === 0) {
     return { quantity: 1, unitPrice: 0, total: 0, isHeuristic: true };
   }
@@ -743,7 +861,21 @@ function resolveNumbers(numbers: number[]): {
     return { quantity: n1 > 0 ? n1 : 1, unitPrice: n2 >= 0 ? n2 : 0, total: n1 * n2, isHeuristic: false };
   }
 
-  // If 3 or more numbers: check math correlation (A * B ≈ C)
+  // If 3 or more numbers: evaluate candidate mathematical assignments
+  interface CandidateMatch {
+    q: number;
+    p: number;
+    t: number;
+    bonusQty?: number;
+    discountPercent?: number;
+    error: number;
+    score: number;
+  }
+
+  const candidates: CandidateMatch[] = [];
+
+  // Strategy 1: Standard multiplication (Q * P ≈ T)
+  // When 4 or 5 numbers are present, leftover numbers can be Bonus Quantity or Discount
   for (let i = 0; i < numbers.length; i++) {
     for (let j = 0; j < numbers.length; j++) {
       if (i === j) continue;
@@ -755,24 +887,153 @@ function resolveNumbers(numbers: number[]): {
 
         if (q > 0 && p >= 0 && t > 0) {
           const product = q * p;
-          if (Math.abs(product - t) < 0.1 || Math.abs(product - t) / t < 0.02) {
-            if (!Number.isInteger(q) && Number.isInteger(p) && p <= 5000) {
-              return { quantity: p, unitPrice: q, total: t, isHeuristic: false };
+          const error = Math.abs(product - t);
+          const relativeError = error / t;
+
+          if (error < 0.15 || relativeError < 0.02) {
+            let score = 100 - error;
+            // Positional weighting: Total typically appears at higher index than Quantity and Price
+            if (k > i && k > j) score += 30;
+            // Quantity is typically an integer
+            if (Number.isInteger(q) && q <= 5000) score += 20;
+            if (t >= p) score += 15;
+            // Quantity usually precedes Price in LTR or follows in RTL
+            if (i < j) score += 10;
+
+            let bonusQty: number | undefined;
+            let discountPercent: number | undefined;
+
+            // Check leftover numbers for Bonus or Discount
+            const unusedIndices: number[] = [];
+            for (let u = 0; u < numbers.length; u++) {
+              if (u !== i && u !== j && u !== k) unusedIndices.push(u);
             }
-            return { quantity: q, unitPrice: p, total: t, isHeuristic: false };
+
+            for (const u of unusedIndices) {
+              const val = numbers[u] ?? 0;
+              // If it sits between quantity and price, and is an integer <= quantity: likely bonus
+              if (u > i && u < j && Number.isInteger(val) && val <= q && val > 0 && !bonusQty) {
+                bonusQty = val;
+              } else if (Number.isInteger(val) && val > 0 && val <= 500 && !bonusQty) {
+                bonusQty = val;
+              } else if (val > 0 && val < 100 && !discountPercent) {
+                discountPercent = val;
+              }
+            }
+
+            candidates.push({ q, p, t, bonusQty, discountPercent, error, score });
           }
         }
       }
     }
   }
 
+  // Strategy 2: Multiplication with Discount (Q * P * (1 - D/100) ≈ T)
+  if (numbers.length >= 4) {
+    for (let i = 0; i < numbers.length; i++) {
+      for (let j = 0; j < numbers.length; j++) {
+        if (i === j) continue;
+        for (let d = 0; d < numbers.length; d++) {
+          if (d === i || d === j) continue;
+          for (let k = 0; k < numbers.length; k++) {
+            if (k === i || k === j || k === d) continue;
+            const q = numbers[i] ?? 0;
+            const p = numbers[j] ?? 0;
+            const disc = numbers[d] ?? 0;
+            const t = numbers[k] ?? 0;
+
+            if (q > 0 && p > 0 && disc > 0 && disc < 100 && t > 0) {
+              const expectedTotal = q * p * (1 - disc / 100);
+              const error = Math.abs(expectedTotal - t);
+              const relativeError = error / t;
+
+              if (error < 0.2 || relativeError < 0.02) {
+                let score = 95 - error;
+                if (k > i && k > j) score += 30;
+                if (Number.isInteger(q) && q <= 5000) score += 20;
+                if (d > i && d > j && d < k) score += 15;
+
+                let bonusQty: number | undefined;
+                if (numbers.length >= 5) {
+                  for (let u = 0; u < numbers.length; u++) {
+                    if (u !== i && u !== j && u !== d && u !== k) {
+                      const bVal = numbers[u] ?? 0;
+                      if (Number.isInteger(bVal) && bVal > 0) bonusQty = bVal;
+                    }
+                  }
+                }
+
+                candidates.push({ q, p, t, bonusQty, discountPercent: disc, error, score });
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.score - a.score || a.error - b.error);
+    const best = candidates[0];
+    if (best) {
+      return {
+        quantity: best.q,
+        unitPrice: best.p,
+        total: best.t,
+        bonusQty: best.bonusQty,
+        discountPercent: best.discountPercent,
+        isHeuristic: false
+      };
+    }
+  }
+
+  // Fallback if no exact mathematical match was discovered:
+  // Do NOT blindly assume first number is Quantity.
+  if (numbers.length >= 3) {
+    let qIdx = 0;
+    let pIdx = 1;
+
+    // If first is decimal and second is integer, second is likely Quantity
+    if (!Number.isInteger(numbers[0]) && Number.isInteger(numbers[1]) && (numbers[1] ?? 0) > 0) {
+      qIdx = 1;
+      pIdx = 0;
+    }
+
+    const q = (numbers[qIdx] ?? 1) > 0 ? (numbers[qIdx] ?? 1) : 1;
+    const p = (numbers[pIdx] ?? 0) >= 0 ? (numbers[pIdx] ?? 0) : 0;
+    const lastIdx = numbers.length - 1;
+    const t = numbers[lastIdx] ?? q * p;
+
+    let bonusQty: number | undefined;
+    if (numbers.length >= 4) {
+      for (let u = 0; u < numbers.length; u++) {
+        if (u !== qIdx && u !== pIdx && u !== lastIdx) {
+          const val = numbers[u] ?? 0;
+          if (Number.isInteger(val) && val > 0 && val <= q) {
+            bonusQty = val;
+            break;
+          }
+        }
+      }
+    }
+
+    return {
+      quantity: q,
+      unitPrice: p,
+      total: t,
+      bonusQty,
+      isHeuristic: true
+    };
+  }
+
   const rawQ = numbers[0] ?? 1;
   const rawP = numbers[1] ?? 0;
-  const q = rawQ > 0 && rawQ <= 10000 ? rawQ : 1;
-  const p = rawP >= 0 ? rawP : 0;
-  const t = numbers[2] ?? q * p;
-
-  return { quantity: q, unitPrice: p, total: t, isHeuristic: false };
+  return {
+    quantity: rawQ > 0 ? rawQ : 1,
+    unitPrice: rawP >= 0 ? rawP : 0,
+    total: numbers[2] ?? rawQ * rawP,
+    isHeuristic: false
+  };
 }
 
 /**
@@ -786,7 +1047,7 @@ export function parseRow(line: string): OCRRow | null {
   if (!components) return null;
 
   let { productName } = components;
-  const { numbers, expiryDate, batchNumber, barcode } = components;
+  const { numbers, expiryDate, batchNumber, barcode, productCode } = components;
 
   // If product name is missing or too short, check if we have enough numbers
   if (!productName || productName.length < 2) {
@@ -797,12 +1058,12 @@ export function parseRow(line: string): OCRRow | null {
     }
   }
 
-  const { quantity, unitPrice, total, isHeuristic } = resolveNumbers(numbers);
+  const { quantity, unitPrice, total, bonusQty, discountPercent, isHeuristic } = resolveNumbers(numbers);
 
   const validationIssues: string[] = [];
   let status: ExtractedImportRow['status'] = 'VALID';
 
-  if (isHeuristic || unitPrice === 0 || quantity === 1 && numbers.length <= 1) {
+  if (isHeuristic || unitPrice === 0 || (quantity === 1 && numbers.length <= 1)) {
     status = 'WARNING';
     if (unitPrice === 0) {
       validationIssues.push('السعر غير محدد، يرجى إدخال سعر الشراء');
@@ -814,9 +1075,12 @@ export function parseRow(line: string): OCRRow | null {
   return {
     rowNumber: 0,
     productName,
+    productCode,
     quantity,
     unitPrice,
     total: total ?? quantity * unitPrice,
+    bonusQty,
+    discountPercent,
     expiryDate,
     batchNumber,
     barcode,
@@ -827,6 +1091,7 @@ export function parseRow(line: string): OCRRow | null {
 
 /**
  * Extracts item rows from the raw OCR text while ignoring headers and summary footers.
+ * Supports multi-page documents by ignoring repeated table headers and page break markers.
  */
 export function extractRowsFromOCRText(rawText: string): OCRRow[] {
   const normalizedText = normalizeOCRText(rawText);
@@ -839,40 +1104,32 @@ export function extractRowsFromOCRText(rawText: string): OCRRow[] {
 
   const rows: OCRRow[] = [];
   let tableHeaderFound = false;
-  let inFooterSection = false;
 
   for (let i = 0; i < rawLines.length; i++) {
     const line = rawLines[i];
     if (!line) continue;
 
-    // Check if this line is a header
+    // 1. Check if this line is a table header (e.g. repeated across multi-page documents)
     if (looksLikeHeader(line)) {
       tableHeaderFound = true;
       continue;
     }
 
-    // Check if we reached invoice footer/summary
+    // 2. Check if this line is a footer / summary / page number
     if (looksLikeFooter(line)) {
-      inFooterSection = true;
       continue;
     }
 
-    // Once we are in the footer section, stop capturing table rows
-    if (inFooterSection) {
+    // 3. Skip metadata lines (e.g. phone, address, invoice no, supplier name, page markers)
+    if (
+      /^(?:رقم|تاريخ|المورد|السادة|الهاتف|العنوان|ص\.ب|س\.ت|Date|Invoice|Tel|Supplier|From|شركة|مؤسسة|مستودع|فاتورة|سند|صفحة|Page)/i.test(
+        line
+      ) ||
+      extractInvoiceNumber(line) ||
+      extractDate(line) ||
+      /(?:صفحة|page)\s*\d+/i.test(line)
+    ) {
       continue;
-    }
-
-    // If before table header and line looks like metadata (e.g. phone, address, invoice no, company), skip
-    if (!tableHeaderFound) {
-      if (
-        /^(?:رقم|تاريخ|المورد|السادة|الهاتف|العنوان|ص\.ب|س\.ت|Date|Invoice|Tel|Supplier|From|شركة|مؤسسة|مستودع|فاتورة|سند)/i.test(
-          line
-        ) ||
-        extractInvoiceNumber(line) ||
-        extractDate(line)
-      ) {
-        continue;
-      }
     }
 
     const row = parseRow(line);
@@ -883,6 +1140,15 @@ export function extractRowsFromOCRText(rawText: string): OCRRow[] {
     // If before table header was found, require at least one number (quantity or price)
     // so random titles or company names aren't added as items
     if (!tableHeaderFound && row.unitPrice === 0 && row.quantity === 1 && !row.barcode) {
+      continue;
+    }
+
+    // If the parsed product name itself looks like a table header or footer, skip it
+    if (
+      looksLikeHeader(row.productName) ||
+      looksLikeFooter(row.productName) ||
+      /^(?:المجموع|اجمالي|إجمالي|صافي|total|subtotal|sum)\b/i.test(row.productName)
+    ) {
       continue;
     }
 
@@ -949,5 +1215,23 @@ export class OCRDocumentParser {
         }
       }
     }
+  }
+
+  /**
+   * Synchronously parses already-extracted or mock OCR text.
+   */
+  static parseText(rawText: string): OCRResult {
+    const normalized = normalizeOCRText(rawText || '');
+    if (!normalized) {
+      return { rows: [], rawText: '' };
+    }
+    const rows = extractRowsFromOCRText(normalized);
+    return {
+      rows,
+      supplier: extractSupplier(normalized),
+      invoiceNumber: extractInvoiceNumber(normalized),
+      date: extractDate(normalized),
+      rawText: normalized
+    };
   }
 }

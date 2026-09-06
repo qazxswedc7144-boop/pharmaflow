@@ -34,6 +34,75 @@ export class LocalOcrProvider implements IDocumentExtractionProvider {
     );
   }
 
+  public static toCanonicalDocument(
+    ocrResult: { rows: any[]; supplier?: string; invoiceNumber?: string; date?: string; rawText?: string },
+    fileName = 'ocr_scan.png',
+    confidence = 0.82
+  ): CanonicalImportDocument {
+    const rawRows: CanonicalImportRawRow[] = (ocrResult.rows || []).map((row, idx) => ({
+      sourceRowIndex: idx + 1,
+      cells: {
+        productName: row.productName || '',
+        quantity: row.quantity || 1,
+        unitPrice: row.unitPrice || 0,
+        total: row.total,
+        expiryDate: row.expiryDate,
+        batchNumber: row.batchNumber,
+        discount: row.discountPercent,
+        barcode: row.barcode,
+        bonusQty: row.bonusQty,
+        productCode: row.productCode,
+        unit: row.unit,
+        notes: row.notes
+      },
+      rawCells: [
+        row.productCode,
+        row.productName,
+        row.quantity,
+        row.unitPrice,
+        row.total,
+        row.expiryDate,
+        row.batchNumber,
+        row.barcode
+      ],
+      sourceReference: { row: idx + 1 }
+    }));
+
+    const table: CanonicalImportTable = {
+      id: `ocr-tbl-${Date.now()}`,
+      sourceIndex: 0,
+      name: 'Local_OCR_Items',
+      headers: ['كود الصنف', 'اسم الصنف', 'الكمية', 'سعر الوحدة', 'الإجمالي', 'الصلاحية', 'التشغيلة', 'الباركود'],
+      rows: rawRows,
+      confidence,
+      isPrimaryInvoiceTable: true
+    };
+
+    return {
+      id: `can-ocr-${Date.now()}`,
+      source: {
+        type: 'IMAGE',
+        fileName,
+        size: 0
+      },
+      metadata: {
+        extractionMethod: 'OCR',
+        extractedAt: new Date().toISOString(),
+        parserVersion: '2.5.0',
+        confidence
+      },
+      documentFields: {
+        supplierName: ocrResult.supplier,
+        invoiceNumber: ocrResult.invoiceNumber,
+        invoiceDate: ocrResult.date,
+        notes: ocrResult.rawText
+      },
+      tables: [table],
+      warnings: [],
+      diagnostics: []
+    };
+  }
+
   public async extract(
     file: File | string, 
     context: ImportParseContext
@@ -47,66 +116,11 @@ export class LocalOcrProvider implements IDocumentExtractionProvider {
       const ocrResult = await OCRDocumentParser.parseDocument(file);
       const executionTimeMs = Date.now() - startTime;
 
-      const rawRows: CanonicalImportRawRow[] = (ocrResult.rows || []).map((row, idx) => ({
-        sourceRowIndex: idx + 1,
-        cells: {
-          productName: row.productName || '',
-          quantity: row.quantity || 1,
-          unitPrice: row.unitPrice || 0,
-          total: row.total,
-          expiryDate: row.expiryDate,
-          batchNumber: row.batchNumber,
-          discount: row.discountPercent,
-          barcode: row.barcode,
-          bonusQty: row.bonusQty,
-          unit: row.unit,
-          notes: row.notes
-        },
-        rawCells: [
-          row.productName,
-          row.quantity,
-          row.unitPrice,
-          row.total,
-          row.expiryDate,
-          row.batchNumber,
-          row.barcode
-        ],
-        sourceReference: { row: idx + 1 }
-      }));
-
-      const table: CanonicalImportTable = {
-        id: `ocr-tbl-${Date.now()}`,
-        sourceIndex: 0,
-        name: 'Local_OCR_Items',
-        headers: ['اسم الصنف', 'الكمية', 'سعر الوحدة', 'الإجمالي', 'الصلاحية', 'التشغيلة', 'الباركود'],
-        rows: rawRows,
-        confidence: 0.82,
-        isPrimaryInvoiceTable: true
-      };
-
-      const canonicalDoc: CanonicalImportDocument = {
-        id: `can-ocr-${Date.now()}`,
-        source: {
-          type: 'IMAGE',
-          fileName: file instanceof File ? file.name : 'ocr_scan.png',
-          size: file instanceof File ? file.size : 0
-        },
-        metadata: {
-          extractionMethod: 'OCR',
-          extractedAt: new Date().toISOString(),
-          parserVersion: '2.5.0',
-          confidence: 0.82
-        },
-        documentFields: {
-          supplierName: ocrResult.supplier,
-          invoiceNumber: ocrResult.invoiceNumber,
-          invoiceDate: ocrResult.date,
-          notes: ocrResult.rawText
-        },
-        tables: [table],
-        warnings: [],
-        diagnostics: []
-      };
+      const fileName = file instanceof File ? file.name : 'ocr_scan.png';
+      const canonicalDoc = LocalOcrProvider.toCanonicalDocument(ocrResult, fileName, 0.82);
+      if (file instanceof File) {
+        canonicalDoc.source.size = file.size;
+      }
 
       return {
         canonicalDoc,

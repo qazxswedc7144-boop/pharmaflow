@@ -192,11 +192,14 @@ export class MultiStagePipeline {
           expiryDate: hr.expiryDate,
           batchNumber: hr.batchNumber,
           barcode: hr.barcode,
+          productCode: hr.productCode,
+          bonusQty: hr.bonusQty,
           discount: hr.discountPercent,
           isHealed: hr.isHealed,
           healingExplanations: hr.healingExplanations
         },
         rawCells: [
+          hr.productCode,
           hr.productName,
           hr.quantity,
           hr.unitPrice,
@@ -267,6 +270,8 @@ export class MultiStagePipeline {
         expiryDate: c.expiryDate ? String(c.expiryDate).trim() : undefined,
         batchNumber: c.batchNumber ? String(c.batchNumber).trim() : undefined,
         barcode: c.barcode ? String(c.barcode).trim() : undefined,
+        productCode: c.productCode ? String(c.productCode).trim() : undefined,
+        bonusQty: typeof c.bonusQty === 'number' ? c.bonusQty : (c.bonusQty ? Number(c.bonusQty) : undefined),
         discountPercent: typeof c.discount === 'number' ? c.discount : (c.discount ? Number(c.discount) : 0),
         status: 'VALID',
         validationIssues: [],
