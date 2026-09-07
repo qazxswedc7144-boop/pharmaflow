@@ -1,8 +1,7 @@
 import { BusinessWorkflow, WorkflowContext } from '@/core/workflow';
 import { InvoiceItem, InvoiceStatus, Sale } from '@/types';
 import { ValidationService as validationService } from '@/services/integrity/ValidationService';
-import { FIFOEngine as fifoEngine } from '@features/inventory/services/fifoEngine';
-import { StockMovementEngine as stockEngine } from '@features/inventory/services/stockMovementEngine';
+import { UnifiedInventoryMutationEngine } from '@features/inventory/services/UnifiedInventoryMutationEngine';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { FinancialTransactionRepository } from '@/database/repositories/FinancialTransactionRepository';
 import { AccountingEngine as accountingEngine } from '@features/accounting/services/AccountingEngine';
@@ -24,6 +23,8 @@ export interface SalesWorkflowInput {
   invoiceStatus?: InvoiceStatus;
   currency?: string;
   isEdit?: boolean;
+  warehouseId?: string;
+  originalSaleId?: string;
 }
 
 export interface SalesWorkflowResult {
@@ -38,9 +39,10 @@ export class SalesWorkflow implements BusinessWorkflow<SalesWorkflowInput, Sales
   public requiredPermissions = ['sales.create', 'sales.edit'];
   public tables = [
     'invoices', 'invoiceItems', 'products', 'inventoryTransactions',
-    'inventory_layers', 'fifo_consumption_log', 'customers', 'journalEntries',
+    'inventory_layers', 'fifo_consumption_log', 'warehouseStock',
+    'medicineBatches', 'stock_movements', 'customers', 'journalEntries',
     'journalLines', 'accounts', 'financialTransactions', 'auditLogs',
-    'idempotencyKeys', 'projectionEvents'
+    'idempotencyKeys', 'projectionEvents', 'accountingPeriods', 'sales'
   ];
 
   public async validateInput(input: SalesWorkflowInput): Promise<void> {
@@ -54,20 +56,6 @@ export class SalesWorkflow implements BusinessWorkflow<SalesWorkflowInput, Sales
 
   public async validateBusinessRules(input: SalesWorkflowInput): Promise<void> {
     await validationService.validateInvoice(input, 'SALE');
-
-    // Check stock availability if negative stock is disallowed by configuration
-    const allowNegativeStock = configurationService.getSync<boolean>('inventory.allowNegativeStock') ?? false;
-    if (!allowNegativeStock && !input.isReturn) {
-      for (const item of input.items) {
-        if (!item.productId) continue;
-        const product = await db.products.get(item.productId);
-        if (product && (product.quantity || 0) < item.quantity) {
-          throw new Error(
-            `الكمية المطلوبة غير متوفرة بالمخزن للصنف [${product.name || item.name}]. المتوفر: ${product.quantity || 0}`
-          );
-        }
-      }
-    }
 
     if (!input.isEdit && input.id) {
       await validationService.validateInvoiceIdUniqueness(input.id, 'invoices', db.db);
@@ -84,22 +72,6 @@ export class SalesWorkflow implements BusinessWorkflow<SalesWorkflowInput, Sales
     const isReturn = !!input.isReturn;
 
     const docId = input.id || db.generateId('SALE');
-    const salePayload = {
-      ...input,
-      id: docId,
-      SaleID: docId,
-      subtotal: input.total,
-      finalTotal: input.total,
-      paymentStatus: input.isCash ? 'Cash' : 'Credit',
-      date: effectiveDate,
-      type: 'SALE' as const
-    } as unknown as Sale;
-
-    let costResult = { totalCost: 0, itemCosts: {} };
-    if (isPosting) {
-      costResult = await fifoEngine.apply(salePayload);
-      await stockEngine.apply(salePayload);
-    }
 
     const savedDoc = await InvoiceRepository.saveSale(
       input.customerId!,
@@ -119,8 +91,91 @@ export class SalesWorkflow implements BusinessWorkflow<SalesWorkflowInput, Sales
     );
 
     const refId = (savedDoc as any)?.id || docId;
+    let costResult = { totalCost: 0, itemCosts: {} as Record<string, number> };
 
     if (isPosting) {
+      // 1. Resolve Warehouse (Explicit priority: input -> context -> configuration -> default WH-MAIN)
+      const warehouseId =
+        input.warehouseId ||
+        (ctx.metadata?.warehouseId as string) ||
+        configurationService.getSync<string>('inventory.defaultWarehouseId') ||
+        'WH-MAIN';
+
+      // 2. Extract Inventory Items (Exclude service / non-inventory items)
+      const inventoryItems = (input.items || [])
+        .filter((item) => {
+          const productId = item.productId || (item as any).product_id;
+          if (!productId) return false;
+
+          // Defensive service / non-inventory detection
+          const isService = (item as any).isService === true;
+          const trackStock = (item as any).trackStock === false;
+          const isServiceType = (item as any).type === 'SERVICE' || (item as any).itemType === 'SERVICE';
+          if (isService || trackStock || isServiceType) {
+            return false;
+          }
+
+          const qty = Number(item.quantity ?? (item as any).qty ?? 0);
+          return qty > 0;
+        })
+        .map((item) => ({
+          productId: (item.productId || (item as any).product_id)!,
+          quantity: Number(item.quantity ?? (item as any).qty ?? 0),
+          unitPrice: Number(item.unitPrice ?? (item as any).price ?? 0),
+          batchId: item.batchId,
+          batchNumber: (item as any).batchNumber,
+          expiryDate: item.expiryDate
+        }));
+
+      // 3. Delegate Inventory Mutation Exclusively to UnifiedInventoryMutationEngine
+      if (inventoryItems.length > 0) {
+        const engine = UnifiedInventoryMutationEngine.getInstance();
+        const tenantId = ctx.tenantId || 'TEN-DEV-001';
+        const userId = ctx.userId || 'system';
+        const branchId = ctx.branchId || 'BR-MAIN';
+        const transactionUuid = ctx.idempotencyKey;
+
+        if (isReturn) {
+          const mutationResults = await engine.executeSalesReturn({
+            returnInvoiceId: refId,
+            originalSaleId: input.originalSaleId,
+            warehouseId,
+            items: inventoryItems,
+            transactionUuid,
+            userId,
+            tenantId,
+            branchId,
+            notes: input.notes || `مرتجع مبيعات فاتورة #${refId}`
+          });
+
+          const totalCost = mutationResults.reduce((sum, r) => sum + (r.calculatedCost || 0), 0);
+          const itemCosts: Record<string, number> = {};
+          for (const r of mutationResults) {
+            itemCosts[r.productId] = r.calculatedCost || 0;
+          }
+          costResult = { totalCost, itemCosts };
+        } else {
+          const mutationResults = await engine.executeIssueSale({
+            invoiceId: refId,
+            warehouseId,
+            items: inventoryItems,
+            transactionUuid,
+            userId,
+            tenantId,
+            branchId,
+            notes: input.notes || `صرف مبيعات فاتورة #${refId}`
+          });
+
+          const totalCost = mutationResults.reduce((sum, r) => sum + (r.calculatedCost || 0), 0);
+          const itemCosts: Record<string, number> = {};
+          for (const r of mutationResults) {
+            itemCosts[r.productId] = r.calculatedCost || 0;
+          }
+          costResult = { totalCost, itemCosts };
+        }
+      }
+
+      // 4. Financial & Accounting Ledger Execution
       const custId = input.customerId;
       if (custId && custId !== 'عميل نقدي') {
         const balanceDelta = isReturn ? -input.total : input.total;

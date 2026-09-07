@@ -134,6 +134,14 @@ export const CONFIG_REGISTRY: Record<string, ConfigurationDefinition<any>> = {
   },
 
   // Inventory
+  'inventory.allowNegativeStock': {
+    key: 'inventory.allowNegativeStock',
+    defaultValue: false,
+    scope: 'BRANCH',
+    syncPolicy: 'SYNCABLE',
+    legacyKeys: ['allowNegativeStock', 'inventory.allow_negative_stock'],
+    description: 'السماح بالمخزون بالسالب'
+  },
   'inventory.expiry_warning_days': {
     key: 'inventory.expiry_warning_days',
     defaultValue: 90,

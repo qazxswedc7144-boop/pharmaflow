@@ -15,17 +15,33 @@ export class TransactionBoundary {
     }
 
     // Determine actual available tables in Dexie schema to avoid missing table errors
-    const validTables = tables.filter((t) => (db as any)[t] !== undefined);
+    const existingNames: string[] = typeof (db as any).getExistingTableNames === 'function'
+      ? (db as any).getExistingTableNames()
+      : (db.tables || []).map((t: any) => t.name);
+
+    const validTables = tables.filter((t) => existingNames.includes(t));
 
     if (validTables.length === 0) {
       return await operation();
     }
 
+    let opThrew = false;
+    let thrownError: any = null;
+
     try {
-      return await db.transaction('rw', validTables, async () => {
-        return await operation();
+      return await (db as any).safeTransaction('rw', validTables, async () => {
+        try {
+          return await operation();
+        } catch (opErr) {
+          opThrew = true;
+          thrownError = opErr;
+          throw opErr;
+        }
       });
     } catch (err) {
+      if (opThrew) {
+        throw thrownError;
+      }
       console.warn('[TransactionBoundary] Transaction boundary fallback to direct execution:', err);
       return await operation();
     }

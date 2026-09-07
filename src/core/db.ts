@@ -525,7 +525,7 @@ export class PharmaFlowDB extends Dexie {
         return await operation(trans);
       });
     } catch (error: any) {
-      console.error("[DB] Atomic Transaction Failed:", error);
+      console.error("[DB] Atomic Transaction Failed on tables:", safeTables, "validTables:", validTables, error);
       const msg = error?.message || String(error);
       const shouldStandardize = 
         msg.includes("committed too early") || 
