@@ -298,17 +298,21 @@ export class AccountingEngine {
       
       // Fallback to product default cost price if batch cost is missing
       if (unitCost === 0) {
-        try {
-          const product = await db.products.get(item.product_id);
-          if (product) {
-            unitCost = product.CostPrice || 0;
+        const prodId = (item as any).productId || item.product_id;
+        if (prodId) {
+          try {
+            const product = await db.products.get(prodId);
+            if (product) {
+              unitCost = product.CostPrice || (product as any).costPrice || 0;
+            }
+          } catch (e) {
+            console.warn("Error fetching product from Dexie:", e);
           }
-        } catch (e) {
-          console.warn("Error fetching product from Dexie:", e);
         }
       }
       
-      totalCOGS += (item.qty || 0) * unitCost;
+      const qty = item.qty || (item as any).quantity || 0;
+      totalCOGS += qty * unitCost;
     }
     return totalCOGS;
   }

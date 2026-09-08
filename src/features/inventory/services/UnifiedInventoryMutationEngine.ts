@@ -643,7 +643,9 @@ export class UnifiedInventoryMutationEngine {
       'fifo_consumption_log',
       'medicineBatches',
       'stock_movements',
-      'accountingPeriods'
+      'accountingPeriods',
+      'settings',
+      'systemSettings'
     ];
 
     return await db.safeTransaction('rw', tables, async () => {

@@ -42,7 +42,8 @@ export class SalesWorkflow implements BusinessWorkflow<SalesWorkflowInput, Sales
     'inventory_layers', 'fifo_consumption_log', 'warehouseStock',
     'medicineBatches', 'stock_movements', 'customers', 'journalEntries',
     'journalLines', 'accounts', 'financialTransactions', 'auditLogs',
-    'idempotencyKeys', 'projectionEvents', 'accountingPeriods', 'sales'
+    'idempotencyKeys', 'projectionEvents', 'projectionCheckpoints',
+    'accountingPeriods', 'sales', 'settings', 'systemSettings'
   ];
 
   public async validateInput(input: SalesWorkflowInput): Promise<void> {
