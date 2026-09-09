@@ -122,7 +122,7 @@ async function startServer() {
   app.set("trust proxy", 1); // Respect reverse proxy headers (e.g., Cloud Run, Nginx router) for rate-limiting
 
   // Top-level endpoints to support load balancer and ingress orchestrator health and readiness probes (First priority, unthrottled)
-  app.all(["/api/health", "/health", "/healthz", "/ready", "/_ah/health", "/_health", "/ping"], (_req, res) => {
+  app.all(["/api/health", "/health", "/healthz", "/ready", "/live", "/_ah/health", "/_ah/start", "/_health", "/ping"], (_req, res) => {
     res.status(200).json({ 
       status: "ok", 
       mode: process.env.NODE_ENV || "development", 
@@ -441,6 +441,21 @@ async function startServer() {
       console.error("[REPLICATION] Failed to run subscriber:", subErr);
     });
   });
+
+  // Support direct Cloud Run custom PORT if configured and different from default 3000
+  const cloudRunPortRaw = process.env.PORT ? parseInt(process.env.PORT, 10) : null;
+  if (cloudRunPortRaw && cloudRunPortRaw !== PORT && !isNaN(cloudRunPortRaw)) {
+    try {
+      const crServer = app.listen(cloudRunPortRaw, "0.0.0.0", () => {
+        console.log(`[BOOT] Server also listening on Cloud Run port ${cloudRunPortRaw}`);
+      });
+      crServer.on("error", (errVal: any) => {
+        console.log(`[BOOT] Secondary port ${cloudRunPortRaw} notice: ${errVal?.message || errVal} (In preview environment, managed by reverse-proxy)`);
+      });
+    } catch (e: any) {
+      console.log(`[BOOT] Secondary port init note: ${e?.message || e}`);
+    }
+  }
 
   // Graceful shutdown handling for active listener
   const gracefulShutdown = (signal: string) => {

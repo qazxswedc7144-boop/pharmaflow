@@ -79,6 +79,23 @@ export interface TransferWarehouseStockCommand extends BaseInventoryCommand {
   productId: string;
   quantity: number;
   batchId?: string;
+  batchNumber?: string;
+  expiryDate?: string;
+  unitCost?: number;
+}
+
+export interface GenericMutationCommand extends BaseInventoryCommand {
+  productId: string;
+  warehouseId: string;
+  delta: number;
+  docType: string;
+  docId: string;
+  movementType?: string;
+  unitCost?: number;
+  unitPrice?: number;
+  batchId?: string;
+  batchNumber?: string;
+  expiryDate?: string;
 }
 
 export interface ReverseDocumentStockCommand extends BaseInventoryCommand {

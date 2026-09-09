@@ -33,6 +33,7 @@ import {
   TransferWarehouseStockCommand,
   ReverseDocumentStockCommand,
   ExecuteApprovedCorrectionCommand,
+  GenericMutationCommand,
   InventoryMutationResult
 } from '../types/inventoryCommand.types';
 import {
@@ -47,9 +48,9 @@ export interface InternalItemMutationParams {
   productId: string;
   warehouseId: string;
   delta: number; // positive = IN, negative = OUT
-  docType: 'SALE' | 'PURCHASE' | 'SALE_RETURN' | 'PURCHASE_RETURN' | 'ADJUSTMENT' | 'TRANSFER' | 'INITIAL' | 'CORRECTION' | 'REVERSAL';
+  docType: 'SALE' | 'PURCHASE' | 'SALE_RETURN' | 'PURCHASE_RETURN' | 'ADJUSTMENT' | 'TRANSFER' | 'INITIAL' | 'CORRECTION' | 'REVERSAL' | string;
   docId: string;
-  movementType: 'SALE' | 'PURCHASE' | 'RETURN' | 'ADJUSTMENT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'REVERSAL';
+  movementType: 'SALE' | 'PURCHASE' | 'RETURN' | 'ADJUSTMENT' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'DAMAGE' | 'CORRECTION' | 'REVERSAL' | string;
   unitCost?: number;
   unitPrice?: number;
   batchId?: string;
@@ -248,6 +249,21 @@ export class UnifiedInventoryMutationEngine {
     this.validateCommandBasics(command, 'ExecuteAdjustment');
     const timestamp = command.timestamp || new Date().toISOString();
 
+    const existingTx = await this.checkExistingIdempotentTransaction(command.transactionUuid, command.adjustmentId, 'ADJUSTMENT', command.productId);
+    if (existingTx) {
+      return {
+        success: true,
+        transactionId: existingTx.TransactionID || existingTx.id,
+        productId: command.productId,
+        warehouseId: command.warehouseId,
+        previousStock: Number(existingTx.before_qty ?? 0),
+        newStock: Number(existingTx.after_qty ?? 0),
+        delta: Number(existingTx.QuantityChange ?? existingTx.quantityChange ?? 0),
+        calculatedCost: existingTx.unit_cost,
+        timestamp: existingTx.TransactionDate || existingTx.created_at || timestamp
+      };
+    }
+
     return await this.executeAtomicTransaction(async () => {
       const ws = await this.readWarehouseStock(command.warehouseId, command.productId);
       const currentWarehouseQty = ws ? ws.quantity : 0;
@@ -281,8 +297,59 @@ export class UnifiedInventoryMutationEngine {
       throw new InvalidWarehouseError(command.toWarehouseId, { message: 'Source and target warehouses cannot be identical.' });
     }
     const timestamp = command.timestamp || new Date().toISOString();
+    const sourceKey = `${command.transactionUuid}-SOURCE`;
+    const targetKey = `${command.transactionUuid}-TARGET`;
+
+    // Idempotency check
+    const existingSource = await db.inventoryTransactions
+      .filter((tx: any) => tx.idempotencyKey === sourceKey)
+      .first();
+    const existingTarget = await db.inventoryTransactions
+      .filter((tx: any) => tx.idempotencyKey === targetKey)
+      .first();
+
+    if (existingSource && existingTarget) {
+      return {
+        sourceResult: {
+          success: true,
+          transactionId: existingSource.TransactionID || existingSource.id,
+          productId: command.productId,
+          warehouseId: command.fromWarehouseId,
+          previousStock: Number(existingSource.before_qty ?? 0),
+          newStock: Number(existingSource.after_qty ?? 0),
+          delta: Number(existingSource.QuantityChange ?? existingSource.quantityChange ?? 0),
+          calculatedCost: existingSource.unit_cost,
+          timestamp: existingSource.TransactionDate || existingSource.created_at || timestamp
+        },
+        targetResult: {
+          success: true,
+          transactionId: existingTarget.TransactionID || existingTarget.id,
+          productId: command.productId,
+          warehouseId: command.toWarehouseId,
+          previousStock: Number(existingTarget.before_qty ?? 0),
+          newStock: Number(existingTarget.after_qty ?? 0),
+          delta: Number(existingTarget.QuantityChange ?? existingTarget.quantityChange ?? 0),
+          calculatedCost: existingTarget.unit_cost,
+          timestamp: existingTarget.TransactionDate || existingTarget.created_at || timestamp
+        }
+      };
+    }
 
     return await this.executeAtomicTransaction(async () => {
+      // Resolve batch info if batchId given
+      let resolvedBatchNum = command.batchNumber;
+      let resolvedExpiry = command.expiryDate;
+      let resolvedCost = command.unitCost;
+
+      if (command.batchId && (!resolvedBatchNum || !resolvedExpiry)) {
+        const srcBatch = await db.medicineBatches.get(command.batchId).catch(() => null);
+        if (srcBatch) {
+          resolvedBatchNum = resolvedBatchNum || srcBatch.batchNumber || srcBatch.batchId;
+          resolvedExpiry = resolvedExpiry || srcBatch.expiryDate;
+          resolvedCost = resolvedCost ?? srcBatch.unitCost ?? srcBatch.cost;
+        }
+      }
+
       // 1. Deduct from source warehouse (does not alter global product stock because + and - cancel out)
       const sourceResult = await this.mutateSingleItem({
         productId: command.productId,
@@ -292,11 +359,14 @@ export class UnifiedInventoryMutationEngine {
         docId: command.transferId,
         movementType: 'TRANSFER_OUT',
         batchId: command.batchId,
+        batchNumber: resolvedBatchNum,
+        expiryDate: resolvedExpiry,
+        unitCost: resolvedCost,
         userId: command.userId,
         tenantId: command.tenantId,
         branchId: command.branchId,
-        idempotencyKey: `${command.transactionUuid}-SOURCE`,
-        notes: command.notes || `تحويل مخزني إلى ${command.toWarehouseId}`,
+        idempotencyKey: sourceKey,
+        notes: command.notes || `تحويل مخزني إلى ${command.toWarehouseId} (مستند #${command.transferId})`,
         timestamp
       });
 
@@ -308,12 +378,15 @@ export class UnifiedInventoryMutationEngine {
         docType: 'TRANSFER',
         docId: command.transferId,
         movementType: 'TRANSFER_IN',
-        batchId: command.batchId,
+        batchId: undefined, // Create/increment target batch in target warehouse
+        batchNumber: resolvedBatchNum,
+        expiryDate: resolvedExpiry,
+        unitCost: resolvedCost,
         userId: command.userId,
         tenantId: command.tenantId,
         branchId: command.branchId,
-        idempotencyKey: `${command.transactionUuid}-TARGET`,
-        notes: command.notes || `استلام تحويل مخزني من ${command.fromWarehouseId}`,
+        idempotencyKey: targetKey,
+        notes: command.notes || `استلام تحويل مخزني من ${command.fromWarehouseId} (مستند #${command.transferId})`,
         timestamp
       });
 
@@ -383,6 +456,21 @@ export class UnifiedInventoryMutationEngine {
     this.validateCommandBasics(command, 'ExecuteApprovedCorrection');
     const timestamp = command.timestamp || new Date().toISOString();
 
+    const existingTx = await this.checkExistingIdempotentTransaction(command.transactionUuid, command.caseId, 'CORRECTION', command.productId);
+    if (existingTx) {
+      return {
+        success: true,
+        transactionId: existingTx.TransactionID || existingTx.id,
+        productId: command.productId,
+        warehouseId: command.warehouseId,
+        previousStock: Number(existingTx.before_qty ?? 0),
+        newStock: Number(existingTx.after_qty ?? 0),
+        delta: Number(existingTx.QuantityChange ?? existingTx.quantityChange ?? 0),
+        calculatedCost: existingTx.unit_cost,
+        timestamp: existingTx.TransactionDate || existingTx.created_at || timestamp
+      };
+    }
+
     return await this.executeAtomicTransaction(async () => {
       const ws = await this.readWarehouseStock(command.warehouseId, command.productId);
       const currentWarehouseQty = ws ? ws.quantity : 0;
@@ -394,7 +482,7 @@ export class UnifiedInventoryMutationEngine {
         delta,
         docType: 'CORRECTION',
         docId: command.caseId,
-        movementType: 'ADJUSTMENT',
+        movementType: 'CORRECTION',
         userId: command.approverId,
         tenantId: command.tenantId,
         branchId: command.branchId,
@@ -402,6 +490,78 @@ export class UnifiedInventoryMutationEngine {
         notes: `تصحيح رقابي معتمد لقضية #${command.caseId}: ${command.reason}`,
         timestamp
       });
+    });
+  }
+
+  /**
+   * 9. Execute Single Generic Mutation (Single Authorized Portal for legacy callers)
+   */
+  public async executeMutation(command: GenericMutationCommand): Promise<InventoryMutationResult> {
+    this.validateCommandBasics(command, 'ExecuteMutation');
+    const timestamp = command.timestamp || new Date().toISOString();
+
+    return await this.executeAtomicTransaction(async () => {
+      const resolvedMovement = command.movementType || (command.delta >= 0 ? 'PURCHASE' : 'SALE');
+      return await this.mutateSingleItem({
+        productId: command.productId,
+        warehouseId: command.warehouseId,
+        delta: command.delta,
+        docType: command.docType as any,
+        docId: command.docId,
+        movementType: resolvedMovement as any,
+        unitCost: command.unitCost,
+        unitPrice: command.unitPrice,
+        batchId: command.batchId,
+        batchNumber: command.batchNumber,
+        expiryDate: command.expiryDate,
+        userId: command.userId,
+        tenantId: command.tenantId,
+        branchId: command.branchId,
+        idempotencyKey: command.transactionUuid,
+        notes: command.notes,
+        timestamp
+      });
+    });
+  }
+
+  /**
+   * 10. Execute Batch Generic Mutations
+   */
+  public async executeBatch(commands: GenericMutationCommand[]): Promise<InventoryMutationResult[]> {
+    if (!Array.isArray(commands) || commands.length === 0) {
+      return [];
+    }
+
+    return await this.executeAtomicTransaction(async () => {
+      const results: InventoryMutationResult[] = [];
+      for (let i = 0; i < commands.length; i++) {
+        const cmd = commands[i]!;
+        this.validateCommandBasics(cmd, `ExecuteBatch[${i}]`);
+        const timestamp = cmd.timestamp || new Date().toISOString();
+        const resolvedMovement = cmd.movementType || (cmd.delta >= 0 ? 'PURCHASE' : 'SALE');
+
+        const res = await this.mutateSingleItem({
+          productId: cmd.productId,
+          warehouseId: cmd.warehouseId,
+          delta: cmd.delta,
+          docType: cmd.docType as any,
+          docId: cmd.docId,
+          movementType: resolvedMovement as any,
+          unitCost: cmd.unitCost,
+          unitPrice: cmd.unitPrice,
+          batchId: cmd.batchId,
+          batchNumber: cmd.batchNumber,
+          expiryDate: cmd.expiryDate,
+          userId: cmd.userId,
+          tenantId: cmd.tenantId,
+          branchId: cmd.branchId,
+          idempotencyKey: cmd.transactionUuid,
+          notes: cmd.notes,
+          timestamp
+        });
+        results.push(res);
+      }
+      return results;
     });
   }
 
@@ -513,13 +673,16 @@ export class UnifiedInventoryMutationEngine {
 
     // 8. Cost Calculation & FIFO Subsystem
     let resolvedUnitCost = unitCost ?? (product.costPrice || product.CostPrice || product.cost || 0);
-    if (movementType === 'PURCHASE') {
+    const isInward = delta > 0 && ['PURCHASE', 'TRANSFER_IN', 'ADJUSTMENT', 'CORRECTION', 'RETURN', 'INITIAL'].includes(movementType);
+    const isOutward = delta < 0 && ['SALE', 'TRANSFER_OUT', 'ADJUSTMENT', 'CORRECTION', 'DAMAGE', 'RETURN'].includes(movementType);
+
+    if (isInward) {
       try {
         await FIFOEngine.addPurchaseLayer(productId, Math.abs(delta), resolvedUnitCost, docId);
       } catch (fifoErr) {
         console.warn('[UnifiedEngine] FIFO layer addition notice:', fifoErr);
       }
-    } else if (movementType === 'SALE') {
+    } else if (isOutward) {
       try {
         const fifoConsumption = await FIFOEngine.consumeFIFO(docId, productId, Math.abs(delta));
         if (fifoConsumption && fifoConsumption.unitCost > 0) {
@@ -527,6 +690,16 @@ export class UnifiedInventoryMutationEngine {
         }
       } catch (fifoErr) {
         console.warn('[UnifiedEngine] FIFO consumption notice:', fifoErr);
+      }
+    } else if (movementType === 'REVERSAL') {
+      try {
+        if (delta > 0) {
+          await FIFOEngine.reverseFIFO(docId);
+        } else if (delta < 0) {
+          await FIFOEngine.removePurchaseLayer(docId);
+        }
+      } catch (fifoErr) {
+        console.warn('[UnifiedEngine] FIFO reversal notice:', fifoErr);
       }
     }
 
@@ -704,41 +877,77 @@ export class UnifiedInventoryMutationEngine {
     branchId?: string;
     timestamp: string;
   }): Promise<void> {
-    const { productId, delta, movementType, batchId, batchNumber, expiryDate, unitCost, docId, tenantId, branchId, timestamp } = params;
+    const { productId, warehouseId, delta, batchId, batchNumber, expiryDate, unitCost, docId, tenantId, branchId, timestamp } = params;
 
-    // Purchase: create or increment batch
-    if (movementType === 'PURCHASE') {
+    // 1. Inward movements (PURCHASE, TRANSFER_IN, positive ADJUSTMENT, positive CORRECTION, positive REVERSAL)
+    if (delta > 0) {
       if (batchNumber || expiryDate || batchId) {
         const resolvedBatchNum = String(batchNumber || batchId || `B-${Date.now().toString().slice(-6)}`);
-        const resolvedBatchId = batchId || `BATCH_${docId}_${productId}_${resolvedBatchNum}`;
+        
+        // Search if matching batch already exists in this warehouse
+        const existingBatch = await db.medicineBatches
+          .filter((b: any) => 
+            (b.productId === productId || b.product_id === productId) &&
+            (b.batchNumber === resolvedBatchNum || b.batchId === resolvedBatchNum) &&
+            (!b.warehouseId || b.warehouseId === warehouseId)
+          )
+          .first();
 
-        const existingBatch = await db.medicineBatches.get(resolvedBatchId).catch(() => null);
-        const newQty = existingBatch ? (Number(existingBatch.quantity || 0) + Math.abs(delta)) : Math.abs(delta);
-
-        await db.medicineBatches.put({
-          id: resolvedBatchId,
-          batchId: resolvedBatchNum,
-          batchNumber: resolvedBatchNum,
-          productId,
-          quantity: newQty,
-          expiryDate: expiryDate || existingBatch?.expiryDate || '',
-          unitCost: unitCost || 0,
-          cost: unitCost || 0,
-          sourceInvoiceId: docId,
-          reference_id: docId,
-          tenantId: tenantId || 'TEN-DEV-001',
-          branchId: branchId || 'BR-MAIN',
-          created_at: existingBatch?.created_at || timestamp,
-          updated_at: timestamp,
-          lastModified: timestamp
-        });
+        if (existingBatch) {
+          const newQty = Number(existingBatch.quantity || 0) + delta;
+          await db.medicineBatches.update(existingBatch.id, {
+            quantity: newQty,
+            unitCost: unitCost || existingBatch.unitCost || 0,
+            cost: unitCost || existingBatch.cost || 0,
+            updated_at: timestamp,
+            lastModified: timestamp
+          });
+        } else {
+          const newBatchId = batchId || `BATCH_${docId}_${warehouseId}_${productId}_${resolvedBatchNum}`;
+          await db.medicineBatches.put({
+            id: newBatchId,
+            batchId: resolvedBatchNum,
+            batchNumber: resolvedBatchNum,
+            productId,
+            warehouseId,
+            warehouse_id: warehouseId,
+            quantity: delta,
+            expiryDate: expiryDate || '',
+            unitCost: unitCost || 0,
+            cost: unitCost || 0,
+            sourceInvoiceId: docId,
+            reference_id: docId,
+            tenantId: tenantId || 'TEN-DEV-001',
+            branchId: branchId || 'BR-MAIN',
+            created_at: timestamp,
+            updated_at: timestamp,
+            lastModified: timestamp
+          });
+        }
       }
-    } else if (movementType === 'SALE') {
-      // Sale: deduct from specific batch or FEFO
+    } else if (delta < 0) {
+      // 2. Outward movements (SALE, TRANSFER_OUT, negative ADJUSTMENT, negative CORRECTION, DAMAGE, negative REVERSAL)
+      const deductQty = Math.abs(delta);
       if (batchId) {
         const batch = await db.medicineBatches.get(batchId).catch(() => null);
         if (batch) {
-          const updatedQty = Math.max(0, (Number(batch.quantity || 0) - Math.abs(delta)));
+          const updatedQty = Math.max(0, (Number(batch.quantity || 0) - deductQty));
+          await db.medicineBatches.update(batch.id, {
+            quantity: updatedQty,
+            updated_at: timestamp,
+            lastModified: timestamp
+          });
+        }
+      } else if (batchNumber) {
+        const batch = await db.medicineBatches
+          .filter((b: any) => 
+            (b.productId === productId || b.product_id === productId) &&
+            (b.batchNumber === batchNumber || b.batchId === batchNumber) &&
+            (!b.warehouseId || b.warehouseId === warehouseId)
+          )
+          .first();
+        if (batch) {
+          const updatedQty = Math.max(0, (Number(batch.quantity || 0) - deductQty));
           await db.medicineBatches.update(batch.id, {
             quantity: updatedQty,
             updated_at: timestamp,
@@ -746,14 +955,22 @@ export class UnifiedInventoryMutationEngine {
           });
         }
       } else {
-        // Deduct from earliest expiring batch (FEFO)
-        const batches = await db.medicineBatches
+        // Deduct from earliest expiring batch (FEFO) in warehouse (or globally for product)
+        let batches = await db.medicineBatches
           .where('productId')
           .equals(productId)
-          .filter((b: any) => (b.quantity || 0) > 0)
+          .filter((b: any) => (b.quantity || 0) > 0 && (!b.warehouseId || b.warehouseId === warehouseId))
           .sortBy('expiryDate');
 
-        let remainingToDeduct = Math.abs(delta);
+        if (batches.length === 0) {
+          batches = await db.medicineBatches
+            .where('productId')
+            .equals(productId)
+            .filter((b: any) => (b.quantity || 0) > 0)
+            .sortBy('expiryDate');
+        }
+
+        let remainingToDeduct = deductQty;
         for (const b of batches) {
           if (remainingToDeduct <= 0) break;
           const currentBQty = Number(b.quantity || 0);

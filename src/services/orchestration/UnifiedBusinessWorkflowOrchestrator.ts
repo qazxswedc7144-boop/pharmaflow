@@ -25,6 +25,7 @@ import { salesWorkflow } from '@features/sales/workflows/SalesWorkflow';
 import { inventoryAdjustmentWorkflow } from '@features/inventory/workflows/InventoryAdjustmentWorkflow';
 import { inventoryTransferWorkflow } from '@features/inventory/workflows/InventoryTransferWorkflow';
 import { voucherWorkflow } from '@features/accounting/workflows/VoucherWorkflow';
+import { unifiedInventoryMutationEngine } from '@features/inventory/services/UnifiedInventoryMutationEngine';
 
 export interface WorkflowSalePayload {
   customerId?: string;
@@ -119,6 +120,7 @@ export const VOUCHER_WORKFLOW_TABLES = [
 
 const STOCK_TRANSFER_WORKFLOW_TABLES = [
   'branchTransfers', 'branchTransferItems', 'branchInventory', 
+  'products', 'warehouseStock', 'inventoryTransactions', 'inventory_layers', 'medicineBatches',
   'auditLogs', 'idempotencyKeys', 'projectionEvents'
 ];
 
@@ -432,6 +434,25 @@ export class UnifiedBusinessWorkflowOrchestrator {
             rawTransfer.shippedAt = now;
 
             for (const item of rawItems) {
+              const srcWarehouse = (rawTransfer as any).sourceWarehouseId || 
+                (rawTransfer.sourceBranchId.startsWith('WH-') ? rawTransfer.sourceBranchId : `WH-${rawTransfer.sourceBranchId}`);
+
+              await unifiedInventoryMutationEngine.executeMutation({
+                productId: item.productId,
+                warehouseId: srcWarehouse,
+                delta: -Math.abs(item.qty),
+                docType: 'TRANSFER',
+                docId: transferId,
+                movementType: 'TRANSFER_OUT',
+                batchNumber: item.batchNumber,
+                expiryDate: item.expiryDate,
+                userId: updatedBy,
+                tenantId: (rawTransfer as any).tenantId || 'TEN-DEV-001',
+                branchId: rawTransfer.sourceBranchId,
+                transactionUuid: `${transferId}-${item.productId}-OUT`,
+                notes: `شحن تحويل مخزني من الفرع ${rawTransfer.sourceBranchId} إلى الفرع ${rawTransfer.targetBranchId}`
+              });
+
               await this.updateBranchStockQty(rawTransfer.sourceBranchId, item.productId, -item.qty);
             }
           } else if (newStatus === "RECEIVED") {
@@ -444,11 +465,50 @@ export class UnifiedBusinessWorkflowOrchestrator {
                 : item.qty;
 
               await db.db.branchTransferItems.update(item.id, { receivedQty: recQty });
+
+              const targetWarehouse = (rawTransfer as any).targetWarehouseId || 
+                (rawTransfer.targetBranchId.startsWith('WH-') ? rawTransfer.targetBranchId : `WH-${rawTransfer.targetBranchId}`);
+
+              await unifiedInventoryMutationEngine.executeMutation({
+                productId: item.productId,
+                warehouseId: targetWarehouse,
+                delta: Math.abs(recQty),
+                docType: 'TRANSFER',
+                docId: transferId,
+                movementType: 'TRANSFER_IN',
+                batchNumber: item.batchNumber,
+                expiryDate: item.expiryDate,
+                userId: updatedBy,
+                tenantId: (rawTransfer as any).tenantId || 'TEN-DEV-001',
+                branchId: rawTransfer.targetBranchId,
+                transactionUuid: `${transferId}-${item.productId}-IN`,
+                notes: `استلام تحويل مخزني بالفرع ${rawTransfer.targetBranchId} من الفرع ${rawTransfer.sourceBranchId}`
+              });
+
               await this.updateBranchStockQty(rawTransfer.targetBranchId, item.productId, recQty);
             }
           } else if (newStatus === "CANCELLED") {
             if (previousStatus === "IN_TRANSIT") {
               for (const item of rawItems) {
+                const srcWarehouse = (rawTransfer as any).sourceWarehouseId || 
+                  (rawTransfer.sourceBranchId.startsWith('WH-') ? rawTransfer.sourceBranchId : `WH-${rawTransfer.sourceBranchId}`);
+
+                await unifiedInventoryMutationEngine.executeMutation({
+                  productId: item.productId,
+                  warehouseId: srcWarehouse,
+                  delta: Math.abs(item.qty),
+                  docType: 'TRANSFER',
+                  docId: transferId,
+                  movementType: 'TRANSFER_IN',
+                  batchNumber: item.batchNumber,
+                  expiryDate: item.expiryDate,
+                  userId: updatedBy,
+                  tenantId: (rawTransfer as any).tenantId || 'TEN-DEV-001',
+                  branchId: rawTransfer.sourceBranchId,
+                  transactionUuid: `${transferId}-${item.productId}-CANCEL`,
+                  notes: `إلغاء تحويل مخزني واستعادة الكمية للفرع ${rawTransfer.sourceBranchId}`
+                });
+
                 await this.updateBranchStockQty(rawTransfer.sourceBranchId, item.productId, item.qty);
               }
             }
