@@ -203,8 +203,25 @@ function getPrismaClient(): PrismaClient {
 }
 
 // Resilient dynamic proxy wrapper
-const prismaClient = new Proxy({} as any, {
+const prismaTarget: any = {
+  disable: () => {
+    isDatabaseDisabled = true;
+    console.warn("[Prisma] Database client disabled due to persistent connection failures.");
+  },
+  enable: () => {
+    isDatabaseDisabled = false;
+    disabledUntil = 0;
+    console.log("[Prisma] Database client re-enabled.");
+  },
+  isConnected: () => !isDatabaseDisabled && (disabledUntil === 0 || Date.now() >= disabledUntil),
+};
+
+const prismaClient = new Proxy(prismaTarget, {
   get(_target, prop, receiver) {
+    if (_target[prop] !== undefined && (prop === 'isConnected' || prop === 'disable' || prop === 'enable')) {
+      return _target[prop];
+    }
+
     const currentClient = getPrismaClient();
 
     // Standard behavior for essential properties
@@ -246,16 +263,6 @@ const prismaClient = new Proxy({} as any, {
 });
 
 export const prisma = prismaClient as any;
-prisma.disable = () => {
-  isDatabaseDisabled = true;
-  console.warn("[Prisma] Database client disabled due to persistent connection failures.");
-};
-prisma.enable = () => {
-  isDatabaseDisabled = false;
-  disabledUntil = 0;
-  console.log("[Prisma] Database client re-enabled.");
-};
-prisma.isConnected = () => !isDatabaseDisabled && (disabledUntil === 0 || Date.now() >= disabledUntil);
 
 // Graceful shutdown hooks
 process.on("beforeExit", async () => {

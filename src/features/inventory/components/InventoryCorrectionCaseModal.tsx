@@ -314,7 +314,7 @@ export const InventoryCorrectionCaseModal: React.FC<InventoryCorrectionCaseModal
         </div>
 
         {/* Modal Body */}
-        <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col md:flex-row overflow-hidden">
           
           {/* Left / Sidebar Column: Cases List */}
           <div className="w-full md:w-80 lg:w-96 bg-white border-l border-slate-100 flex flex-col">
