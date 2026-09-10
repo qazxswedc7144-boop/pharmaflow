@@ -114,8 +114,8 @@ export const SubscriptionWelcomeModal: React.FC<SubscriptionWelcomeModalProps> =
                 <h2 className="text-base sm:text-xl font-black text-slate-900 dark:text-white tracking-tight">
                   مرحباً بك في PharmaFlow Pro
                 </h2>
-                <p className="text-[10.5px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1">
-                  تم تهيئة منصة الإدارة السحابية الموحدة لصيدليتك مع تجربة مجانية تامة الصلاحيات
+                <p className="text-[10.5px] sm:text-xs font-semibold text-slate-500 dark:text-slate-400 mt-1 whitespace-normal">
+                  نظامك السيادي لإدارة الصيدليات جاهز للعمل.. استكشف كافة المزايا عبر التجربة المجانية.
                 </p>
               </div>
             </div>
