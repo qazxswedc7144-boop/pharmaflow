@@ -86,14 +86,8 @@ function getOfflineProxy(): PrismaClient {
     get: (_target, prop) => {
       if (prop === '$connect' || prop === '$disconnect') return async () => {};
       if (prop === '$transaction') {
-        return async (arg: any) => {
-          if (typeof arg === 'function') {
-            return await arg(getOfflineProxy());
-          }
-          if (Array.isArray(arg)) {
-            return await Promise.all(arg);
-          }
-          return [];
+        return async () => {
+          throw new OfflineDatabaseError('Prisma', '$transaction');
         };
       }
       if (prop === '$queryRaw' || prop === '$executeRaw' || prop === '$executeRawUnsafe' || prop === '$queryRawUnsafe') {
@@ -133,7 +127,7 @@ function getOfflineProxy(): PrismaClient {
 // Resilient wrapper with exponential backoff and auto-reconnection
 async function withRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
   if (isDatabaseDisabled || (disabledUntil > 0 && Date.now() < disabledUntil)) {
-    return await operation();
+    return handleOfflineFallback<T>(operationName);
   }
 
   for (let i = 0; i < MAX_RETRIES; i++) {

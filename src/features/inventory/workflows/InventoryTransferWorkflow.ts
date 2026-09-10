@@ -113,10 +113,6 @@ export class InventoryTransferWorkflow implements BusinessWorkflow<InventoryTran
           transactionUuid: `${transferId}-${item.productId}`,
           notes: input.notes || `تحويل مخزني فوري من ${input.sourceBranchId} إلى ${input.targetBranchId}`
         });
-
-        // Update branchInventory projection
-        await this.syncBranchInventory(input.sourceBranchId, item.productId, -item.qty);
-        await this.syncBranchInventory(input.targetBranchId, item.productId, item.qty);
       }
     }
 
@@ -132,36 +128,6 @@ export class InventoryTransferWorkflow implements BusinessWorkflow<InventoryTran
       transferId,
       status: initialStatus
     };
-  }
-
-  private async syncBranchInventory(branchId: string, productId: string, delta: number): Promise<void> {
-    try {
-      const inv = await db.db.branchInventory
-        .where('[branchId+productId]')
-        .equals([branchId, productId])
-        .first();
-
-      const now = new Date().toISOString();
-      if (inv && inv.id) {
-        await db.db.branchInventory.update(inv.id, {
-          stockQuantity: Math.max(0, inv.stockQuantity + delta),
-          updatedAt: now
-        });
-      } else {
-        await db.db.branchInventory.add({
-          id: `INV-${branchId}-${productId}`,
-          branchId,
-          productId,
-          stockQuantity: Math.max(0, delta),
-          reorderPoint: 10,
-          reorderQuantity: 50,
-          createdAt: now,
-          updatedAt: now
-        });
-      }
-    } catch (e) {
-      console.warn('[InventoryTransferWorkflow] syncBranchInventory projection update notice:', e);
-    }
   }
 }
 

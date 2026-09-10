@@ -222,7 +222,7 @@ aiRouter.post("/generate-content", authenticateToken, async (req: AuthenticatedR
     }
 
     const client = await getAiClient();
-    const selectedModel = model === "gemini-flash-latest" ? "gemini-3.6-flash" : (model || "gemini-3.6-flash");
+    const selectedModel = model === "gemini-flash-latest" ? "gemini-3.8-flash" : (model || "gemini-3.8-flash");
 
     // Format content list securely
     let apiContents: any = contents;
@@ -353,7 +353,7 @@ aiRouter.post("/generate", authenticateToken, async (req: AuthenticatedRequest, 
     }
 
     const client = await getAiClient();
-    const targetModel = model || "gemini-3.6-flash";
+    const targetModel = model || "gemini-3.8-flash";
 
     const response = await client.models.generateContent({
       model: targetModel,
@@ -467,7 +467,7 @@ aiRouter.post("/stream", authenticateToken, async (req: AuthenticatedRequest, re
     }
 
     const client = await getAiClient();
-    const targetModel = model || "gemini-3.6-flash";
+    const targetModel = model || "gemini-3.8-flash";
 
     res.setHeader("Content-Type", "text/event-stream");
     res.setHeader("Cache-Control", "no-cache");
@@ -550,7 +550,7 @@ aiRouter.post("/test-key", authenticateToken, async (req: AuthenticatedRequest, 
     });
 
     const response = await client.models.generateContent({
-      model: "gemini-3.5-flash",
+      model: "gemini-3.8-flash",
       contents: "Say 'Success' briefly in Arabic.",
       config: {
         systemInstruction: "You are testing the AI client connection. Answer in exactly 1-2 words in Arabic."
@@ -563,10 +563,10 @@ aiRouter.post("/test-key", authenticateToken, async (req: AuthenticatedRequest, 
         data: {
           tenantId,
           userId,
-          model: "gemini-3.5-flash",
+          model: "gemini-3.8-flash",
           tokensIn: 5,
           tokensOut: 5,
-          estimatedCost: calculateCost(5, 5, "gemini-3.5-flash"),
+          estimatedCost: calculateCost(5, 5, "gemini-3.8-flash"),
         }
       });
     } catch (logErr) {

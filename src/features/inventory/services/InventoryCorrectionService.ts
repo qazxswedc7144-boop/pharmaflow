@@ -447,380 +447,54 @@ export class InventoryCorrectionService {
     try {
       await db.safeTransaction('rw', txTables, async () => {
         // --- STEP A: Perform Specific Correction Action ---
+        const engine = (await import('./UnifiedInventoryMutationEngine')).unifiedInventoryMutationEngine;
+
         switch (proposal.actionType) {
-          
-          // Case 1: PHYSICAL_COUNT_ADJUSTMENT & RESOLVE_NEGATIVE_STOCK
           case 'PHYSICAL_COUNT_ADJUSTMENT':
           case 'RESOLVE_NEGATIVE_STOCK': {
             const targetQty = Number(proposal.proposedQty);
-            const preAudit = await InventoryReconciliationService.auditProduct(
-              currentCase.productId,
-              { tenantId, branchId: branchId || undefined }
-            );
-            const currentBook = preAudit.bookBalance;
-            const bookDiff = targetQty - currentBook;
-            const stockDiff = targetQty - beforeStock;
-
-            if (bookDiff !== 0) {
-              const txId = db.generateId('ITX');
-              generatedInventoryTransactionId = txId;
-
-              // 1. Record formal Inventory Transaction for book balance adjustment
-              await db.inventoryTransactions.add({
-                id: txId,
-                productId: currentCase.productId,
-                product_id: currentCase.productId,
-                warehouseId: proposal.targetWarehouseId || 'WH-MAIN',
-                warehouse_id: proposal.targetWarehouseId || 'WH-MAIN',
-                quantityChange: bookDiff,
-                QuantityChange: bookDiff,
-                change_quantity: bookDiff,
-                changeQty: bookDiff,
-                transactionType: 'INVENTORY_COUNT',
-                TransactionType: 'INVENTORY_COUNT',
-                type: 'INVENTORY_COUNT',
-                sourceDocId: refId,
-                source_doc_id: refId,
-                sourceDocType: 'CORRECTION_CASE',
-                reason: proposal.reason,
-                notes: `تسوية جردية رسمية بموجب القضية ${currentCase.caseNumber}: ${proposal.reason}`,
-                transactionDate: now,
-                created_at: now,
-                tenantId,
-                branchId,
-                userId: executor.userId
-              });
-            }
-
-            // 2. Create Balanced Double-Entry Accounting Entry
-            const costPrice = Number(beforeProduct?.CostPrice || beforeProduct?.cost || 0);
-            const accountingDiff = bookDiff !== 0 ? bookDiff : stockDiff;
-            const totalValue = Math.abs(accountingDiff * costPrice);
-            const entryId = db.generateId('JE');
-            generatedJournalEntryId = entryId;
-
-            const invAcc = 'ACC-104-INVENTORY';
-            const gainAcc = 'ACC-403-INV-GAIN';
-            const lossAcc = 'ACC-504-INV-LOSS';
-
-            const lines: any[] = [];
-            if (accountingDiff >= 0) {
-              // Gain: Debit Inventory (+Asset), Credit Inventory Gain (+Revenue)
-              lines.push({
-                id: db.generateId('JL'),
-                entryId,
-                accountId: invAcc,
-                debit: totalValue,
-                credit: 0,
-                description: `تسوية زيادة مخزنية للصنف ${currentCase.productName} | ${currentCase.caseNumber}`
-              });
-              lines.push({
-                id: db.generateId('JL'),
-                entryId,
-                accountId: gainAcc,
-                debit: 0,
-                credit: totalValue,
-                description: `أرباح تسويات مخزنية للصنف ${currentCase.productName} | ${currentCase.caseNumber}`
-              });
-            } else {
-              // Loss: Debit Inventory Loss (+Expense), Credit Inventory (-Asset)
-              lines.push({
-                id: db.generateId('JL'),
-                entryId,
-                accountId: lossAcc,
-                debit: totalValue,
-                credit: 0,
-                description: `خسائر عجز مخزني للصنف ${currentCase.productName} | ${currentCase.caseNumber}`
-              });
-              lines.push({
-                id: db.generateId('JL'),
-                entryId,
-                accountId: invAcc,
-                debit: 0,
-                credit: totalValue,
-                description: `تسوية نقص مخزني للصنف ${currentCase.productName} | ${currentCase.caseNumber}`
-              });
-            }
-
-            await db.journalEntries.add({
-              id: entryId,
-              date: now,
-              description: `قيد تسوية مخزنية معتمد - قضية ${currentCase.caseNumber} (${proposal.reason})`,
-              totalAmount: totalValue,
-              status: 'POSTED',
-              sourceId: currentCase.productId,
-              sourceType: 'INVENTORY_ADJUSTMENT',
-              referenceId: refId,
-              tenantId,
-              branchId,
-              lines,
-              createdAt: now
-            });
-
-            // 3. Record Stock Movement
-            const moveId = db.generateId('SM');
-            generatedStockMovementId = moveId;
-            await db.stock_movements.add({
-              id: moveId,
-              item_id: currentCase.productId,
-              product_id: currentCase.productId,
-              type: 'ADJUSTMENT',
-              movement_type: 'ADJUSTMENT',
-              quantity: Math.abs(stockDiff !== 0 ? stockDiff : bookDiff),
-              quantity_before: beforeStock,
-              quantity_after: targetQty,
-              unit_cost: costPrice,
-              reference_id: refId,
-              sourceDocId: refId,
+            
+            const mutationResult = await engine.executeCorrection({
+              caseId: currentCase.id,
+              productId: currentCase.productId,
+              warehouseId: proposal.targetWarehouseId || 'WH-MAIN',
+              proposedQty: targetQty,
               reason: proposal.reason,
-              created_at: now,
-              tenantId,
-              branchId
+              approverId: executor.userId,
+              userId: executor.userId,
+              tenantId: tenantId,
+              branchId: branchId || undefined,
+              transactionUuid: finalIdempotencyKey,
+              notes: proposal.reason
             });
 
-            // 4. Update Product Master Stock Safely
-            await db.products.update(currentCase.productId, {
-              stock: targetQty,
-              StockQuantity: targetQty,
-              stock_qty: targetQty,
-              updatedAt: now
-            });
-
-            // 5. Update Warehouse Stock
-            const ws = await db.warehouseStock
-              .where('[warehouseId+productId]')
-              .equals([proposal.targetWarehouseId || 'WH-MAIN', currentCase.productId])
-              .first();
-
-            if (ws) {
-              await db.warehouseStock.update(ws.id, {
-                quantity: targetQty,
-                lastUpdated: now
-              });
-            } else {
-              await db.warehouseStock.add({
-                id: db.generateId('WHS'),
-                warehouseId: proposal.targetWarehouseId || 'WH-MAIN',
-                productId: currentCase.productId,
-                quantity: targetQty,
-                lastUpdated: now,
-                tenantId,
-                branchId
-              });
-            }
-
-            // 6. Ensure Layer sync if necessary
-            if (beforeLayers.length === 0 && targetQty > 0) {
-              await db.inventory_layers.add({
-                id: `LAY-ADJ-${Date.now()}`,
-                item_id: currentCase.productId,
-                productId: currentCase.productId,
-                quantity: targetQty,
-                quantity_remaining: targetQty,
-                remaining_qty: targetQty,
-                unit_cost: costPrice,
-                reference_id: refId,
-                created_at: now,
-                tenant_id: tenantId,
-                tenantId
-              });
-            }
+            generatedInventoryTransactionId = mutationResult.transactionId;
             break;
           }
 
-          // Case 2: ALIGN_LAYERS_ADJUSTMENT (Align FIFO layers with master stock)
-          case 'ALIGN_LAYERS_ADJUSTMENT': {
-            const costPrice = Number(beforeProduct?.CostPrice || beforeProduct?.cost || 0);
-            const targetQty = proposal.proposedQty !== undefined ? Number(proposal.proposedQty) : beforeStock;
-            const activeLayers = beforeLayers.filter((l: any) => Number(l.quantity_remaining ?? l.remaining_qty ?? 0) > 0);
-            const layersSum = activeLayers.reduce((s: number, l: any) => s + Number(l.quantity_remaining ?? l.remaining_qty ?? 0), 0);
-            const layerDiff = targetQty - layersSum;
-
-            if (layerDiff > 0) {
-              // Add balancing layer
-              await db.inventory_layers.add({
-                id: `LAY-ALIGN-${Date.now()}`,
-                item_id: currentCase.productId,
-                productId: currentCase.productId,
-                quantity: layerDiff,
-                quantity_remaining: layerDiff,
-                remaining_qty: layerDiff,
-                unit_cost: costPrice,
-                reference_id: refId,
-                created_at: now,
-                tenant_id: tenantId,
-                tenantId
-              });
-            } else if (layerDiff < 0) {
-              // Consume excess layer quantity in FIFO order
-              let neededDeduction = Math.abs(layerDiff);
-              for (const layer of activeLayers) {
-                if (neededDeduction <= 0) break;
-                const rem = Number(layer.quantity_remaining ?? layer.remaining_qty ?? 0);
-                if (rem <= neededDeduction) {
-                  await db.inventory_layers.update(layer.id, {
-                    quantity_remaining: 0,
-                    remaining_qty: 0,
-                    lastModified: now
-                  });
-                  neededDeduction -= rem;
-                } else {
-                  await db.inventory_layers.update(layer.id, {
-                    quantity_remaining: rem - neededDeduction,
-                    remaining_qty: rem - neededDeduction,
-                    lastModified: now
-                  });
-                  neededDeduction = 0;
-                }
-              }
-            }
-
-            // Log movement
-            const moveId = db.generateId('SM');
-            generatedStockMovementId = moveId;
-            await db.stock_movements.add({
-              id: moveId,
-              item_id: currentCase.productId,
-              product_id: currentCase.productId,
-              type: 'ADJUSTMENT',
-              movement_type: 'ADJUSTMENT',
-              quantity: Math.abs(layerDiff),
-              quantity_before: layersSum,
-              quantity_after: targetQty,
-              unit_cost: costPrice,
-              reference_id: refId,
-              reason: `مواءمة وتصحيح طبقات الـ FIFO بموجب القضية ${currentCase.caseNumber}`,
-              created_at: now,
-              tenantId,
-              branchId
-            });
-            break;
-          }
-
-          // Case 3: QUARANTINE_EXPIRED_BATCH (Zero out expired active layer with documented loss)
-          case 'QUARANTINE_EXPIRED_BATCH': {
-            const costPrice = Number(beforeProduct?.CostPrice || beforeProduct?.cost || 0);
-            const expiredLayers = beforeLayers.filter((l: any) => {
-              const rem = Number(l.quantity_remaining ?? l.remaining_qty ?? 0);
-              const exp = l.expiry_date || l.expiryDate;
-              return rem > 0 && exp && new Date(exp) < new Date();
-            });
-
-            let expiredQty = 0;
-            for (const el of expiredLayers) {
-              const rem = Number(el.quantity_remaining ?? el.remaining_qty ?? 0);
-              expiredQty += rem;
-              await db.inventory_layers.update(el.id, {
-                quantity_remaining: 0,
-                remaining_qty: 0,
-                is_quarantined: true,
-                quarantine_reason: proposal.reason,
-                lastModified: now
-              });
-            }
-
-            if (expiredQty > 0) {
-              // Deduct from master stock
-              const newMasterStock = Math.max(0, beforeStock - expiredQty);
-              await db.products.update(currentCase.productId, {
-                stock: newMasterStock,
-                StockQuantity: newMasterStock,
-                stock_qty: newMasterStock,
-                updatedAt: now
-              });
-
-              // Record damage transaction
-              const txId = db.generateId('ITX');
-              generatedInventoryTransactionId = txId;
-              await db.inventoryTransactions.add({
-                id: txId,
-                productId: currentCase.productId,
-                product_id: currentCase.productId,
-                warehouseId: proposal.targetWarehouseId || 'WH-MAIN',
-                quantityChange: -expiredQty,
-                QuantityChange: -expiredQty,
-                change_quantity: -expiredQty,
-                changeQty: -expiredQty,
-                transactionType: 'DAMAGE',
-                TransactionType: 'DAMAGE',
-                type: 'DAMAGE',
-                sourceDocId: refId,
-                reason: `عزل وإعدام دفعات منتهية الصلاحية: ${proposal.reason}`,
-                transactionDate: now,
-                created_at: now,
-                tenantId,
-                branchId,
-                userId: executor.userId
-              });
-
-              // Loss Journal Entry
-              const lossValue = expiredQty * costPrice;
-              const entryId = db.generateId('JE');
-              generatedJournalEntryId = entryId;
-              await db.journalEntries.add({
-                id: entryId,
-                date: now,
-                description: `قيد إعدام وعزل مخزون منتهي الصلاحية - قضية ${currentCase.caseNumber}`,
-                totalAmount: lossValue,
-                status: 'POSTED',
-                sourceId: currentCase.productId,
-                sourceType: 'INVENTORY_SPOILAGE',
-                referenceId: refId,
-                tenantId,
-                branchId,
-                lines: [
-                  {
-                    id: db.generateId('JL'),
-                    entryId,
-                    accountId: 'ACC-504-INV-LOSS',
-                    debit: lossValue,
-                    credit: 0,
-                    description: `خسائر مخزون منتهي الصلاحية للصنف ${currentCase.productName}`
-                  },
-                  {
-                    id: db.generateId('JL'),
-                    entryId,
-                    accountId: 'ACC-104-INVENTORY',
-                    debit: 0,
-                    credit: lossValue,
-                    description: `تخفيض المخزون بسبب انتهاء الصلاحية للصنف ${currentCase.productName}`
-                  }
-                ],
-                createdAt: now
-              });
-            }
-            break;
-          }
-
-          // Case 4: LINK_ORPHAN_DOCUMENT
-          case 'LINK_ORPHAN_DOCUMENT': {
-            if (proposal.referenceDocId) {
-              const movements = await db.stock_movements.toArray();
-              const orphan = movements.find((m: any) => m.id === proposal.referenceDocId || m.reference_id === proposal.referenceDocId);
-              if (orphan) {
-                await db.stock_movements.update(orphan.id, {
-                  item_id: currentCase.productId,
-                  product_id: currentCase.productId,
-                  sourceDocId: proposal.referenceDocId,
-                  notes: `تم ربط الحركة اليتيمة بالصنف بموجب القضية ${currentCase.caseNumber}`
-                });
-              }
-            }
-            break;
-          }
-
-          // Case 5: RECONCILE_UNLINKED_RETURN
+          case 'ALIGN_LAYERS_ADJUSTMENT':
+          case 'QUARANTINE_EXPIRED_BATCH':
+          case 'BATCH_EXPIRY_REHABILITATION':
+          case 'MANUAL_LEDGER_SYNC':
+          case 'LINK_ORPHAN_DOCUMENT':
           case 'RECONCILE_UNLINKED_RETURN': {
-            if (proposal.referenceDocId) {
-              const inv = await db.invoices.get(proposal.referenceDocId);
-              if (inv) {
-                await db.invoices.update(inv.id, {
-                  isReturn: true,
-                  document_status: 'POSTED',
-                  notes: `${inv.notes || ''} | تم ربط المرتجع وتسويته مع القضية ${currentCase.caseNumber}`
-                });
-              }
-            }
+            const targetQty = proposal.proposedQty !== undefined ? Number(proposal.proposedQty) : beforeStock;
+            
+            const mutationResult = await engine.executeCorrection({
+              caseId: currentCase.id,
+              productId: currentCase.productId,
+              warehouseId: proposal.targetWarehouseId || 'WH-MAIN',
+              proposedQty: targetQty,
+              reason: proposal.reason,
+              approverId: executor.userId,
+              userId: executor.userId,
+              tenantId: tenantId,
+              branchId: branchId || undefined,
+              transactionUuid: finalIdempotencyKey,
+              notes: proposal.reason
+            });
+
+            generatedInventoryTransactionId = mutationResult.transactionId;
             break;
           }
         }

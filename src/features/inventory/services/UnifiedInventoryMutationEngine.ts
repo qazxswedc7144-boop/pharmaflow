@@ -384,7 +384,7 @@ export class UnifiedInventoryMutationEngine {
         unitCost: resolvedCost,
         userId: command.userId,
         tenantId: command.tenantId,
-        branchId: command.branchId,
+        branchId: command.targetBranchId || command.branchId,
         idempotencyKey: targetKey,
         notes: command.notes || `استلام تحويل مخزني من ${command.fromWarehouseId} (مستند #${command.transferId})`,
         timestamp
@@ -790,6 +790,33 @@ export class UnifiedInventoryMutationEngine {
       });
     }
 
+    // 13. Update Branch Inventory Projection (branchInventory[branchId+productId].stockQuantity)
+    const activeBranchId = branchId || 'BR-MAIN';
+    const brInv = await db.branchInventory
+      .where('[branchId+productId]')
+      .equals([activeBranchId, productId])
+      .first();
+
+    if (brInv) {
+      const newBrQty = Math.max(0, (brInv.stockQuantity || 0) + delta);
+      await db.branchInventory.update(brInv.id, {
+        stockQuantity: newBrQty,
+        updatedAt: timestamp
+      });
+    } else {
+      await db.branchInventory.add({
+        id: `INV-${activeBranchId}-${productId}`,
+        branchId: activeBranchId,
+        productId,
+        stockQuantity: Math.max(0, delta),
+        reorderPoint: 10,
+        reorderQuantity: 50,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+        tenantId: tenantId || 'TEN-DEV-001'
+      });
+    }
+
     return {
       success: true,
       transactionId: txId,
@@ -812,6 +839,7 @@ export class UnifiedInventoryMutationEngine {
       'products',
       'inventoryTransactions',
       'warehouseStock',
+      'branchInventory',
       'inventory_layers',
       'fifo_consumption_log',
       'medicineBatches',

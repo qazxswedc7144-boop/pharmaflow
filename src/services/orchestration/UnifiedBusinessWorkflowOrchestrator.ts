@@ -2,8 +2,6 @@ import { db } from '@/core/db';
 import { InvoiceItem, InvoiceStatus, Receipt, Payment, TransferStatus, JournalLine } from '@/types';
 import { TransactionService } from '@/services/transactions/TransactionService';
 import { FaultService } from '@/services/integrity/FaultService';
-import { FIFOEngine as fifoEngine } from '@features/inventory/services/fifoEngine';
-import { StockMovementEngine as stockEngine } from '@features/inventory/services/stockMovementEngine';
 import { InvoiceRepository } from '@/database/repositories/invoice.repository';
 import { AccountingRepository } from '@/database/repositories/AccountingRepository';
 import { FinancialTransactionRepository } from '@/database/repositories/FinancialTransactionRepository';
@@ -453,7 +451,7 @@ export class UnifiedBusinessWorkflowOrchestrator {
                 notes: `شحن تحويل مخزني من الفرع ${rawTransfer.sourceBranchId} إلى الفرع ${rawTransfer.targetBranchId}`
               });
 
-              await this.updateBranchStockQty(rawTransfer.sourceBranchId, item.productId, -item.qty);
+              // branchInventory is now canonically handled by the mutation engine
             }
           } else if (newStatus === "RECEIVED") {
             rawTransfer.receivedBy = updatedBy;
@@ -485,7 +483,7 @@ export class UnifiedBusinessWorkflowOrchestrator {
                 notes: `استلام تحويل مخزني بالفرع ${rawTransfer.targetBranchId} من الفرع ${rawTransfer.sourceBranchId}`
               });
 
-              await this.updateBranchStockQty(rawTransfer.targetBranchId, item.productId, recQty);
+              // branchInventory is now canonically handled by the mutation engine
             }
           } else if (newStatus === "CANCELLED") {
             if (previousStatus === "IN_TRANSIT") {
@@ -509,7 +507,7 @@ export class UnifiedBusinessWorkflowOrchestrator {
                   notes: `إلغاء تحويل مخزني واستعادة الكمية للفرع ${rawTransfer.sourceBranchId}`
                 });
 
-                await this.updateBranchStockQty(rawTransfer.sourceBranchId, item.productId, item.qty);
+                // branchInventory is now canonically handled by the mutation engine
               }
             }
           }
@@ -561,8 +559,15 @@ export class UnifiedBusinessWorkflowOrchestrator {
 
         await AccountingRepository.deleteEntriesBySource(invoiceId);
 
-        await stockEngine.reverseMovements(invoiceId);
-        await fifoEngine.reverseFIFO(invoiceId);
+        // 🚨 MIGRATE: Replace legacy destructive deletions with canonical compensating movements
+        await unifiedInventoryMutationEngine.executeReversal({
+          originalDocumentId: invoiceId,
+          originalDocumentType: type === 'SALE' ? 'SALE' : 'PURCHASE',
+          reason: `إلغاء ترحيل الفاتورة رقم ${invoiceId}`,
+          userId: user?.id || 'admin',
+          tenantId: user?.tenantId || 'TEN-DEV-001',
+          transactionUuid: `UNPOST-${invoiceId}-${Date.now()}`
+        });
 
         const total = (invoice as any).finalTotal || (invoice as any).totalAmount;
         const partnerId = type === 'SALE' ? (invoice as any).customerId : (invoice as any).partnerId;
@@ -693,32 +698,5 @@ export class UnifiedBusinessWorkflowOrchestrator {
       type: debit > 0 ? 'DEBIT' : 'CREDIT',
       amount: debit > 0 ? debit : credit
     };
-  }
-
-  private static async updateBranchStockQty(branchId: string, productId: string, deltaQty: number): Promise<void> {
-    const inv = await db.db.branchInventory
-      .where('[branchId+productId]')
-      .equals([branchId, productId])
-      .first();
-
-    const now = new Date().toISOString();
-    if (inv && inv.id) {
-      const newQty = Math.max(0, inv.stockQuantity + deltaQty);
-      await db.db.branchInventory.update(inv.id, {
-        stockQuantity: newQty,
-        updatedAt: now
-      });
-    } else {
-      await db.db.branchInventory.add({
-        id: `INV-${branchId}-${productId}`,
-        branchId,
-        productId,
-        stockQuantity: Math.max(0, deltaQty),
-        reorderPoint: 10,
-        reorderQuantity: 50,
-        createdAt: now,
-        updatedAt: now
-      });
-    }
   }
 }

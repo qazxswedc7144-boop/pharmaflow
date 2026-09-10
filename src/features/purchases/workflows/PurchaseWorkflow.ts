@@ -40,6 +40,7 @@ export class PurchaseWorkflow implements BusinessWorkflow<PurchaseWorkflowInput,
   public tables = [
     'invoices', 'invoiceItems', 'products', 'inventoryTransactions',
     'inventory_layers', 'fifo_consumption_log', 'warehouseStock',
+    'branchInventory',
     'medicineBatches', 'stock_movements', 'suppliers', 'journalEntries',
     'journalLines', 'accounts', 'financialTransactions', 'auditLogs',
     'idempotencyKeys', 'projectionEvents', 'projectionCheckpoints',

@@ -25,6 +25,7 @@ export class WorkflowExecutionPipeline {
     const startTime = Date.now();
     const tables = workflow.tables || [
       'invoices', 'invoiceItems', 'products', 'inventoryTransactions',
+      'warehouseStock', 'branchInventory', 'medicineBatches',
       'inventory_layers', 'journalEntries', 'journalLines', 'accounts',
       'financialTransactions', 'auditLogs', 'idempotencyKeys', 'projectionEvents'
     ];

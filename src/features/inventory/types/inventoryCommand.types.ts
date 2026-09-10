@@ -76,6 +76,8 @@ export interface TransferWarehouseStockCommand extends BaseInventoryCommand {
   transferId: string;
   fromWarehouseId: string;
   toWarehouseId: string;
+  /** Optional target branch for inter-branch transfers */
+  targetBranchId?: string;
   productId: string;
   quantity: number;
   batchId?: string;

@@ -24,7 +24,9 @@ export type CorrectionActionType =
   | 'QUARANTINE_EXPIRED_BATCH'
   | 'RESOLVE_NEGATIVE_STOCK'
   | 'LINK_ORPHAN_DOCUMENT'
-  | 'RECONCILE_UNLINKED_RETURN';
+  | 'RECONCILE_UNLINKED_RETURN'
+  | 'BATCH_EXPIRY_REHABILITATION'
+  | 'MANUAL_LEDGER_SYNC';
 
 export interface CorrectionProposal {
   actionType: CorrectionActionType;
