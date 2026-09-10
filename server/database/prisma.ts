@@ -6,7 +6,7 @@ const INITIAL_DELAY = 1000;
 
 export class OfflineDatabaseError extends Error {
   constructor(model: string, operation: string) {
-    super(`Database unavailable. Cannot perform ${operation} on ${model}.`);
+    super(`Database unavailable (Can't reach database). Cannot perform ${operation} on ${model}.`);
     this.name = 'OfflineDatabaseError';
   }
 }
@@ -56,6 +56,10 @@ function isConnectionError(err: any): boolean {
 }
 
 function handleOfflineFallback<T>(operationName: string): T {
+  if (operationName === '$transaction') {
+    throw new OfflineDatabaseError('Prisma', '$transaction');
+  }
+
   const parts = operationName.split('.');
   const modelProp = parts[1] || parts[0] || '';
 
@@ -129,7 +133,7 @@ function getOfflineProxy(): PrismaClient {
 // Resilient wrapper with exponential backoff and auto-reconnection
 async function withRetry<T>(operation: () => Promise<T>, operationName: string): Promise<T> {
   if (isDatabaseDisabled || (disabledUntil > 0 && Date.now() < disabledUntil)) {
-    return handleOfflineFallback<T>(operationName);
+    return await operation();
   }
 
   for (let i = 0; i < MAX_RETRIES; i++) {
