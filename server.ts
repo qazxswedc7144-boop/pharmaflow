@@ -110,7 +110,8 @@ async function startServer() {
     }, 100);
   }
 
-  const PORT = 3000;
+  const PORT = (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000) || 3000;
+  console.log(`[BOOT] Server configured to listen on PORT: ${PORT} (env.PORT: ${process.env.PORT || 'not set'})`);
   
   // Clean up any stale processes in development if needed
   if (process.env.NODE_ENV !== "production") {

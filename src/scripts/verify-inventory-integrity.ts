@@ -8,7 +8,6 @@ import 'fake-indexeddb/auto';
 import { db } from '../core/db';
 import { unifiedInventoryMutationEngine } from '../features/inventory/services/UnifiedInventoryMutationEngine';
 import { AutoJournalMapper } from '../features/accounting/services/AutoJournalMapper';
-import { InventoryCorrectionService } from '../features/inventory/services/InventoryCorrectionService';
 import { UnifiedBusinessWorkflowOrchestrator } from '../services/orchestration/UnifiedBusinessWorkflowOrchestrator';
 import { configurationService } from '../services/config/configurationService';
 import { TokenProvider } from '../services/auth/tokenProvider';
@@ -102,7 +101,7 @@ async function runTests() {
     type: 'PURCHASE',
     payload: {
       id: purchaseId,
-      items: [{ productId: 'PROD-TEST', qty: 100, price: 10, batchId: 'BATCH-001' }],
+      items: [{ productId: 'PROD-TEST', qty: 100, price: 10, batchId: 'BATCH-001' }] as any,
       total: 1000,
       date: new Date().toISOString()
     },
@@ -123,7 +122,7 @@ async function runTests() {
     type: 'SALE',
     payload: {
       id: saleId,
-      items: [{ productId: 'PROD-TEST', qty: 40, price: 20 }],
+      items: [{ productId: 'PROD-TEST', qty: 40, price: 20 }] as any,
       total: 800,
       date: new Date().toISOString()
     },
@@ -184,7 +183,7 @@ async function runTests() {
   const preFailureStock = (await db.products.get('PROD-TEST'))?.stock || 0;
   try {
     await db.safeTransaction('rw', ['products', 'inventoryTransactions'], async () => {
-      await unifiedInventoryMutationEngine.mutateSingleItem({
+      await unifiedInventoryMutationEngine.executeMutation({
         productId: 'PROD-TEST',
         warehouseId: 'WH-MAIN',
         delta: -10,
@@ -193,9 +192,8 @@ async function runTests() {
         movementType: 'SALE',
         userId: TEST_USER,
         tenantId: TEST_TENANT,
-        idempotencyKey: 'FAIL-KEY-1',
-        timestamp: new Date().toISOString()
-      } as any);
+        transactionUuid: 'FAIL-KEY-1'
+      });
       
       throw new Error('INTENTIONAL_FAILURE_FOR_ROLLBACK');
     });

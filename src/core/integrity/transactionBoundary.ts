@@ -4,6 +4,7 @@ export class TransactionBoundary {
   /**
    * Runs an operation inside a strict, atomic database transaction boundary.
    * If any step fails, Dexie rolls back all table writes in the transaction.
+   * NO direct execution fallback is permitted for atomic operations.
    */
   public static async executeAtomic<T>(
     tables: string[],
@@ -22,28 +23,13 @@ export class TransactionBoundary {
     const validTables = tables.filter((t) => existingNames.includes(t));
 
     if (validTables.length === 0) {
-      return await operation();
+      throw new Error('[TransactionBoundary] No valid transaction tables found in schema scope.');
     }
 
-    let opThrew = false;
-    let thrownError: any = null;
-
-    try {
-      return await (db as any).safeTransaction('rw', validTables, async () => {
-        try {
-          return await operation();
-        } catch (opErr) {
-          opThrew = true;
-          thrownError = opErr;
-          throw opErr;
-        }
-      });
-    } catch (err) {
-      if (opThrew) {
-        throw thrownError;
-      }
-      console.warn('[TransactionBoundary] Transaction boundary fallback to direct execution:', err);
+    // Execute strictly via atomic transaction wrapper. Any error throws and aborts transaction.
+    return await (db as any).safeTransaction('rw', validTables, async () => {
       return await operation();
-    }
+    });
   }
 }
+

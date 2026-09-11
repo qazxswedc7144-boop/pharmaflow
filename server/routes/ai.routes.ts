@@ -126,6 +126,12 @@ function calculateCost(tokensIn: number, tokensOut: number, model: string): numb
  */
 function sanitizeError(error: any): string {
   const errMsg = error?.message || String(error);
+  if (errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota") || errMsg.includes("Quota exceeded") || errMsg.includes("tokens_per_model")) {
+    return "تم تجاوز حد الاستخدام المسموح لخدمة الذكاء الاصطناعي مؤقتاً (Quota Exceeded / 429). يرجى المحاولة بعد قليل.";
+  }
+  if (errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("high demand") || errMsg.includes("overloaded") || errMsg.includes("Service Unavailable")) {
+    return "نموذج الذكاء الاصطناعي يواجه ضغطاً مؤقتاً حالياً (503). يرجى المحاولة بعد قليل.";
+  }
   let sanitized = errMsg
     .replace(/AI[-_]?KEY\s*=\s*[a-zA-Z0-9-_]+/gi, "AI_KEY=[REDACTED]")
     .replace(/AI[-_]?KEY/gi, "AI_KEY")
@@ -139,6 +145,45 @@ function sanitizeError(error: any): string {
     return "فشل نظام التحليلات الذكي في إكمال الطلب بسبب خطأ اتصال داخلي آمن.";
   }
   return sanitized;
+}
+
+async function callGeminiWithRetry(client: any, options: any, maxRetries = 2): Promise<any> {
+  const modelsToTry = [
+    options.model,
+    "gemini-3.6-flash",
+    "gemini-3.8-flash",
+    "gemini-flash-latest"
+  ].filter(Boolean);
+  const uniqueModels = Array.from(new Set(modelsToTry));
+
+  let lastError: any = null;
+  for (const m of uniqueModels) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await client.models.generateContent({
+          ...options,
+          model: m
+        });
+      } catch (err: any) {
+        lastError = err;
+        const errMsg = err?.message || String(err);
+        const isQuotaExhausted = errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED") || errMsg.includes("quota") || errMsg.includes("Quota exceeded") || errMsg.includes("tokens_per_model");
+        if (isQuotaExhausted) {
+          throw new Error("تم تجاوز حد الاستخدام المسموح لخدمة الذكاء الاصطناعي مؤقتاً (Quota Exceeded / 429). يرجى المحاولة بعد قليل.");
+        }
+        const isUnavailable = errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("high demand") || errMsg.includes("overloaded") || errMsg.includes("Service Unavailable");
+        if (isUnavailable) {
+          if (attempt < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 800));
+            continue;
+          }
+        } else {
+          throw err;
+        }
+      }
+    }
+  }
+  throw lastError || new Error("الخدمة تواجه ضغطاً مؤقتاً حالياً (503). يرجى المحاولة بعد قليل.");
 }
 
 // 7. Google Play compliance directives for AI generated content in pharmaceutical ERPs
@@ -241,7 +286,7 @@ aiRouter.post("/generate-content", authenticateToken, async (req: AuthenticatedR
       finalSystemInstruction = `${GOOGLE_PLAY_COMPLIANCE_INSTRUCTION}\n\nUser Context Specific Instruction:\n${config.systemInstruction}`;
     }
 
-    const response = await client.models.generateContent({
+    const response = await callGeminiWithRetry(client, {
       model: selectedModel,
       contents: apiContents,
       config: {
@@ -355,7 +400,7 @@ aiRouter.post("/generate", authenticateToken, async (req: AuthenticatedRequest, 
     const client = await getAiClient();
     const targetModel = model || "gemini-3.8-flash";
 
-    const response = await client.models.generateContent({
+    const response = await callGeminiWithRetry(client, {
       model: targetModel,
       contents: prompt,
       config: {
@@ -549,7 +594,7 @@ aiRouter.post("/test-key", authenticateToken, async (req: AuthenticatedRequest, 
       }
     });
 
-    const response = await client.models.generateContent({
+    const response = await callGeminiWithRetry(client, {
       model: "gemini-3.8-flash",
       contents: "Say 'Success' briefly in Arabic.",
       config: {

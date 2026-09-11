@@ -836,13 +836,28 @@ export class ConsolidationService {
           - Do not praise or use sales hype. Keep it analytical and Swiss-school objective.
         `;
 
-        const response = await ai.models.generateContent({
-          model: "gemini-3.8-flash",
-          contents: prompt,
-          config: {
-            responseMimeType: "application/json",
-          },
-        });
+        const modelsList = ["gemini-3.6-flash", "gemini-3.8-flash", "gemini-flash-latest"];
+        let response: any = null;
+        let lastErr: any = null;
+
+        for (const m of modelsList) {
+          try {
+            response = await ai.models.generateContent({
+              model: m,
+              contents: prompt,
+              config: {
+                responseMimeType: "application/json",
+              },
+            });
+            break;
+          } catch (modelErr) {
+            lastErr = modelErr;
+          }
+        }
+
+        if (!response && lastErr) {
+          throw lastErr;
+        }
 
         generatedText = response.text || "";
         aiSuccess = true;

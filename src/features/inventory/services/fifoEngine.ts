@@ -1,7 +1,6 @@
 
 import { db } from '@/core/db';
 import { Sale, Purchase, UnifiedInvoice } from '@/types';
-import { unifiedInventoryMutationEngine } from './UnifiedInventoryMutationEngine';
 import { WorkerClient } from '@features/workers/worker.client';
 
 /**
@@ -11,82 +10,123 @@ import { WorkerClient } from '@features/workers/worker.client';
 export class FIFOEngine {
 
   /**
-   * ON PURCHASE: Create new layer
-   * 🚨 REDIRECTED to UnifiedInventoryMutationEngine
+   * ON PURCHASE: Create new layer directly in inventory_layers
    */
-  static async addPurchaseLayer(item_id: string, _quantity: number, _unit_cost: number, reference_id: string): Promise<void> {
-    console.warn(`[LEGACY BYPASS] FIFOEngine.addPurchaseLayer called for ${item_id}. Redirecting to canonical engine.`);
-    
-    await unifiedInventoryMutationEngine.executeMutation({
-      productId: item_id,
-      warehouseId: 'WH-MAIN',
-      delta: Math.abs(_quantity),
-      docType: 'PURCHASE',
-      docId: reference_id,
-      movementType: 'RECEIVE',
-      userId: 'system-fifo-adapter',
-      tenantId: 'TEN-DEV-001',
-      branchId: 'BR-MAIN',
-      transactionUuid: `FIFO-ADD-${reference_id}-${item_id}-${Date.now()}`,
-      unitCost: _unit_cost
+  static async addPurchaseLayer(item_id: string, quantity: number, unit_cost: number, reference_id: string): Promise<void> {
+    const layerId = db.generateId('LYR');
+    await db.inventory_layers.add({
+      id: layerId,
+      product_id: item_id,
+      item_id: item_id,
+      quantity_initial: Math.abs(quantity),
+      quantity_remaining: Math.abs(quantity),
+      unit_cost: unit_cost,
+      reference_id: reference_id,
+      purchase_id: reference_id,
+      created_at: new Date().toISOString(),
+      lastModified: new Date().toISOString()
     });
   }
 
   /**
-   * FIFO CONSUMPTION
-   * 🚨 REDIRECTED to UnifiedInventoryMutationEngine
+   * FIFO CONSUMPTION directly on inventory_layers and logging to fifo_consumption_log
    */
   static async consumeFIFO(sale_id: string, item_id: string, quantity: number): Promise<{ totalCost: number, unitCost: number }> {
-    console.warn(`[LEGACY BYPASS] FIFOEngine.consumeFIFO called for ${item_id}. Redirecting to canonical engine.`);
-    
-    await unifiedInventoryMutationEngine.executeMutation({
-      productId: item_id,
-      warehouseId: 'WH-MAIN',
-      delta: -Math.abs(quantity),
-      docType: 'SALE',
-      docId: sale_id,
-      movementType: 'DISPATCH',
-      userId: 'system-fifo-adapter',
-      tenantId: 'TEN-DEV-001',
-      branchId: 'BR-MAIN',
-      transactionUuid: `FIFO-CONS-${sale_id}-${item_id}-${Date.now()}`
-    });
+    const absQty = Math.abs(quantity);
+    const layers = await db.inventory_layers
+      .filter((l: any) => (l.item_id === item_id || l.product_id === item_id) && Number(l.quantity_remaining || 0) > 0)
+      .toArray();
 
-    return { totalCost: 0, unitCost: 0 }; 
+    // Sort by creation date (FIFO)
+    layers.sort((a, b) => new Date(a.created_at || a.createdAt || 0).getTime() - new Date(b.created_at || b.createdAt || 0).getTime());
+
+    let remainingToConsume = absQty;
+    let totalCost = 0;
+    let totalConsumed = 0;
+    const consumptionLogs: any[] = [];
+    const updatedLayers: any[] = [];
+
+    for (const layer of layers) {
+      if (remainingToConsume <= 0) break;
+      const available = Number(layer.quantity_remaining ?? layer.quantity_initial ?? 0);
+      if (available <= 0) continue;
+
+      const consumeQty = Math.min(available, remainingToConsume);
+      const layerCost = Number(layer.unit_cost ?? layer.unitCost ?? 0);
+
+      totalCost += consumeQty * layerCost;
+      totalConsumed += consumeQty;
+      remainingToConsume -= consumeQty;
+
+      const newRemaining = available - consumeQty;
+      updatedLayers.push({ id: layer.id, quantity_remaining: newRemaining });
+
+      consumptionLogs.push({
+        id: db.generateId('FCL'),
+        sale_id: sale_id,
+        invoice_id: sale_id,
+        layer_id: layer.id,
+        product_id: item_id,
+        item_id: item_id,
+        quantity_consumed: consumeQty,
+        unit_cost: layerCost,
+        created_at: new Date().toISOString()
+      });
+    }
+
+    for (const ul of updatedLayers) {
+      await db.inventory_layers.update(ul.id, {
+        quantity_remaining: ul.quantity_remaining,
+        lastModified: new Date().toISOString()
+      });
+    }
+
+    if (consumptionLogs.length > 0) {
+      await db.fifo_consumption_log.bulkAdd(consumptionLogs);
+    }
+
+    const unitCost = totalConsumed > 0 ? totalCost / totalConsumed : 0;
+    return { totalCost, unitCost };
   }
 
   /**
-   * ON UNPOST: Restore consumed quantities
-   * 🚨 REDIRECTED to UnifiedInventoryMutationEngine
+   * ON UNPOST: Restore consumed quantities from fifo_consumption_log
    */
   static async reverseFIFO(sale_id: string): Promise<void> {
-    console.warn(`[LEGACY BYPASS] FIFOEngine.reverseFIFO called for ${sale_id}. Redirecting to canonical engine.`);
-    
-    await unifiedInventoryMutationEngine.executeReversal({
-      originalDocumentId: sale_id,
-      originalDocumentType: 'SALE',
-      reason: `Legacy FIFO reversal for #${sale_id}`,
-      userId: 'system-fifo-adapter',
-      tenantId: 'TEN-DEV-001',
-      transactionUuid: `REVERSE-FIFO-${sale_id}-${Date.now()}`
-    });
+    const logs = await db.fifo_consumption_log
+      .filter((log: any) => log.sale_id === sale_id || log.invoice_id === sale_id)
+      .toArray();
+
+    for (const log of logs) {
+      const layer = await db.inventory_layers.get(log.layer_id);
+      if (layer) {
+        const currentRemaining = Number(layer.quantity_remaining ?? 0);
+        const initial = Number(layer.quantity_initial ?? layer.quantity ?? currentRemaining);
+        const restored = Math.min(initial, currentRemaining + Number(log.quantity_consumed || 0));
+        await db.inventory_layers.update(layer.id, {
+          quantity_remaining: restored,
+          lastModified: new Date().toISOString()
+        });
+      }
+    }
+    const logIds = logs.map((l: any) => l.id).filter(Boolean);
+    if (logIds.length > 0) {
+      await db.fifo_consumption_log.bulkDelete(logIds);
+    }
   }
 
   /**
-   * ON PURCHASE UNPOST: Remove the layer
-   * 🚨 REDIRECTED to UnifiedInventoryMutationEngine
+   * ON PURCHASE UNPOST: Remove purchase layers
    */
   static async removePurchaseLayer(reference_id: string): Promise<void> {
-    console.warn(`[LEGACY BYPASS] FIFOEngine.removePurchaseLayer called for ${reference_id}. Redirecting to canonical engine.`);
-    
-    await unifiedInventoryMutationEngine.executeReversal({
-      originalDocumentId: reference_id,
-      originalDocumentType: 'PURCHASE',
-      reason: `Legacy FIFO purchase removal for #${reference_id}`,
-      userId: 'system-fifo-adapter',
-      tenantId: 'TEN-DEV-001',
-      transactionUuid: `REMOVE-LAYER-${reference_id}-${Date.now()}`
-    });
+    const layers = await db.inventory_layers
+      .filter((l: any) => l.reference_id === reference_id || l.purchase_id === reference_id)
+      .toArray();
+
+    const layerIds = layers.map((l: any) => l.id).filter(Boolean);
+    if (layerIds.length > 0) {
+      await db.inventory_layers.bulkDelete(layerIds);
+    }
   }
 
   /**

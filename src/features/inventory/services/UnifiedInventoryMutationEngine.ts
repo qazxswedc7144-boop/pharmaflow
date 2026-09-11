@@ -673,8 +673,8 @@ export class UnifiedInventoryMutationEngine {
 
     // 8. Cost Calculation & FIFO Subsystem
     let resolvedUnitCost = unitCost ?? (product.costPrice || product.CostPrice || product.cost || 0);
-    const isInward = delta > 0 && ['PURCHASE', 'TRANSFER_IN', 'ADJUSTMENT', 'CORRECTION', 'RETURN', 'INITIAL'].includes(movementType);
-    const isOutward = delta < 0 && ['SALE', 'TRANSFER_OUT', 'ADJUSTMENT', 'CORRECTION', 'DAMAGE', 'RETURN'].includes(movementType);
+    const isInward = delta > 0 && ['PURCHASE', 'RECEIVE', 'TRANSFER_IN', 'ADJUSTMENT', 'CORRECTION', 'RETURN', 'INITIAL'].includes(movementType);
+    const isOutward = delta < 0 && ['SALE', 'DISPATCH', 'TRANSFER_OUT', 'ADJUSTMENT', 'CORRECTION', 'DAMAGE', 'RETURN'].includes(movementType);
 
     if (isInward) {
       try {

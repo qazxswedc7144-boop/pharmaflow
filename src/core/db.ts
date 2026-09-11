@@ -1769,7 +1769,6 @@ export const dbProxy = new Proxy({} as any, {
         if (isDbBlocked) {
           return operation ? await operation({} as any) : undefined;
         }
-        let opThrew = false;
         let thrownError: any = null;
         try {
           if (typeof (target as any)[prop] === 'function') {
@@ -1777,7 +1776,6 @@ export const dbProxy = new Proxy({} as any, {
               try {
                 return await modeOrOp(tx);
               } catch (e) {
-                opThrew = true;
                 thrownError = e;
                 throw e;
               }
@@ -1785,7 +1783,6 @@ export const dbProxy = new Proxy({} as any, {
               try {
                 return await op(tx);
               } catch (e) {
-                opThrew = true;
                 thrownError = e;
                 throw e;
               }
@@ -1796,12 +1793,7 @@ export const dbProxy = new Proxy({} as any, {
           }
           return operation ? await operation({} as any) : undefined;
         } catch (txErr) {
-          if (opThrew) {
-            throw thrownError;
-          }
-          console.warn("[DB Proxy] safeTransaction error, falling back to direct execution:", txErr);
-          isDbBlocked = true;
-          return operation ? await operation({} as any) : undefined;
+          throw thrownError || txErr;
         }
       };
     }

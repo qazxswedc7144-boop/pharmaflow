@@ -2,7 +2,6 @@
 import { db } from '@/core/db';
 import { StockMovement, Sale, Purchase, UnifiedInvoice } from '@/types';
 import { PeriodLockEngine } from '@/services/transactions/PeriodLockEngine';
-import { normalizeToISODate } from '@/utils/expiryUtils';
 import { unifiedInventoryMutationEngine } from './UnifiedInventoryMutationEngine';
 
 /**
@@ -143,40 +142,6 @@ export class StockMovementEngine {
         } else {
           // Purchase: Increase stock
           await this.recordPurchaseMovement(itemId, qty, price, invoiceId);
-
-          // Record pharmaceutical inventory batch
-          const rawExp = item.expiryDate || item.ExpiryDate || item.expiry_date || item.expirationDate;
-          const expDate = normalizeToISODate(String(rawExp || ''));
-          if (expDate || item.batchNumber || item.batchId) {
-            try {
-              const batchNum = String(item.batchNumber || item.batchId || (expDate ? `B-${expDate.replace(/[^0-9]/g, '')}` : `BATCH-${invoiceId.slice(-4)}`));
-              const batchId = item.batchId || `BATCH_${invoiceId}_${itemId}_${batchNum}`;
-              const existingBatch = await db.medicineBatches.get(batchId).catch(() => null);
-
-              const batchRecord = {
-                id: batchId,
-                batchId: batchNum,
-                batchNumber: batchNum,
-                productId: itemId,
-                quantity: existingBatch ? (existingBatch.quantity || 0) + qty : qty,
-                expiryDate: expDate || existingBatch?.expiryDate || '',
-                unitCost: price,
-                cost: price,
-                sourceInvoiceId: invoiceId,
-                reference_id: invoiceId,
-                tenantId: 'TEN-DEV-001',
-                tenant_id: 'TEN-DEV-001',
-                branchId: 'BR-MAIN',
-                branch_id: 'BR-MAIN',
-                created_at: existingBatch?.created_at || new Date().toISOString(),
-                updated_at: new Date().toISOString(),
-                lastModified: new Date().toISOString()
-              };
-              await db.medicineBatches.put(batchRecord);
-            } catch (batchErr) {
-              console.warn("Failed to persist medicine batch:", batchErr);
-            }
-          }
         }
       }
     }
