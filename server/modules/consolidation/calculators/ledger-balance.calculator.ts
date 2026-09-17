@@ -1,40 +1,51 @@
 // server/modules/consolidation/calculators/ledger-balance.calculator.ts
 // Single Source of Truth for General Ledger Account Aggregations
+//
+// ⚠️ STRICT MODE:
+//   - لا tolerance في التحقق من توازن ميزان المراجعة.
+//   - isTrialBalanceBalanced = (discrepancyMinor === 0n) فقط.
+//   - discrepancyMinor (BigInt) هو المرجع، discrepancyDisplay للعرض.
 
-import { FinancialMath } from "../financial-math";
-import { CONSOLIDATION_DEFAULTS } from "../consolidation.constants";
+import { FinancialMath } from '../financial-math';
+import { CONSOLIDATION_DEFAULTS } from '../consolidation.constants';
+
+// ─────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────
 
 export type LedgerAccountCategory =
-  | "CASH"
-  | "RECEIVABLE"
-  | "INVENTORY"
-  | "OTHER_CURRENT_ASSET"
-  | "NON_CURRENT_ASSET"
-  | "PAYABLE"
-  | "OTHER_CURRENT_LIABILITY"
-  | "NON_CURRENT_LIABILITY"
-  | "CAPITAL"
-  | "RETAINED_EARNINGS"
-  | "OTHER_EQUITY"
-  | "REVENUE"
-  | "COGS"
-  | "OPEX_SALARY"
-  | "OPEX_RENT"
-  | "OPEX_UTILITIES"
-  | "OPEX_MARKETING"
-  | "OPEX_TAX"
-  | "OPEX_OTHER";
+  | 'CASH'
+  | 'RECEIVABLE'
+  | 'INVENTORY'
+  | 'OTHER_CURRENT_ASSET'
+  | 'NON_CURRENT_ASSET'
+  | 'PAYABLE'
+  | 'OTHER_CURRENT_LIABILITY'
+  | 'NON_CURRENT_LIABILITY'
+  | 'CAPITAL'
+  | 'RETAINED_EARNINGS'
+  | 'OTHER_EQUITY'
+  | 'REVENUE'
+  | 'COGS'
+  | 'OPEX_SALARY'
+  | 'OPEX_RENT'
+  | 'OPEX_UTILITIES'
+  | 'OPEX_MARKETING'
+  | 'OPEX_TAX'
+  | 'OPEX_OTHER';
+
+export type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'REVENUE' | 'EXPENSE';
 
 export interface AccountLedgerSummary {
   accountId: string;
   code: string;
   name: string;
-  type: "ASSET" | "LIABILITY" | "EQUITY" | "REVENUE" | "EXPENSE";
+  type: AccountType;
   category: LedgerAccountCategory;
   debit: number;
   credit: number;
   netBalance: number;
-  balanceType: "DEBIT" | "CREDIT";
+  balanceType: 'DEBIT' | 'CREDIT';
   branchBreakdowns: {
     [branchId: string]: {
       branchName: string;
@@ -43,6 +54,21 @@ export interface AccountLedgerSummary {
       netBalance: number;
     };
   };
+}
+
+/** شكل السطر القادم من دفتر الأستاذ — بديل عن any[] */
+export interface RawJournalLine {
+  account?: {
+    id: string;
+    code: string;
+    name: string;
+    type: string;
+  } | null;
+  debit: unknown;
+  credit: unknown;
+  entry?: {
+    branchId?: string | null;
+  } | null;
 }
 
 export interface AggregatedLedgerState {
@@ -75,10 +101,14 @@ export interface AggregatedLedgerState {
   totalOPEX: number;
   rawNetIncome: number;
 
-  // Trial Balance Invariants
+  // Trial Balance Invariants — STRICT
   totalDebit: number;
   totalCredit: number;
+  /** true فقط إذا كان discrepancyMinor === 0n */
   isTrialBalanceBalanced: boolean;
+  /** الفرق الفعلي بوحدات هللة — المرجع الحقيقي للقرارات */
+  trialBalanceDiscrepancyMinor: bigint;
+  /** نفس القيمة للعرض فقط (بعد /100) */
   trialBalanceDiscrepancy: number;
 
   // Branch breakdowns
@@ -96,206 +126,209 @@ export interface AggregatedLedgerState {
   };
 }
 
+// ─────────────────────────────────────────────────────────────────
+// Calculator
+// ─────────────────────────────────────────────────────────────────
+
 export class LedgerBalanceCalculator {
   /**
-   * Classifies an account strictly based on its type, code, and standard name
+   * Classifies an account strictly based on its type, code, and standard name.
    */
   public static classifyAccount(
     type: string,
     code: string,
-    name: string
+    name: string,
   ): LedgerAccountCategory {
-    const normCode = (code || "").toUpperCase();
-    const normName = (name || "").toLowerCase();
+    const normCode = (code || '').toUpperCase();
+    const normName = (name || '').toLowerCase();
 
-    if (type === "ASSET") {
+    if (type === 'ASSET') {
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_CASH_PREFIX) ||
-        normCode === "ACC-101" ||
-        normCode === "ACC-104" ||
-        normName.includes("cash") ||
-        normName.includes("bank") ||
-        normName.includes("صندوق") ||
-        normName.includes("بنك") ||
-        normName.includes("نقد") ||
-        normName.includes("خزينة")
+        normCode === 'ACC-101' ||
+        normCode === 'ACC-104' ||
+        normName.includes('cash') ||
+        normName.includes('bank') ||
+        normName.includes('صندوق') ||
+        normName.includes('بنك') ||
+        normName.includes('نقد') ||
+        normName.includes('خزينة')
       ) {
-        return "CASH";
+        return 'CASH';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_RECEIVABLE_PREFIX) ||
-        normCode === "ACC-102" ||
-        normName.includes("receivable") ||
-        normName.includes("customer") ||
-        normName.includes("عملاء") ||
-        normName.includes("مدين")
+        normCode === 'ACC-102' ||
+        normName.includes('receivable') ||
+        normName.includes('customer') ||
+        normName.includes('عملاء') ||
+        normName.includes('مدين')
       ) {
-        return "RECEIVABLE";
+        return 'RECEIVABLE';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_INVENTORY_PREFIX) ||
-        normCode === "ACC-103" ||
-        normName.includes("inventory") ||
-        normName.includes("stock") ||
-        normName.includes("مخزون") ||
-        normName.includes("بضاعة")
+        normCode === 'ACC-103' ||
+        normName.includes('inventory') ||
+        normName.includes('stock') ||
+        normName.includes('مخزون') ||
+        normName.includes('بضاعة')
       ) {
-        return "INVENTORY";
+        return 'INVENTORY';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OTHER_CURRENT_ASSETS_PREFIX) ||
-        normCode.startsWith("13") ||
-        normCode.startsWith("14")
+        normCode.startsWith('13') ||
+        normCode.startsWith('14')
       ) {
-        return "OTHER_CURRENT_ASSET";
+        return 'OTHER_CURRENT_ASSET';
       }
 
-      return "NON_CURRENT_ASSET";
+      return 'NON_CURRENT_ASSET';
     }
 
-    if (type === "LIABILITY") {
+    if (type === 'LIABILITY') {
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_PAYABLE_PREFIX) ||
-        normCode === "ACC-201" ||
-        normName.includes("payable") ||
-        normName.includes("supplier") ||
-        normName.includes("مورد") ||
-        normName.includes("دائن")
+        normCode === 'ACC-201' ||
+        normName.includes('payable') ||
+        normName.includes('supplier') ||
+        normName.includes('مورد') ||
+        normName.includes('دائن')
       ) {
-        return "PAYABLE";
+        return 'PAYABLE';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OTHER_CURRENT_LIABILITIES_PREFIX) ||
-        normCode === "ACC-202" ||
-        normName.includes("vat") ||
-        normName.includes("tax") ||
-        normName.includes("ضريب") ||
-        normName.includes("أمانات") ||
-        normCode.startsWith("21") ||
-        normCode.startsWith("22")
+        normCode === 'ACC-202' ||
+        normName.includes('vat') ||
+        normName.includes('tax') ||
+        normName.includes('ضريب') ||
+        normName.includes('أمانات') ||
+        normCode.startsWith('21') ||
+        normCode.startsWith('22')
       ) {
-        return "OTHER_CURRENT_LIABILITY";
+        return 'OTHER_CURRENT_LIABILITY';
       }
 
-      return "NON_CURRENT_LIABILITY";
+      return 'NON_CURRENT_LIABILITY';
     }
 
-    if (type === "EQUITY") {
+    if (type === 'EQUITY') {
       if (
-        normCode === "ACC-302" ||
-        normCode.startsWith("302") ||
-        normName.includes("retained") ||
-        normName.includes("محتجز") ||
-        normName.includes("مبقاة")
+        normCode === 'ACC-302' ||
+        normCode.startsWith('302') ||
+        normName.includes('retained') ||
+        normName.includes('محتجز') ||
+        normName.includes('مبقاة')
       ) {
-        return "RETAINED_EARNINGS";
+        return 'RETAINED_EARNINGS';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_EQUITY_PREFIX) ||
-        normCode === "ACC-301" ||
-        normCode.startsWith("300") ||
-        normCode.startsWith("301") ||
-        normName.includes("capital") ||
-        normName.includes("equity") ||
-        normName.includes("رأس المال")
+        normCode === 'ACC-301' ||
+        normCode.startsWith('300') ||
+        normCode.startsWith('301') ||
+        normName.includes('capital') ||
+        normName.includes('equity') ||
+        normName.includes('رأس المال')
       ) {
-        return "CAPITAL";
+        return 'CAPITAL';
       }
 
-      return "OTHER_EQUITY";
+      return 'OTHER_EQUITY';
     }
 
-    if (type === "REVENUE") {
-      return "REVENUE";
-    }
+    if (type === 'REVENUE') return 'REVENUE';
 
-    if (type === "EXPENSE") {
+    if (type === 'EXPENSE') {
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_COGS_PREFIX) ||
-        normCode === "ACC-501" ||
-        normCode.startsWith("50") ||
-        normName.includes("cogs") ||
-        normName.includes("cost of goods") ||
-        normName.includes("تكلفة المبيعات") ||
-        normName.includes("تكلفة البضاعة")
+        normCode === 'ACC-501' ||
+        normCode.startsWith('50') ||
+        normName.includes('cogs') ||
+        normName.includes('cost of goods') ||
+        normName.includes('تكلفة المبيعات') ||
+        normName.includes('تكلفة البضاعة')
       ) {
-        return "COGS";
+        return 'COGS';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OPEX_SALARY_PREFIX) ||
-        normCode === "ACC-503" ||
-        normName.includes("salary") ||
-        normName.includes("wage") ||
-        normName.includes("رواتب") ||
-        normName.includes("أجور")
+        normCode === 'ACC-503' ||
+        normName.includes('salary') ||
+        normName.includes('wage') ||
+        normName.includes('رواتب') ||
+        normName.includes('أجور')
       ) {
-        return "OPEX_SALARY";
+        return 'OPEX_SALARY';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OPEX_RENT_PREFIX) ||
-        normCode === "ACC-504" ||
-        normName.includes("rent") ||
-        normName.includes("إيجار")
+        normCode === 'ACC-504' ||
+        normName.includes('rent') ||
+        normName.includes('إيجار')
       ) {
-        return "OPEX_RENT";
+        return 'OPEX_RENT';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OPEX_UTILITIES_PREFIX) ||
-        normName.includes("utilities") ||
-        normName.includes("electricity") ||
-        normName.includes("water") ||
-        normName.includes("كهرباء") ||
-        normName.includes("مياه") ||
-        normName.includes("مرافق")
+        normName.includes('utilities') ||
+        normName.includes('electricity') ||
+        normName.includes('water') ||
+        normName.includes('كهرباء') ||
+        normName.includes('مياه') ||
+        normName.includes('مرافق')
       ) {
-        return "OPEX_UTILITIES";
+        return 'OPEX_UTILITIES';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_OPEX_MARKETING_PREFIX) ||
-        normName.includes("marketing") ||
-        normName.includes("advertis") ||
-        normName.includes("تسويق") ||
-        normName.includes("إعلان")
+        normName.includes('marketing') ||
+        normName.includes('advertis') ||
+        normName.includes('تسويق') ||
+        normName.includes('إعلان')
       ) {
-        return "OPEX_MARKETING";
+        return 'OPEX_MARKETING';
       }
 
       if (
         normCode.startsWith(CONSOLIDATION_DEFAULTS.ACCOUNTS_TAX_PREFIX) ||
-        normName.includes("income tax") ||
-        normName.includes("tax expense") ||
-        normName.includes("ضريبة الدخل")
+        normName.includes('income tax') ||
+        normName.includes('tax expense') ||
+        normName.includes('ضريبة الدخل')
       ) {
-        return "OPEX_TAX";
+        return 'OPEX_TAX';
       }
 
-      return "OPEX_OTHER";
+      return 'OPEX_OTHER';
     }
 
-    return "OPEX_OTHER";
+    return 'OPEX_OTHER';
   }
 
   /**
-   * Aggregates all posted journal lines into structured account summaries
+   * Aggregates all posted journal lines into structured account summaries.
+   * التحقق النهائي من التوازن يستخدم BigInt — لا tolerance.
    */
   public static calculateAggregatedLedger(
-    journalLines: any[],
-    branches: Array<{ id: string; name: string }>
+    journalLines: RawJournalLine[],
+    branches: Array<{ id: string; name: string }>,
   ): AggregatedLedgerState {
-    const branchMap = new Map(branches.map(b => [b.id, b]));
+    const branchMap = new Map(branches.map((b) => [b.id, b]));
     const accountMap = new Map<string, AccountLedgerSummary>();
 
     // Initialize branch breakdown structure
-    const branchBreakdown: AggregatedLedgerState["branchBreakdown"] = {};
+    const branchBreakdown: AggregatedLedgerState['branchBreakdown'] = {};
     for (const b of branches) {
       branchBreakdown[b.id] = {
         branchName: b.name,
@@ -322,7 +355,7 @@ export class LedgerBalanceCalculator {
 
       if (!branchBreakdown[bId]) {
         branchBreakdown[bId] = {
-          branchName: branchMap.get(bId)?.name || "External Branch",
+          branchName: branchMap.get(bId)?.name || 'External Branch',
           assets: 0,
           liabilities: 0,
           equity: 0,
@@ -334,7 +367,7 @@ export class LedgerBalanceCalculator {
       }
 
       if (!accountMap.has(acct.id)) {
-        const branchBreakdowns: AccountLedgerSummary["branchBreakdowns"] = {};
+        const branchBreakdowns: AccountLedgerSummary['branchBreakdowns'] = {};
         for (const b of branches) {
           branchBreakdowns[b.id] = {
             branchName: b.name,
@@ -345,18 +378,18 @@ export class LedgerBalanceCalculator {
         }
 
         const category = this.classifyAccount(acct.type, acct.code, acct.name);
-        const isDebitNorm = acct.type === "ASSET" || acct.type === "EXPENSE";
+        const isDebitNorm = acct.type === 'ASSET' || acct.type === 'EXPENSE';
 
         accountMap.set(acct.id, {
           accountId: acct.id,
           code: acct.code,
           name: acct.name,
-          type: acct.type,
+          type: acct.type as AccountType,
           category,
           debit: 0,
           credit: 0,
           netBalance: 0,
-          balanceType: isDebitNorm ? "DEBIT" : "CREDIT",
+          balanceType: isDebitNorm ? 'DEBIT' : 'CREDIT',
           branchBreakdowns,
         });
       }
@@ -367,21 +400,29 @@ export class LedgerBalanceCalculator {
 
       if (!summary.branchBreakdowns[bId]) {
         summary.branchBreakdowns[bId] = {
-          branchName: branchMap.get(bId)?.name || "External Branch",
+          branchName: branchMap.get(bId)?.name || 'External Branch',
           debit: 0,
           credit: 0,
           netBalance: 0,
         };
       }
 
-      summary.branchBreakdowns[bId].debit = FinancialMath.add(summary.branchBreakdowns[bId].debit, deb);
-      summary.branchBreakdowns[bId].credit = FinancialMath.add(summary.branchBreakdowns[bId].credit, cred);
+      summary.branchBreakdowns[bId].debit = FinancialMath.add(
+        summary.branchBreakdowns[bId].debit,
+        deb,
+      );
+      summary.branchBreakdowns[bId].credit = FinancialMath.add(
+        summary.branchBreakdowns[bId].credit,
+        cred,
+      );
 
       totalDebit = FinancialMath.add(totalDebit, deb);
       totalCredit = FinancialMath.add(totalCredit, cred);
     }
 
+    // ─────────────────────────────────────────────────────────
     // Compute net balances and categorize
+    // ─────────────────────────────────────────────────────────
     let cashTotal = 0;
     let arTotal = 0;
     let inventoryLedgerTotal = 0;
@@ -407,7 +448,7 @@ export class LedgerBalanceCalculator {
     let otherExpense = 0;
 
     for (const acct of accountMap.values()) {
-      const isDebitPref = acct.balanceType === "DEBIT";
+      const isDebitPref = acct.balanceType === 'DEBIT';
       const net = isDebitPref
         ? FinancialMath.sub(acct.debit, acct.credit)
         : FinancialMath.sub(acct.credit, acct.debit);
@@ -425,17 +466,17 @@ export class LedgerBalanceCalculator {
 
         const brGlobal = branchBreakdown[bId];
         if (brGlobal) {
-          if (acct.type === "ASSET") {
+          if (acct.type === 'ASSET') {
             brGlobal.assets = FinancialMath.add(brGlobal.assets, br.netBalance);
-          } else if (acct.type === "LIABILITY") {
+          } else if (acct.type === 'LIABILITY') {
             brGlobal.liabilities = FinancialMath.add(brGlobal.liabilities, br.netBalance);
-          } else if (acct.type === "EQUITY") {
+          } else if (acct.type === 'EQUITY') {
             brGlobal.equity = FinancialMath.add(brGlobal.equity, br.netBalance);
-          } else if (acct.type === "REVENUE") {
+          } else if (acct.type === 'REVENUE') {
             brGlobal.revenue = FinancialMath.add(brGlobal.revenue, br.netBalance);
             brGlobal.netIncome = FinancialMath.add(brGlobal.netIncome, br.netBalance);
-          } else if (acct.type === "EXPENSE") {
-            if (acct.category === "COGS") {
+          } else if (acct.type === 'EXPENSE') {
+            if (acct.category === 'COGS') {
               brGlobal.cogs = FinancialMath.add(brGlobal.cogs, br.netBalance);
             } else {
               brGlobal.opex = FinancialMath.add(brGlobal.opex, br.netBalance);
@@ -447,78 +488,92 @@ export class LedgerBalanceCalculator {
 
       // Group totals by category
       switch (acct.category) {
-        case "CASH":
+        case 'CASH':
           cashTotal = FinancialMath.add(cashTotal, net);
           break;
-        case "RECEIVABLE":
+        case 'RECEIVABLE':
           arTotal = FinancialMath.add(arTotal, net);
           break;
-        case "INVENTORY":
+        case 'INVENTORY':
           inventoryLedgerTotal = FinancialMath.add(inventoryLedgerTotal, net);
           break;
-        case "OTHER_CURRENT_ASSET":
+        case 'OTHER_CURRENT_ASSET':
           otherCurrentAssets = FinancialMath.add(otherCurrentAssets, net);
           break;
-        case "NON_CURRENT_ASSET":
+        case 'NON_CURRENT_ASSET':
           nonCurrentAssets = FinancialMath.add(nonCurrentAssets, net);
           break;
 
-        case "PAYABLE":
+        case 'PAYABLE':
           apTotal = FinancialMath.add(apTotal, net);
           break;
-        case "OTHER_CURRENT_LIABILITY":
+        case 'OTHER_CURRENT_LIABILITY':
           otherCurrentLiabilities = FinancialMath.add(otherCurrentLiabilities, net);
           break;
-        case "NON_CURRENT_LIABILITY":
+        case 'NON_CURRENT_LIABILITY':
           nonCurrentLiabilities = FinancialMath.add(nonCurrentLiabilities, net);
           break;
 
-        case "CAPITAL":
+        case 'CAPITAL':
           shareCapital = FinancialMath.add(shareCapital, net);
           break;
-        case "RETAINED_EARNINGS":
+        case 'RETAINED_EARNINGS':
           retainedEarnings = FinancialMath.add(retainedEarnings, net);
           hasExplicitRetainedEarningsAccount = true;
           break;
-        case "OTHER_EQUITY":
+        case 'OTHER_EQUITY':
           otherEquity = FinancialMath.add(otherEquity, net);
           break;
 
-        case "REVENUE":
+        case 'REVENUE':
           rawRevenue = FinancialMath.add(rawRevenue, net);
           break;
-        case "COGS":
+        case 'COGS':
           rawCOGS = FinancialMath.add(rawCOGS, net);
           break;
-        case "OPEX_SALARY":
+        case 'OPEX_SALARY':
           salaryExpense = FinancialMath.add(salaryExpense, net);
           break;
-        case "OPEX_RENT":
+        case 'OPEX_RENT':
           rentExpense = FinancialMath.add(rentExpense, net);
           break;
-        case "OPEX_UTILITIES":
+        case 'OPEX_UTILITIES':
           utilitiesExpense = FinancialMath.add(utilitiesExpense, net);
           break;
-        case "OPEX_MARKETING":
+        case 'OPEX_MARKETING':
           marketingExpense = FinancialMath.add(marketingExpense, net);
           break;
-        case "OPEX_TAX":
+        case 'OPEX_TAX':
           taxExpense = FinancialMath.add(taxExpense, net);
           break;
-        case "OPEX_OTHER":
+        case 'OPEX_OTHER':
           otherExpense = FinancialMath.add(otherExpense, net);
           break;
       }
     }
 
-    const totalOPEX = FinancialMath.add(salaryExpense, rentExpense, utilitiesExpense, marketingExpense, otherExpense);
+    const totalOPEX = FinancialMath.add(
+      salaryExpense,
+      rentExpense,
+      utilitiesExpense,
+      marketingExpense,
+      otherExpense,
+    );
     const rawNetIncome = FinancialMath.sub(
       FinancialMath.sub(rawRevenue, rawCOGS),
-      FinancialMath.add(totalOPEX, taxExpense)
+      FinancialMath.add(totalOPEX, taxExpense),
     );
 
-    const isTrialBalanceBalanced = FinancialMath.isBalanced(totalDebit, totalCredit, 0.01);
-    const trialBalanceDiscrepancy = FinancialMath.discrepancy(totalDebit, totalCredit);
+    // ─────────────────────────────────────────────────────────
+    // ⚠️ STRICT INVARIANT: totalDebit === totalCredit بالضبط
+    // ─────────────────────────────────────────────────────────
+    // ❌ محذوف: tolerance 0.01 — كان يقبل سرقة هللة بصمت
+    // ✅ الآن: BigInt minor units — صفر أو فشل
+    const trialBalanceDiscrepancyMinor = FinancialMath.discrepancyMinor(
+      totalDebit,
+      totalCredit,
+    );
+    const isTrialBalanceBalanced = trialBalanceDiscrepancyMinor === 0n;
 
     return {
       accounts: Array.from(accountMap.values()),
@@ -548,8 +603,9 @@ export class LedgerBalanceCalculator {
       totalDebit,
       totalCredit,
       isTrialBalanceBalanced,
-      trialBalanceDiscrepancy,
+      trialBalanceDiscrepancyMinor,
+      trialBalanceDiscrepancy: Number(trialBalanceDiscrepancyMinor) / 100,
       branchBreakdown,
     };
   }
-}
+      }
